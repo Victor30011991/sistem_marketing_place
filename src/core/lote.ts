@@ -1,5 +1,5 @@
 import Decimal from 'decimal.js';
-import type { Lote, LoteItem, Product } from '../types';
+import type { Lote, LoteItem, Product, RegraPreco } from '../types';
 import { roundCents } from './money';
 import { convertQty, familyOf } from './units';
 import { norm, newId } from './normalize';
@@ -221,10 +221,27 @@ export function sugerirCategoria(ncm: string, existentes: string[], nome = ''): 
 
 // ---------- aplicar o lote ----------
 
+export const REGRA_PADRAO: RegraPreco = { modo: 'multiplicador', fator: 2, passo: 50 };
+
+/** Arredonda para o múltiplo mais próximo do passo (R$ 52,34 com passo de R$ 0,50 = R$ 52,50). */
+export function arredondar(cents: number, passo: number): number {
+  if (!(passo > 1)) return Math.round(cents);
+  return Math.round(cents / passo) * passo;
+}
+
+/** Preço pelo multiplicador: custo × fator, arredondado. Em produto por grama, arredonda o preço do quilo. */
+export function precoMultiplicador(custo: number, unidade: string, r: RegraPreco): number {
+  const bruto = D(custo).times(r.fator);
+  if (unidade === 'g') return D(arredondar(bruto.times(1000).toNumber(), r.passo)).div(1000).toDecimalPlaces(4).toNumber();
+  return arredondar(bruto.toNumber(), r.passo);
+}
+
 export interface LinhaPrevia {
   itemId: string;
   nome: string;
   novo: boolean;
+  vendaAntes?: number | null;
+  vendaDepois?: number | null;
   unidade: string;
   qtd: number;
   custoAntes: number | null;
@@ -247,8 +264,11 @@ export interface ResultadoLote {
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
 
-/** Calcula (sem alterar nada) como ficam produtos, custos e estoque depois do lote. */
-export function aplicarLote(l: Lote, produtos: Product[], categorias: string[]): ResultadoLote {
+/**
+ * Calcula (sem alterar nada) como ficam produtos, custos, estoque e preços depois do lote.
+ * `sugerido` dá o preço pela margem do sistema (usado quando a regra do lote é "sugerido").
+ */
+export function aplicarLote(l: Lote, produtos: Product[], categorias: string[], sugerido?: (p: Product) => number | null): ResultadoLote {
   const calc = calcularLote(l);
   const porId = new Map(produtos.map((p) => [p.id, p]));
   const novos: Product[] = [];
@@ -314,6 +334,27 @@ export function aplicarLote(l: Lote, produtos: Product[], categorias: string[]):
     linhas.push({ ...base, novo: true, unidade, qtd: q, custoAntes: null, custoDepois: custo, estoqueAntes: null, estoqueDepois: r3(q), variacaoPct: null });
   });
 
+  // preço de venda pela regra do lote
+  const regra = l.preco ?? { ...REGRA_PADRAO, modo: 'manter' as const };
+  const precoDe = (p: Product): number | null => {
+    if (regra.modo === 'manter' || p.custo == null) return p.venda;
+    if (regra.modo === 'multiplicador') return regra.fator > 0 ? precoMultiplicador(p.custo, p.unidade, regra) : p.venda;
+    const s = sugerido?.(p);
+    return s != null ? arredondar(s, p.unidade === 'g' ? 1 : regra.passo) : p.venda;
+  };
+  for (const [id, p] of mudados) mudados.set(id, { ...p, venda: precoDe(p) });
+  for (let i = 0; i < novos.length; i++) novos[i] = { ...novos[i], venda: precoDe(novos[i]) };
+  const vendaOriginal = new Map(produtos.map((p) => [p.id, p.venda]));
+  const finalPorNome = new Map(novos.map((p) => [norm(p.nome) + '|' + p.unidade, p]));
+  for (const ln of linhas) {
+    if (ln.problema) continue;
+    const it = l.itens.find((x) => x.id === ln.itemId);
+    if (!it) continue;
+    const prod = it.produtoId ? mudados.get(it.produtoId) : finalPorNome.get(norm(it.nome.trim()) + '|' + ln.unidade);
+    ln.vendaAntes = it.produtoId ? vendaOriginal.get(it.produtoId) ?? null : null;
+    ln.vendaDepois = prod?.venda ?? null;
+  }
+
   const atualizadosIds = new Set(mudados.keys());
   return {
     produtos: [...produtos.map((p) => mudados.get(p.id) ?? p), ...novos],
@@ -325,8 +366,8 @@ export function aplicarLote(l: Lote, produtos: Product[], categorias: string[]):
   };
 }
 
-export function loteVazio(): Lote {
-  return { id: newId(), data: new Date().toISOString().slice(0, 10), fornecedor: '', numero: '', frete: 0, juros: 0, outras: 0, desconto: 0, rateio: 'peso', custo: 'medio', itens: [] };
+export function loteVazio(preco: RegraPreco = REGRA_PADRAO): Lote {
+  return { id: newId(), data: new Date().toISOString().slice(0, 10), fornecedor: '', numero: '', frete: 0, juros: 0, outras: 0, desconto: 0, rateio: 'peso', custo: 'medio', itens: [], preco: { ...preco } };
 }
 
 export function itemVazio(): LoteItem {
