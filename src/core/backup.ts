@@ -114,6 +114,14 @@ function lerLote(raw: unknown): Lote | null {
     itens,
   };
   if (typeof raw.aplicadoEm === 'string') l.aplicadoEm = raw.aplicadoEm;
+  if (isObj(raw.preco)) {
+    const r = raw.preco;
+    l.preco = {
+      modo: r.modo === 'multiplicador' || r.modo === 'sugerido' ? r.modo : 'manter',
+      fator: num(r.fator) != null && (r.fator as number) > 0 ? (r.fator as number) : 2,
+      passo: [1, 10, 50, 100].includes(r.passo as number) ? (r.passo as number) : 50,
+    };
+  }
   return l;
 }
 
