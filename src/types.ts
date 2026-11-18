@@ -131,8 +131,20 @@ export interface Lote {
   /** como o custo do produto é atualizado: custo médio com o estoque atual ou custo da última compra */
   custo: 'medio' | 'ultimo';
   itens: LoteItem[];
+  /** como o preço de venda dos produtos da nota é definido (opcional; lotes antigos não têm) */
+  preco?: RegraPreco;
   /** ISO; só existe depois de aplicado ao estoque e aos custos */
   aplicadoEm?: string;
+}
+
+/** Regra de preço de venda aplicada aos produtos de um lote. */
+export interface RegraPreco {
+  /** manter: não mexe no preço · multiplicador: custo real × fator, arredondado · sugerido: preço pela margem do sistema */
+  modo: 'manter' | 'multiplicador' | 'sugerido';
+  /** ex.: 2 = custo × 2 */
+  fator: number;
+  /** arredondamento em centavos: 1 (nenhum), 10, 50 ou 100 */
+  passo: number;
 }
 
 /** Um item vendido no PDV. Os valores ficam gravados como estavam na hora da venda. */
