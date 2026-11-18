@@ -13,6 +13,9 @@ import { DEFAULT_UPDATE_FIELDS, UPDATABLE_LABELS, applyPlan, buildPlan, type Cla
 import type { ConfigPayload, SheetData } from '../export/excel';
 import type { ColumnTarget } from '../types';
 import { XLSX_MIME } from '../export/useSave';
+import { lerNFeXml, lerTextoNota, type NotaLida } from '../core/nota';
+import { lancarNota } from './Lotes';
+import { formatBRL } from '../core/money';
 
 interface Loaded {
   nome: string;
@@ -77,6 +80,19 @@ export default function Importar() {
     setConferido(false);
   }
 
+  async function perguntarNota(n: NotaLida): Promise<boolean> {
+    const total = n.itens.reduce((a, i) => a + i.valor - i.desconto, 0) + n.frete + n.outras - n.desconto;
+    return confirm({
+      titulo: 'Isto é uma nota de compra?',
+      confirmar: 'Sim, lançar como compra',
+      mensagem: (
+        <p>
+          Encontrei uma nota{n.fornecedor ? <> de <strong>{n.fornecedor}</strong></> : ''} com <strong>{n.itens.length} itens</strong>, total de <strong>{formatBRL(total)}</strong>. Lançando como compra, o sistema pergunta o frete, a guia de imposto, os juros e a regra de preço, e depois soma ao estoque.
+        </p>
+      ),
+    });
+  }
+
   async function carregar(file: File | undefined) {
     if (!file) return;
     setErro(null);
@@ -86,6 +102,18 @@ export default function Importar() {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
       if (file.size > 25 * 1024 * 1024) throw new Error('O arquivo é muito grande (mais de 25 MB). Divida a lista em partes menores.');
       const buf = await file.arrayBuffer();
+      // nota de compra (XML da NF-e ou texto copiado do PDF): pergunta e abre em Lotes de compra
+      if (ext === 'xml' || ext === 'txt') {
+        const texto = decodeText(buf);
+        const nota = ext === 'xml' ? lerNFeXml(texto) : /DANFE|NF-e|NOTA FISCAL/i.test(texto) ? lerTextoNota(texto) : null;
+        if (ext === 'xml' && nota && !nota.ok) throw new Error(nota.motivo);
+        if (nota && nota.ok && (await perguntarNota(nota))) {
+          lancarNota(nota, ext === 'xml' ? 'XML da nota' : 'Texto da nota');
+          nav('/lotes');
+          return;
+        }
+        if (ext === 'xml') return;
+      }
       let loaded: Loaded;
       if (ext === 'xlsx' || ext === 'xlsm') {
         const { readWorkbook } = await import('../export/excel');
@@ -98,7 +126,7 @@ export default function Importar() {
       } else if (ext === 'xls') {
         throw new Error('O formato antigo .xls não é suportado. No Excel, use “Salvar como” e escolha .xlsx (ou CSV).');
       } else {
-        throw new Error('Formato não suportado. Use arquivos .xlsx, .csv ou .txt.');
+        throw new Error('Formato não suportado. Use arquivos .xlsx, .csv, .txt ou o .xml da nota fiscal.');
       }
       const best = loaded.sheets.map((s, i) => ({ i, score: sheetScore(s.rows) })).sort((a, b) => b.score - a.score)[0];
       setArq(loaded);
@@ -273,7 +301,7 @@ export default function Importar() {
           <Button onClick={() => inputRef.current?.click()} disabled={busy} icon="file">
             Escolher arquivo
           </Button>
-          <input ref={inputRef} type="file" accept=".xlsx,.xlsm,.csv,.txt,.tsv" hidden onChange={(e) => { carregar(e.target.files?.[0]); e.target.value = ''; }} />
+          <input ref={inputRef} type="file" accept=".xlsx,.xlsm,.csv,.txt,.tsv,.xml" hidden onChange={(e) => { carregar(e.target.files?.[0]); e.target.value = ''; }} />
           <ul className="drop-notes">
             <li>Só a tabela de produtos entra. Título, logo, endereço, telefone, rodapé e totais são ignorados.</li>
             <li>Nada é excluído e nada é sobrescrito sem você marcar.</li>
