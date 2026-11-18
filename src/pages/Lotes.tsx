@@ -1,20 +1,25 @@
-import { Fragment, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import { Button, Empty, Field, MoneyInput, Notice, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
-import { aplicarLote, calcularLote, itemVazio, loteVazio, sugerirCategoria, sugerirProduto } from '../core/lote';
+import { aplicarLote, calcularLote, itemVazio, loteVazio, REGRA_PADRAO, sugerirCategoria, sugerirProduto } from '../core/lote';
+import { suggestedCents } from '../core/pricing';
 import { lerNFeXml, lerTextoNota, type NotaLida } from '../core/nota';
 import { formatBRL, parseNumberBR } from '../core/money';
 import { norm } from '../core/normalize';
-import type { Lote, LoteItem, Product } from '../types';
+import type { Lote, LoteItem, Product, RegraPreco } from '../types';
 
 const UNIDADES = ['kg', 'g', 'pacote', 'caixa', 'frasco', 'L', 'ml', 'un'];
 
 // o rascunho sobrevive quando a pessoa troca de tela (some ao fechar a página)
 let rascunho: Lote | null = null;
 let avisosRascunho: string[] = [];
+// nota que chegou pelo "Importar arquivo" e deve abrir já preenchida aqui
+let notaPendente: { nota: NotaLida; origem: string } | null = null;
+export function lancarNota(nota: NotaLida, origem: string) {
+  notaPendente = { nota, origem };
+}
 
 const dataBR = (iso: string) => (/^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10).split('-').reverse().join('/') : iso || '—');
 const qtdTxt = (n: number) => String(Number(n.toFixed(3))).replace('.', ',');
@@ -54,7 +59,10 @@ export default function Lotes() {
   const { state, act } = useApp();
   const { toast, confirm } = useFeedback();
   const { lista, config } = state;
-  const [lote, setLoteBruto] = useState<Lote>(() => rascunho ?? loteVazio());
+  // a regra de preço da última nota fica lembrada para a próxima
+  const regraLembrada: RegraPreco = config.lotes?.[0]?.preco ?? REGRA_PADRAO;
+  const novoLote = () => loteVazio(regraLembrada);
+  const [lote, setLoteBruto] = useState<Lote>(() => rascunho ?? novoLote());
   const [avisos, setAvisos] = useState<string[]>(avisosRascunho);
   const [colar, setColar] = useState('');
   const [mostrarColar, setMostrarColar] = useState(false);
@@ -74,7 +82,9 @@ export default function Lotes() {
   const produtosOrd = useMemo(() => [...lista.produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')), [lista.produtos]);
   const porId = useMemo(() => new Map(lista.produtos.map((p) => [p.id, p])), [lista.produtos]);
   const calc = useMemo(() => calcularLote(lote), [lote]);
-  const previa = useMemo(() => aplicarLote(lote, lista.produtos, lista.categorias), [lote, lista.produtos, lista.categorias]);
+  const previa = useMemo(() => aplicarLote(lote, lista.produtos, lista.categorias, (p) => suggestedCents(p, config)), [lote, lista.produtos, lista.categorias, config]);
+  const regra = lote.preco ?? { ...REGRA_PADRAO, modo: 'manter' as const };
+  const mudarRegra = (patch: Partial<RegraPreco>) => mudar({ preco: { ...regra, ...patch } });
   const jaAplicado = (config.lotes ?? []).find((l) => l.numero && l.numero === lote.numero.trim() && norm(l.fornecedor) === norm(lote.fornecedor));
 
   // ---------- entrada da nota ----------
@@ -83,7 +93,7 @@ export default function Lotes() {
       const s = sugerirProduto(it.nome, lista.produtos);
       return { ...it, produtoId: s ? s.id : null, categoria: s ? '' : sugerirCategoria(it.ncm, lista.categorias, it.nome) };
     });
-    const l: Lote = { ...loteVazio(), fornecedor: nota.fornecedor, numero: nota.numero, data: nota.data || new Date().toISOString().slice(0, 10), frete: nota.frete, desconto: nota.desconto, outras: nota.outras, itens };
+    const l: Lote = { ...novoLote(), fornecedor: nota.fornecedor, numero: nota.numero, data: nota.data || new Date().toISOString().slice(0, 10), frete: nota.frete, desconto: nota.desconto, outras: nota.outras, itens };
     rascunho = l;
     avisosRascunho = nota.avisos;
     setLoteBruto(l);
@@ -91,6 +101,14 @@ export default function Lotes() {
     const ligados = itens.filter((i) => i.produtoId).length;
     toast(`${origem}: ${itens.length} itens lidos, ${ligados} já ligados a produtos seus. Confira a tabela antes de aplicar.`);
   }
+
+  useEffect(() => {
+    if (!notaPendente) return;
+    const n = notaPendente;
+    notaPendente = null;
+    receber(n.nota, n.origem);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function lerArquivo(file: File | undefined) {
     if (!file) return;
@@ -118,7 +136,7 @@ export default function Lotes() {
     rascunho = null;
     avisosRascunho = [];
     setAvisos([]);
-    setLoteBruto(loteVazio());
+    setLoteBruto(novoLote());
   }
 
   // ---------- aplicar ----------
@@ -134,7 +152,7 @@ export default function Lotes() {
       mensagem: (
         <>
           <p>
-            Vão ser atualizados <strong>{previa.atualizados}</strong> produto(s) e criados <strong>{previa.novos}</strong> novo(s). O estoque soma as quantidades da nota e o custo passa a incluir frete e demais despesas.
+            Vão ser atualizados <strong>{previa.atualizados}</strong> produto(s) e criados <strong>{previa.novos}</strong> novo(s). O estoque soma as quantidades da nota, o custo passa a incluir frete e despesas{regra.modo !== 'manter' ? ' e o preço de venda segue a regra escolhida' : ''}.
             {subiram > 0 && <> O custo sobe em {subiram} produto(s): revise os preços de venda depois.</>}
           </p>
           {previa.ignorados > 0 && <p>{previa.ignorados} item(ns) com problema ficam de fora.</p>}
@@ -151,8 +169,8 @@ export default function Lotes() {
     rascunho = null;
     avisosRascunho = [];
     setAvisos([]);
-    setLoteBruto(loteVazio());
-    toast(previa.novos > 0 ? `Lote aplicado. ${previa.novos} produto(s) novo(s) estão sem preço de venda: abra Precificação e use “Ver sugestões para todos os produtos”.` : `Lote aplicado: ${previa.atualizados} produto(s) atualizado(s). Confira os preços em Precificação.`);
+    setLoteBruto(novoLote());
+    toast(regra.modo === 'manter' && previa.novos > 0 ? `Lote aplicado. ${previa.novos} produto(s) novo(s) estão sem preço de venda: defina em Produtos ou Precificação.` : `Lote aplicado: ${previa.atualizados} atualizado(s), ${previa.novos} novo(s), com estoque, custo e preço.`);
   }
 
   async function excluirRegistro(l: Lote) {
@@ -221,9 +239,9 @@ export default function Lotes() {
             </Notice>
           ))}
 
-          <section className="card">
+          <section className="card lote-passo">
             <div className="card-head">
-              <h2>Dados da compra</h2>
+              <h2>1. Confira a nota</h2>
               <Button variant="ghost" icon="x" onClick={descartar}>
                 Descartar lote
               </Button>
@@ -232,33 +250,52 @@ export default function Lotes() {
               <Field label="Fornecedor">{(id) => <input id={id} value={lote.fornecedor} onChange={(e) => mudar({ fornecedor: e.target.value })} />}</Field>
               <Field label="Nº da nota">{(id) => <input id={id} value={lote.numero} onChange={(e) => mudar({ numero: e.target.value })} inputMode="numeric" />}</Field>
               <Field label="Data">{(id) => <input id={id} type="date" value={lote.data} onChange={(e) => mudar({ data: e.target.value })} />}</Field>
-              <Field label="Frete" hint="Valor do frete da nota.">
-                {(id) => <MoneyInput id={id} value={lote.frete || null} onChange={(v) => mudar({ frete: v ?? 0 })} />}
-              </Field>
-              <Field label="Juros" hint="Se comprou parcelado ou a prazo.">
-                {(id) => <MoneyInput id={id} value={lote.juros || null} onChange={(v) => mudar({ juros: v ?? 0 })} />}
-              </Field>
-              <Field label="Impostos e outras despesas" hint="Imposto de entrada, taxas, seguro…">
-                {(id) => <MoneyInput id={id} value={lote.outras || null} onChange={(v) => mudar({ outras: v ?? 0 })} />}
-              </Field>
               <Field label="Desconto da nota" hint="Só o que não está nos itens.">
                 {(id) => <MoneyInput id={id} value={lote.desconto || null} onChange={(v) => mudar({ desconto: v ?? 0 })} />}
               </Field>
-              <Field label="Dividir o frete por" hint={calc.metodo === 'valor' && lote.rateio === 'peso' ? 'Caiu para valor: há item sem peso.' : 'Peso é o mais justo para o frete. Juros, impostos e desconto são sempre divididos pelo valor.'}>
+            </div>
+            <p className="muted small">Total desta nota pelo sistema: <strong>{formatBRL(calc.totais.total)}</strong>. Confira se bate com o “Valor total da nota”.</p>
+          </section>
+
+          <section className="card lote-passo">
+            <h2>2. Frete</h2>
+            <div className="lote-cab">
+              <Field label="Valor do frete" hint="Já vem da nota. Some aqui se pagou outro frete por fora.">
+                {(id) => <MoneyInput id={id} value={lote.frete || null} onChange={(v) => mudar({ frete: v ?? 0 })} />}
+              </Field>
+              <Field label="Dividir o frete por" hint={calc.metodo === 'valor' && lote.rateio === 'peso' ? 'Caiu para valor: há item sem peso.' : 'Por quilo: cada kg recebe a mesma parte do frete.'}>
                 {(id) => (
                   <select id={id} value={lote.rateio} onChange={(e) => mudar({ rateio: e.target.value as Lote['rateio'] })}>
-                    <option value="peso">Peso (kg)</option>
+                    <option value="peso">Quilo (recomendado)</option>
                     <option value="valor">Valor de cada item</option>
                   </select>
                 )}
               </Field>
-              <Field label="Custo do produto fica" hint="Médio mistura o estoque que você já tem com esta compra.">
-                {(id) => (
-                  <select id={id} value={lote.custo} onChange={(e) => mudar({ custo: e.target.value as Lote['custo'] })}>
-                    <option value="medio">Custo médio (com o estoque)</option>
-                    <option value="ultimo">Custo desta compra</option>
-                  </select>
-                )}
+            </div>
+            {calc.totais.kg != null && lote.frete > 0 && (
+              <p className="muted small">
+                {formatBRL(lote.frete)} ÷ {qtdTxt(calc.totais.kg)} kg = <strong>{formatBRL(Math.round(lote.frete / calc.totais.kg))} por kg</strong> de frete em cada produto.
+              </p>
+            )}
+          </section>
+
+          <section className="card lote-passo">
+            <h2>3. Imposto pago por fora</h2>
+            <Notice tone="warn">
+              O <strong>ICMS, PIS e COFINS que aparecem na nota já estão no preço</strong> dos produtos. Não some de novo: isso deixa o custo e o preço mais altos do que deveriam.
+            </Notice>
+            <div className="lote-cab">
+              <Field label="Guia de imposto paga por esta compra" hint="Ex.: guia de ICMS (antecipação ou diferencial de alíquota). Deixe vazio se não pagou.">
+                {(id) => <MoneyInput id={id} value={lote.outras || null} onChange={(v) => mudar({ outras: v ?? 0 })} />}
+              </Field>
+            </div>
+          </section>
+
+          <section className="card lote-passo">
+            <h2>4. Juros</h2>
+            <div className="lote-cab">
+              <Field label="Juros da compra" hint="Se comprou a prazo ou parcelado. À vista: deixe vazio.">
+                {(id) => <MoneyInput id={id} value={lote.juros || null} onChange={(v) => mudar({ juros: v ?? 0 })} />}
               </Field>
             </div>
           </section>
@@ -266,14 +303,14 @@ export default function Lotes() {
           <section className="card">
             <div className="card-head">
               <h2>
-                Itens da nota <span className="muted small">· {lote.itens.length}</span>
+                5. Produtos <span className="muted small">· {lote.itens.length} itens na nota</span>
               </h2>
               <Button variant="secondary" icon="plus" onClick={novoItem}>
                 Adicionar item
               </Button>
             </div>
             <p className="muted small">
-              Ligue cada item ao produto certo. {novos > 0 && <>Os {novos} sem produto serão <strong>criados</strong> com o custo real, e você define o preço depois.</>} O custo real inclui a parte do frete de cada item.
+              Confira o produto de cada item e corrija só os errados. Para juntar itens num produto só (ex.: as argilas), escolha o mesmo produto neles. {novos > 0 && <>Os {novos} sem produto serão <strong>criados</strong> com o custo real, e você define o preço depois.</>} O custo real inclui a parte do frete de cada item.
             </p>
             <div className="table-scroll">
               <table className="table lote-table">
@@ -369,66 +406,108 @@ export default function Lotes() {
             </datalist>
           </section>
 
-          <section className="card">
-            <h2>Resumo do lote</h2>
-            <dl className="lote-resumo">
-              <div><dt>Produtos</dt><dd>{formatBRL(calc.totais.produtos)}</dd></div>
-              {calc.totais.descontoItens + calc.totais.descontoNota > 0 && <div><dt>Descontos</dt><dd>− {formatBRL(calc.totais.descontoItens + calc.totais.descontoNota)}</dd></div>}
-              {calc.totais.frete > 0 && <div><dt>Frete</dt><dd>+ {formatBRL(calc.totais.frete)}</dd></div>}
-              {calc.totais.juros > 0 && <div><dt>Juros</dt><dd>+ {formatBRL(calc.totais.juros)}</dd></div>}
-              {calc.totais.outras > 0 && <div><dt>Impostos e outras despesas</dt><dd>+ {formatBRL(calc.totais.outras)}</dd></div>}
-              <div className="total"><dt>Total do lote</dt><dd>{formatBRL(calc.totais.total)}</dd></div>
-              {calc.totais.kg != null && <div><dt>Peso</dt><dd>{qtdTxt(calc.totais.kg)} kg</dd></div>}
-              <div><dt>Custos extras sobre os produtos</dt><dd>{String(calc.totais.extrasPct).replace('.', ',')}%</dd></div>
-            </dl>
-            {lote.numero && <p className="muted small">Confira se o total bate com o “Valor total da nota”: {formatBRL(calc.totais.total)}.</p>}
+          <section className="card lote-passo">
+            <h2>6. Preço de venda</h2>
+            <div className="lote-regra" role="radiogroup" aria-label="Como definir o preço de venda">
+              {(
+                [
+                  ['multiplicador', 'Custo real × número', 'O seu jeito: ex. custo × 2, arredondado.'],
+                  ['sugerido', 'Pela margem do sistema', 'Usa custos fixos, taxas e margem da Precificação.'],
+                  ['manter', 'Manter o preço atual', 'Só atualiza custo e estoque. Produto novo fica sem preço.'],
+                ] as [RegraPreco['modo'], string, string][]
+              ).map(([m, t, d]) => (
+                <label key={m} className={`lote-opcao ${regra.modo === m ? 'on' : ''}`}>
+                  <input type="radio" name="regra-preco" checked={regra.modo === m} onChange={() => mudarRegra({ modo: m })} />
+                  <strong>{t}</strong>
+                  <span>{d}</span>
+                </label>
+              ))}
+            </div>
+            {regra.modo !== 'manter' && (
+              <div className="lote-cab">
+                {regra.modo === 'multiplicador' && (
+                  <Field label="Multiplicar o custo real por" hint="2 = preço é o dobro do custo.">
+                    {() => <Qtd label="Multiplicar o custo real por" value={regra.fator} onChange={(v) => mudarRegra({ fator: v })} />}
+                  </Field>
+                )}
+                <Field label="Arredondar o preço do kg para">
+                  {(id) => (
+                    <select id={id} value={regra.passo} onChange={(e) => mudarRegra({ passo: Number(e.target.value) })}>
+                      <option value={50}>R$ 0,50 mais próximo</option>
+                      <option value={100}>R$ 1,00 mais próximo</option>
+                      <option value={10}>R$ 0,10 mais próximo</option>
+                      <option value={1}>Não arredondar</option>
+                    </select>
+                  )}
+                </Field>
+                <Field label="Custo do produto fica" hint="Médio mistura o estoque que você já tem com esta compra.">
+                  {(id) => (
+                    <select id={id} value={lote.custo} onChange={(e) => mudar({ custo: e.target.value as Lote['custo'] })}>
+                      <option value="medio">Custo médio (com o estoque)</option>
+                      <option value="ultimo">Custo desta compra</option>
+                    </select>
+                  )}
+                </Field>
+              </div>
+            )}
           </section>
 
-          <section className="card">
+          <section className="card lote-passo">
             <div className="card-head">
-              <h2>O que vai mudar</h2>
+              <h2>7. Resumo e confirmação</h2>
               <span className="muted small">
                 {previa.atualizados} atualizado(s) · {previa.novos} novo(s){previa.ignorados > 0 && ` · ${previa.ignorados} com problema`}
               </span>
             </div>
-            <details>
-              <summary>Ver custo e estoque antes e depois, produto por produto</summary>
-              <div className="table-scroll">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Produto</th>
-                      <th className="num">Estoque</th>
-                      <th className="num">Custo antes</th>
-                      <th className="num">Custo depois</th>
-                      <th className="num">Variação</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previa.linhas.map((l) => (
+            <dl className="lote-resumo">
+              <div><dt>Produtos</dt><dd>{formatBRL(calc.totais.produtos)}</dd></div>
+              {calc.totais.descontoItens + calc.totais.descontoNota > 0 && <div><dt>Descontos</dt><dd>− {formatBRL(calc.totais.descontoItens + calc.totais.descontoNota)}</dd></div>}
+              {calc.totais.frete > 0 && <div><dt>Frete</dt><dd>+ {formatBRL(calc.totais.frete)}</dd></div>}
+              {calc.totais.outras > 0 && <div><dt>Guia de imposto</dt><dd>+ {formatBRL(calc.totais.outras)}</dd></div>}
+              {calc.totais.juros > 0 && <div><dt>Juros</dt><dd>+ {formatBRL(calc.totais.juros)}</dd></div>}
+              <div className="total"><dt>Total pago</dt><dd>{formatBRL(calc.totais.total)}</dd></div>
+              {calc.totais.kg != null && <div><dt>Peso</dt><dd>{qtdTxt(calc.totais.kg)} kg · média de {formatBRL(Math.round(calc.totais.total / calc.totais.kg))}/kg</dd></div>}
+            </dl>
+            <div className="table-scroll">
+              <table className="table lote-final">
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th className="num">Custo real / kg</th>
+                    <th className="num">Venda / kg</th>
+                    <th className="num">Venda / 100 g</th>
+                    <th className="num">Preço antes</th>
+                    <th className="num">Estoque</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previa.linhas.map((l) => {
+                    const porKg = (v: number | null | undefined) => (v == null ? null : l.unidade === 'g' ? Math.round(v * 1000) : v);
+                    const vk = porKg(l.vendaDepois);
+                    const antes = porKg(l.vendaAntes);
+                    const kg = l.unidade === 'kg' || l.unidade === 'g';
+                    return (
                       <tr key={l.itemId}>
                         <td className="strong">
                           {l.nome}
                           {l.novo && <span className="chip chip-accent lote-chip">novo</span>}
                           {l.problema && <small className="lote-confira">{l.problema}</small>}
                         </td>
+                        <td className="num">{l.custoDepois != null ? formatBRL(porKg(l.custoDepois)) : '—'}{!kg && l.custoDepois != null && <small className="muted"> /{l.unidade}</small>}</td>
+                        <td className="num strong">{vk != null ? formatBRL(vk) : <span className="lote-sobe">sem preço</span>}</td>
+                        <td className="num">{vk != null && kg ? formatBRL(Math.round(vk / 10)) : '—'}</td>
+                        <td className={`num ${antes != null && vk != null && vk > antes ? 'lote-sobe' : antes != null && vk != null && vk < antes ? 'lote-desce' : 'muted'}`}>{antes != null ? formatBRL(antes) : '—'}</td>
                         <td className="num muted">{l.problema ? '—' : `${l.estoqueAntes != null ? qtdTxt(l.estoqueAntes) : 0} → ${qtdTxt(l.estoqueDepois)} ${l.unidade}`}</td>
-                        <td className="num muted">{l.custoAntes != null ? formatBRL(l.custoAntes) : '—'}</td>
-                        <td className="num">{l.custoDepois != null ? formatBRL(l.custoDepois) : '—'}</td>
-                        <td className={`num ${l.variacaoPct != null && l.variacaoPct > 5 ? 'lote-sobe' : l.variacaoPct != null && l.variacaoPct < -5 ? 'lote-desce' : 'muted'}`}>
-                          {l.variacaoPct == null ? '—' : `${l.variacaoPct > 0 ? '+' : ''}${String(l.variacaoPct).replace('.', ',')}%`}
-                        </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </details>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <div className="row-gap wrap">
               <Button icon="check" onClick={aplicar}>
-                Aplicar lote ao estoque e aos custos
+                Confirmar e atualizar estoque, custos e preços
               </Button>
-              <span className="muted small">Depois, abra <Link to="/precificacao">Precificação</Link> para ver os preços sugeridos.</span>
             </div>
           </section>
         </>
