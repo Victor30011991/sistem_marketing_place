@@ -13,7 +13,8 @@ import { DEFAULT_UPDATE_FIELDS, UPDATABLE_LABELS, applyPlan, buildPlan, type Cla
 import type { ConfigPayload, SheetData } from '../export/excel';
 import type { ColumnTarget } from '../types';
 import { XLSX_MIME } from '../export/useSave';
-import { lerNFeXml, lerTextoNota, type NotaLida } from '../core/nota';
+import { type NotaLida } from '../core/nota';
+import { notaDoArquivo } from '../import/notaArquivo';
 import { lancarNota } from './Lotes';
 import { formatBRL } from '../core/money';
 
@@ -26,6 +27,12 @@ interface Loaded {
 }
 
 type Filtro = Classe | 'todos' | 'ignoradas';
+
+// arquivo escolhido no Início, para abrir aqui direto
+let arquivoPendente: File | null = null;
+export function abrirNoImportar(f: File) {
+  arquivoPendente = f;
+}
 
 const CLASSE_INFO: Record<Classe, { label: string; tone: 'ok' | 'info' | 'warn' | 'bad' | 'neutral' | 'accent' }> = {
   novo: { label: 'Novo', tone: 'ok' },
@@ -102,17 +109,16 @@ export default function Importar() {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
       if (file.size > 25 * 1024 * 1024) throw new Error('O arquivo é muito grande (mais de 25 MB). Divida a lista em partes menores.');
       const buf = await file.arrayBuffer();
-      // nota de compra (XML da NF-e ou texto copiado do PDF): pergunta e abre em Lotes de compra
-      if (ext === 'xml' || ext === 'txt') {
-        const texto = decodeText(buf);
-        const nota = ext === 'xml' ? lerNFeXml(texto) : /DANFE|NF-e|NOTA FISCAL/i.test(texto) ? lerTextoNota(texto) : null;
-        if (ext === 'xml' && nota && !nota.ok) throw new Error(nota.motivo);
+      // nota de compra (PDF, XML da NF-e ou texto da nota): pergunta e abre em Lotes de compra
+      if (ext === 'pdf' || ext === 'xml' || ext === 'txt') {
+        const nota = await notaDoArquivo(file);
+        if ((ext === 'pdf' || ext === 'xml') && nota && !nota.ok) throw new Error(nota.motivo);
         if (nota && nota.ok && (await perguntarNota(nota))) {
-          lancarNota(nota, ext === 'xml' ? 'XML da nota' : 'Texto da nota');
+          lancarNota(nota, ext === 'pdf' ? 'PDF da nota' : ext === 'xml' ? 'XML da nota' : 'Texto da nota');
           nav('/lotes');
           return;
         }
-        if (ext === 'xml') return;
+        if (ext === 'pdf' || ext === 'xml') return;
       }
       let loaded: Loaded;
       if (ext === 'xlsx' || ext === 'xlsm') {
@@ -126,7 +132,7 @@ export default function Importar() {
       } else if (ext === 'xls') {
         throw new Error('O formato antigo .xls não é suportado. No Excel, use “Salvar como” e escolha .xlsx (ou CSV).');
       } else {
-        throw new Error('Formato não suportado. Use arquivos .xlsx, .csv, .txt ou o .xml da nota fiscal.');
+        throw new Error('Formato não suportado. Use arquivos .xlsx, .csv, .txt ou a nota fiscal em PDF ou XML.');
       }
       const best = loaded.sheets.map((s, i) => ({ i, score: sheetScore(s.rows) })).sort((a, b) => b.score - a.score)[0];
       setArq(loaded);
@@ -142,6 +148,14 @@ export default function Importar() {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!arquivoPendente) return;
+    const f = arquivoPendente;
+    arquivoPendente = null;
+    carregar(f);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const headers = useMemo(() => (headerRow == null ? [] : rows[headerRow]?.map(cellText) ?? []), [rows, headerRow]);
   const ambiguas = useMemo(() => ambiguousColumns(headers, mapping), [headers, mapping]);
@@ -301,7 +315,7 @@ export default function Importar() {
           <Button onClick={() => inputRef.current?.click()} disabled={busy} icon="file">
             Escolher arquivo
           </Button>
-          <input ref={inputRef} type="file" accept=".xlsx,.xlsm,.csv,.txt,.tsv,.xml" hidden onChange={(e) => { carregar(e.target.files?.[0]); e.target.value = ''; }} />
+          <input ref={inputRef} type="file" accept=".xlsx,.xlsm,.csv,.txt,.tsv,.xml,.pdf" hidden onChange={(e) => { carregar(e.target.files?.[0]); e.target.value = ''; }} />
           <ul className="drop-notes">
             <li>Só a tabela de produtos entra. Título, logo, endereço, telefone, rodapé e totais são ignorados.</li>
             <li>Nada é excluído e nada é sobrescrito sem você marcar.</li>

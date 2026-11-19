@@ -14,7 +14,9 @@ import {
   type MotivoFora,
   type Origem,
 } from '../core/vitrine';
-import type { Product, Vitrine as VitrineCfg } from '../types';
+import type { BotaoCartao, Product, TipoBotao, Vitrine as VitrineCfg } from '../types';
+import { botoesPadrao, linkBotao, novoBotao, TIPOS_BOTAO } from '../core/vitrine';
+import { Icon } from '../ui/icons';
 
 const MOTIVO: Record<MotivoFora, string> = {
   oculto: 'oculto por você',
@@ -30,6 +32,20 @@ export default function Vitrine() {
   const { lista, loja } = state;
   const v = vitrineDe(loja);
   const set = (patch: Partial<VitrineCfg>) => act.loja({ vitrine: { ...v, ...patch } });
+
+  // ---------- botões do cartão ----------
+  const padrao = useMemo(botoesPadrao, []);
+  const botoes = v.botoes ?? padrao;
+  const setBotoes = (b: BotaoCartao[]) => set({ botoes: b });
+  const mudarBotao = (id: string, patch: Partial<BotaoCartao>) => setBotoes(botoes.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  const mover = (i: number, d: -1 | 1) => {
+    const j = i + d;
+    if (j < 0 || j >= botoes.length) return;
+    const n = [...botoes];
+    [n[i], n[j]] = [n[j], n[i]];
+    setBotoes(n);
+  };
+  const [tipoNovo, setTipoNovo] = useState<TipoBotao>('maps');
 
   const resultado = useMemo(() => montarCardapio(lista, loja, loja.logo), [lista, loja]);
 
@@ -123,7 +139,63 @@ export default function Vitrine() {
                 {(id) => <input id={id} value={v.facebook} onChange={(e) => set({ facebook: e.target.value })} placeholder="facebook.com/temperei" autoCapitalize="none" />}
               </Field>
             </div>
-            <p className="muted small">Botão sem link não aparece no cartão. A logo e as cores são as da página “Minha loja”.</p>
+            <p className="muted small">Estes são os contatos da loja. Os botões do cartão ficam logo abaixo. A logo e as cores são as da página “Minha loja”.</p>
+          </section>
+
+          <section className="card">
+            <div className="card-head">
+              <h2>Botões do cartão</h2>
+              {v.botoes && (
+                <Button variant="ghost" onClick={() => set({ botoes: undefined })}>
+                  Voltar ao padrão
+                </Button>
+              )}
+            </div>
+            <p className="muted small">Escolha quais botões aparecem, o texto de cada um e a ordem. Botão sem link válido não aparece.</p>
+            <ul className="vit-botoes">
+              {botoes.map((b, i) => {
+                const info = TIPOS_BOTAO.find((t) => t.tipo === b.tipo)!;
+                const link = linkBotao(b, v, loja);
+                return (
+                  <li key={b.id} className={b.ativo ? '' : 'off'}>
+                    <input type="checkbox" checked={b.ativo} aria-label={`Mostrar o botão ${b.rotulo || info.nome}`} onChange={(e) => mudarBotao(b.id, { ativo: e.target.checked })} />
+                    <div className="vit-botao-campos">
+                      <span className="vit-botao-tipo">{info.nome}</span>
+                      <input aria-label={`Texto do botão ${info.nome}`} value={b.rotulo} placeholder={info.rotulo} maxLength={40} onChange={(e) => mudarBotao(b.id, { rotulo: e.target.value })} />
+                      {b.tipo !== 'cardapio' && (
+                        <input aria-label={`${info.campo} (${info.nome})`} value={b.valor} placeholder={info.campo} onChange={(e) => mudarBotao(b.id, { valor: e.target.value })} autoCapitalize="none" />
+                      )}
+                      <small className={link || !b.ativo ? 'muted' : 'vit-botao-erro'} title={link || undefined}>
+                        {link ? (b.tipo === 'cardapio' ? info.dica : `Abre: ${link.replace(/\?text=.*$/, '')}`) : b.valor.trim() ? 'Não entendi este link. Confira o endereço.' : `${info.dica} Sem link, o botão não aparece.`}
+                      </small>
+                    </div>
+                    <div className="vit-botao-acoes">
+                      <button type="button" className="icon-btn" aria-label={`Subir ${info.nome}`} disabled={i === 0} onClick={() => mover(i, -1)}>
+                        <span aria-hidden="true">↑</span>
+                      </button>
+                      <button type="button" className="icon-btn" aria-label={`Descer ${info.nome}`} disabled={i === botoes.length - 1} onClick={() => mover(i, 1)}>
+                        <span aria-hidden="true">↓</span>
+                      </button>
+                      <button type="button" className="icon-btn danger" aria-label={`Remover ${info.nome}`} onClick={() => setBotoes(botoes.filter((x) => x.id !== b.id))}>
+                        <Icon name="trash" />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="row-gap wrap">
+              <select aria-label="Tipo do novo botão" value={tipoNovo} onChange={(e) => setTipoNovo(e.target.value as TipoBotao)} style={{ maxWidth: 260 }}>
+                {TIPOS_BOTAO.map((t) => (
+                  <option key={t.tipo} value={t.tipo}>
+                    {t.nome}
+                  </option>
+                ))}
+              </select>
+              <Button variant="secondary" icon="plus" onClick={() => setBotoes([...botoes, novoBotao(tipoNovo)])}>
+                Adicionar botão
+              </Button>
+            </div>
           </section>
 
           <section className="card">

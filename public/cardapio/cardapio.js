@@ -47,6 +47,10 @@
     whatsapp: '<path d="M4 20l1.3-4.2A8 8 0 1112 20a8 8 0 01-3.9-1z"/><path d="M9 9c0 3 3 6 6 6l1-1.5-2-1-1 .7c-.8-.4-1.6-1.2-2-2l.7-1-1-2z"/>',
     voltar: '<path d="M15 6l-6 6 6 6"/>',
     cesta: '<path d="M4 9h16l-1.5 10h-13zM8 9l3-5M16 9l-3-5"/>',
+    maps: '<path d="M12 21s-6-5.5-6-11a6 6 0 0112 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/>',
+    ifood: '<path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 016 0v2"/>',
+    site: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.5 3.5 5.5 3.5 8.5s-1 6-3.5 8.5c-2.5-2.5-3.5-5.5-3.5-8.5s1-6 3.5-8.5z"/>',
+    telefone: '<path d="M6.5 3.5h3l1.5 4-2 1.3a10 10 0 005.2 5.2l1.3-2 4 1.5v3a2 2 0 01-2.2 2A16 16 0 014.5 5.7a2 2 0 012-2.2z"/>',
   };
   function icone(nome) {
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -104,12 +108,28 @@
     var n = itensDoPedido().length;
     var logo = h('img', { class: 'logo', src: lj.logo || '../logo.jpg', alt: 'Logomarca de ' + lj.nome });
     logo.addEventListener('error', function () { logo.style.display = 'none'; });
-    var links = h('nav', { class: 'links', 'aria-label': 'Escolha uma opção' },
-      h('button', { class: 'btn primario', type: 'button', onclick: function () { ir('cardapio'); } }, icone('menu'),
-        h('span', { class: 'grow', text: 'Cardápio' }), n ? h('small', { text: n + (n === 1 ? ' item no pedido' : ' itens no pedido') }) : null));
-    if (lj.instagram) links.appendChild(botaoLink('instagram', 'Instagram', lj.instagram));
-    if (lj.facebook) links.appendChild(botaoLink('facebook', 'Facebook', lj.facebook));
-    if (lj.whatsapp) links.appendChild(botaoLink('whatsapp', 'WhatsApp', L.urlWhatsapp(lj.whatsapp, 'Olá, ' + lj.nome + '! Vim pelo cardápio e gostaria de falar com vocês.')));
+    var links = h('nav', { class: 'links', 'aria-label': 'Escolha uma opção' });
+    function botaoCardapio(rotulo, primario) {
+      return h('button', { class: 'btn' + (primario ? ' primario' : ''), type: 'button', onclick: function () { ir('cardapio'); } }, icone('menu'),
+        h('span', { class: 'grow', text: rotulo }), n ? h('small', { text: n + (n === 1 ? ' item no pedido' : ' itens no pedido') }) : null);
+    }
+    if (Array.isArray(lj.botoes)) {
+      // botões escolhidos na Página da loja, na ordem dela; o primeiro botão de cardápio ganha destaque
+      var destaque = false;
+      lj.botoes.forEach(function (b) {
+        if (!b || typeof b.u !== 'string' || typeof b.r !== 'string') return;
+        if (b.t === 'cardapio') { links.appendChild(botaoCardapio(b.r, !destaque)); destaque = true; return; }
+        if (!/^(https?:|tel:)/i.test(b.u)) return; // só links seguros
+        var a = botaoLink(ICONES[b.t] ? b.t : 'site', b.r, b.u);
+        if (/^tel:/i.test(b.u)) { a.removeAttribute('target'); a.removeAttribute('rel'); }
+        links.appendChild(a);
+      });
+    } else {
+      links.appendChild(botaoCardapio('Cardápio', true));
+      if (lj.instagram) links.appendChild(botaoLink('instagram', 'Instagram', lj.instagram));
+      if (lj.facebook) links.appendChild(botaoLink('facebook', 'Facebook', lj.facebook));
+      if (lj.whatsapp) links.appendChild(botaoLink('whatsapp', 'WhatsApp', L.urlWhatsapp(lj.whatsapp, 'Olá, ' + lj.nome + '! Vim pelo cardápio e gostaria de falar com vocês.')));
+    }
     return h('div', { class: 'wrap' },
       h('header', { class: 'hero' }, logo, h('h1', { text: lj.nome }), lj.slogan ? h('p', { text: lj.slogan }) : null),
       links,

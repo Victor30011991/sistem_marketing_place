@@ -8,7 +8,7 @@ import { formatQtyUnit } from '../core/units';
 import { slug } from '../core/normalize';
 import { logoDataUrl } from '../ui/logo';
 import { useSaveBackup, useSaveExcel, XLSX_MIME } from '../export/useSave';
-import { lerBackup } from '../core/backup';
+import { useRestaurarBackup } from '../ui/useRestaurarBackup';
 import type { PdfLayout, PdfOptions, PriceMode } from '../export/pdf';
 import { suggestedCents } from '../core/pricing';
 
@@ -32,13 +32,14 @@ export default function Exportar({ aba }: { aba: 'pdf' | 'excel' }) {
 }
 
 function ExcelPanel() {
-  const { state, act } = useApp();
-  const { toast, confirm } = useFeedback();
+  const { state } = useApp();
+  const { toast } = useFeedback();
   const save = useSaveExcel();
   const salvarBackup = useSaveBackup();
   const inputRef = useRef<HTMLInputElement>(null);
   const n = state.lista.produtos.length;
 
+  const restaurarTexto = useRestaurarBackup();
   async function restaurar(file: File | undefined) {
     if (!file) return;
     let texto: string;
@@ -48,31 +49,7 @@ function ExcelPanel() {
       toast('Não foi possível ler o arquivo. Tente escolher de novo.', 'erro');
       return;
     }
-    const r = lerBackup(texto);
-    if (!r.ok) {
-      toast(r.motivo, 'erro');
-      return;
-    }
-    const quando = r.geradoEm ? new Date(r.geradoEm).toLocaleString('pt-BR') : 'data desconhecida';
-    const ok = await confirm({
-      titulo: 'Restaurar este backup?',
-      perigo: n > 0,
-      confirmar: 'Restaurar backup',
-      mensagem: (
-        <>
-          <p>
-            Backup de <strong>{quando}</strong>: lista “{r.lista.nome}” com <strong>{r.lista.produtos.length}</strong> produto{r.lista.produtos.length === 1 ? '' : 's'}.
-          </p>
-          <p>
-            {n > 0 ? <>Isto <strong>substitui</strong> a lista atual ({n} produto{n === 1 ? '' : 's'}), os dados da loja, custos, taxas e margens. Salve um backup ou um Excel antes, se precisar do que está aqui.</> : 'Produtos, dados da loja, custos, taxas e margens serão carregados.'}
-          </p>
-          {r.ignorados > 0 && <p className="muted">{r.ignorados} item(ns) incompleto(s) do arquivo serão ignorados.</p>}
-        </>
-      ),
-    });
-    if (!ok) return;
-    act.restaurarBackup(r.lista, r.loja, r.config);
-    toast('Backup restaurado. Salve em Excel para guardar este estado.');
+    await restaurarTexto(texto);
   }
   async function modelo() {
     const { buildTemplate } = await import('../export/excel');

@@ -1,4 +1,5 @@
-import type { ListState, Product, StoreInfo, Vitrine } from '../types';
+import type { BotaoCartao, ListState, Product, StoreInfo, TipoBotao, Vitrine } from '../types';
+import { newId } from './normalize';
 import { counterBasis } from './units';
 import { LOGO_COLORS } from './defaults';
 
@@ -30,6 +31,7 @@ export function vitrineDe(loja: Pick<StoreInfo, 'vitrine'> | null | undefined): 
     minGramas: min,
     ocultos: Array.isArray(v.ocultos) ? v.ocultos.filter((x): x is string => typeof x === 'string') : [],
     ocultarSemEstoque: v.ocultarSemEstoque !== false,
+    ...(Array.isArray(v.botoes) ? { botoes: lerBotoes(v.botoes) } : {}),
   };
 }
 
@@ -107,6 +109,8 @@ export interface CardapioArquivo {
     min: number;
     abertura: string;
     fechamento: string;
+    /** botões do cartão, na ordem: t = tipo, r = texto, u = link */
+    botoes: { t: TipoBotao; r: string; u: string }[];
   };
   categorias: { nome: string; itens: ItemCardapio[] }[];
 }
@@ -175,10 +179,94 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
         min: v.minGramas,
         abertura: v.abertura,
         fechamento: v.fechamento,
+        botoes: (v.botoes ?? botoesPadrao())
+          .filter((b) => b.ativo)
+          .map((b) => ({ t: b.tipo, r: b.rotulo.trim() || TIPOS_BOTAO.find((x) => x.tipo === b.tipo)!.rotulo, u: linkBotao(b, v, loja) }))
+          .filter((b) => b.u),
       },
       categorias,
     },
     fora,
     total: categorias.reduce((n, c) => n + c.itens.length, 0),
   };
+}
+
+// ---------- botões do cartão (link na bio) ----------
+
+export const TIPOS_BOTAO: { tipo: TipoBotao; nome: string; rotulo: string; campo: string; dica: string }[] = [
+  { tipo: 'cardapio', nome: 'Cardápio', rotulo: 'Cardápio', campo: '', dica: 'Abre o cardápio de pedidos.' },
+  { tipo: 'whatsapp', nome: 'WhatsApp', rotulo: 'WhatsApp', campo: 'Número com DDD', dica: 'Vazio = usa o WhatsApp de vendas.' },
+  { tipo: 'instagram', nome: 'Instagram', rotulo: 'Instagram', campo: '@usuario ou endereço', dica: 'Vazio = usa o Instagram da loja.' },
+  { tipo: 'facebook', nome: 'Facebook', rotulo: 'Facebook', campo: 'Nome da página ou endereço', dica: 'Vazio = usa o Facebook da loja.' },
+  { tipo: 'maps', nome: 'Como chegar (Google Maps)', rotulo: 'Como chegar', campo: 'Endereço da loja ou link do Maps', dica: 'Pode ser o endereço escrito.' },
+  { tipo: 'ifood', nome: 'iFood', rotulo: 'Peça no iFood', campo: 'Link da loja no iFood', dica: 'Endereço que começa com ifood.com.br.' },
+  { tipo: 'site', nome: 'Site ou outro link', rotulo: 'Nosso site', campo: 'Endereço (https://…)', dica: 'Qualquer site: catálogo, Linktree, Shopee…' },
+  { tipo: 'telefone', nome: 'Ligar', rotulo: 'Ligar para a loja', campo: 'Telefone com DDD', dica: 'Abre a ligação no celular.' },
+];
+
+const TIPOS = new Set(TIPOS_BOTAO.map((t) => t.tipo));
+
+export function botoesPadrao(): BotaoCartao[] {
+  return (['cardapio', 'instagram', 'facebook', 'whatsapp'] as TipoBotao[]).map((tipo) => novoBotao(tipo));
+}
+
+export function novoBotao(tipo: TipoBotao): BotaoCartao {
+  return { id: newId(), tipo, rotulo: TIPOS_BOTAO.find((t) => t.tipo === tipo)!.rotulo, valor: '', ativo: true };
+}
+
+function lerBotoes(raw: unknown[]): BotaoCartao[] {
+  return raw.flatMap((b) => {
+    if (!b || typeof b !== 'object') return [];
+    const x = b as Record<string, unknown>;
+    if (!TIPOS.has(x.tipo as TipoBotao)) return [];
+    return [{ id: typeof x.id === 'string' && x.id ? x.id : newId(), tipo: x.tipo as TipoBotao, rotulo: str(x.rotulo, ''), valor: str(x.valor, ''), ativo: x.ativo !== false }];
+  });
+}
+
+/** Só endereços http(s); "site.com.br/x" ganha https://. Qualquer outro esquema (javascript:, data:…) é recusado. */
+function urlSegura(raw: string): string {
+  const t = raw.trim();
+  if (!t) return '';
+  const comProt = /^https?:\/\//i.test(t) ? t : /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/|$)/i.test(t) ? `https://${t}` : '';
+  if (!comProt) return '';
+  try {
+    const u = new URL(comProt);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : '';
+  } catch {
+    return '';
+  }
+}
+
+/** Link final de um botão. '' = falta informação ou está inválido (o botão não aparece). */
+export function linkBotao(b: BotaoCartao, v: Vitrine, loja: Pick<StoreInfo, 'telefone' | 'nomeFantasia'>): string {
+  switch (b.tipo) {
+    case 'cardapio':
+      return '#cardapio';
+    case 'whatsapp': {
+      const n = normalizarWhatsapp(b.valor) || normalizarWhatsapp(v.whatsapp) || normalizarWhatsapp(loja.telefone);
+      return n ? `https://wa.me/${n}?text=${encodeURIComponent(`Olá, ${loja.nomeFantasia || 'tudo bem'}! Vim pelo cartão da loja.`)}` : '';
+    }
+    case 'instagram':
+      return normalizarInstagram(b.valor) || normalizarInstagram(v.instagram);
+    case 'facebook':
+      return normalizarFacebook(b.valor) || normalizarFacebook(v.facebook);
+    case 'maps': {
+      const t = b.valor.trim();
+      if (!t) return '';
+      const u = urlSegura(t);
+      if (u && /^https:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|(www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+)/i.test(u)) return u;
+      // algo com "esquema:" (https:, javascript:…) que não é do Maps não vira busca de endereço
+      return /^[a-z][a-z0-9+.-]*:/i.test(t) ? '' : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t)}`;
+    }
+    case 'ifood': {
+      const u = urlSegura(b.valor);
+      return /^https:\/\/(www\.)?ifood\.com\.br\//i.test(u) ? u : '';
+    }
+    case 'site':
+      return urlSegura(b.valor);
+    case 'telefone': {
+      const n = normalizarWhatsapp(b.valor);
+      return n ? `tel:+${n}` : '';
+    }
+  }
 }
