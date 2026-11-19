@@ -1,8 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../state/store';
 import { useFeedback, useDocumentTitle } from '../ui/feedback';
-import { Icon } from '../ui/icons';
 import { logoSrc } from '../ui/logo';
+import Entrada from './Entrada';
 
 export default function Home() {
   useDocumentTitle('Início');
@@ -47,45 +47,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="choices" aria-label="Como você quer começar?">
-        <article className="choice">
-          <div className="choice-top">
-            <span className="choice-icon">
-              <Icon name="plus" size={26} />
-            </span>
-            <span className="eyebrow">Opção 1</span>
-          </div>
-          <h2>Nova lista</h2>
-          <p>Comece do zero: cadastre os produtos na mão, crie categorias, defina os preços e gere o PDF.</p>
-          <ul className="ticks">
-            <li>Cadastro manual de produtos</li>
-            <li>Importar arquivo Excel, CSV ou TXT</li>
-            <li>Gerar PDF e salvar em Excel</li>
-          </ul>
-          <button type="button" className="btn btn-primary btn-lg" onClick={novaLista}>
-            Começar lista nova <Icon name="chevron" />
-          </button>
-        </article>
-
-        <article className="choice">
-          <div className="choice-top">
-            <span className="choice-icon choice-icon-accent">
-              <Icon name="upload" size={26} />
-            </span>
-            <span className="eyebrow">Opção 2</span>
-          </div>
-          <h2>Alimentar lista</h2>
-          <p>Continue de onde parou com o Excel que você salvou, ou traga uma lista de fornecedor. Você confere tudo antes de entrar.</p>
-          <ul className="ticks">
-            <li>Adiciona novos e atualiza preços</li>
-            <li>Avisa sobre duplicados e erros</li>
-            <li>Nunca exclui nem sobrescreve sem você escolher</li>
-          </ul>
-          <Link to="/importar" className="btn btn-accent btn-lg">
-            Escolher arquivo <Icon name="chevron" />
-          </Link>
-        </article>
-      </section>
+      <Entrada onNovaLista={novaLista} />
 
       {total > 0 && (
         <p className="resume">
@@ -120,7 +82,7 @@ export default function Home() {
             <span>3</span>
             <div>
               <strong>Volte quando quiser</strong>
-              <small>Carregue o arquivo em “Alimentar lista” e siga em frente.</small>
+              <small>Escolha “Abrir meu arquivo salvo” e siga em frente.</small>
             </div>
           </li>
         </ol>

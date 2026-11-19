@@ -5,7 +5,8 @@ import { Button, Empty, Field, MoneyInput, Notice, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
 import { aplicarLote, calcularLote, itemVazio, loteVazio, REGRA_PADRAO, sugerirCategoria, sugerirProduto } from '../core/lote';
 import { suggestedCents } from '../core/pricing';
-import { lerNFeXml, lerTextoNota, type NotaLida } from '../core/nota';
+import { lerTextoNota, type NotaLida } from '../core/nota';
+import { notaDoArquivo } from '../import/notaArquivo';
 import { formatBRL, parseNumberBR } from '../core/money';
 import { norm } from '../core/normalize';
 import type { Lote, LoteItem, Product, RegraPreco } from '../types';
@@ -17,8 +18,13 @@ let rascunho: Lote | null = null;
 let avisosRascunho: string[] = [];
 // nota que chegou pelo "Importar arquivo" e deve abrir já preenchida aqui
 let notaPendente: { nota: NotaLida; origem: string } | null = null;
+let manualPendente = false;
 export function lancarNota(nota: NotaLida, origem: string) {
   notaPendente = { nota, origem };
+}
+/** Abre Lotes pronto para digitar uma compra sem nota. */
+export function lancarManual() {
+  manualPendente = true;
 }
 
 const dataBR = (iso: string) => (/^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10).split('-').reverse().join('/') : iso || '—');
@@ -67,6 +73,7 @@ export default function Lotes() {
   const [colar, setColar] = useState('');
   const [mostrarColar, setMostrarColar] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [lendo, setLendo] = useState(false);
 
   const setLote = (fn: (l: Lote) => Lote) =>
     setLoteBruto((l) => {
@@ -103,6 +110,11 @@ export default function Lotes() {
   }
 
   useEffect(() => {
+    if (manualPendente) {
+      manualPendente = false;
+      if (lote.itens.length === 0) novoItem();
+      return;
+    }
     if (!notaPendente) return;
     const n = notaPendente;
     notaPendente = null;
@@ -112,15 +124,17 @@ export default function Lotes() {
 
   async function lerArquivo(file: File | undefined) {
     if (!file) return;
-    let texto: string;
+    setLendo(true);
     try {
-      texto = await file.text();
+      const r = await notaDoArquivo(file);
+      if (!r) return toast('Este arquivo não parece uma nota fiscal. Use o PDF ou o XML da nota.', 'erro');
+      if (!r.ok) return toast(r.motivo, 'erro');
+      receber(r, file.name.toLowerCase().endsWith('.pdf') ? 'PDF da nota' : 'XML da nota');
     } catch {
-      return toast('Não foi possível ler o arquivo. Tente de novo.', 'erro');
+      toast('Não foi possível ler o arquivo. Tente de novo.', 'erro');
+    } finally {
+      setLendo(false);
     }
-    const r = lerNFeXml(texto);
-    if (!r.ok) return toast(r.motivo, 'erro');
-    receber(r, 'XML da nota');
   }
 
   function lerColado() {
@@ -195,8 +209,8 @@ export default function Lotes() {
           <div className="lote-opcoes">
             <button type="button" className="lote-opcao" onClick={() => fileRef.current?.click()}>
               <Icon name="upload" size={24} />
-              <strong>Enviar o XML da nota</strong>
-              <span>O mais exato. É o arquivo .xml que o fornecedor manda junto com a nota (NF-e).</span>
+              <strong>{lendo ? 'Lendo a nota…' : 'Enviar a nota (PDF ou XML)'}</strong>
+              <span>O PDF da nota (DANFE) ou o arquivo .xml que o fornecedor manda. O XML é o mais exato.</span>
             </button>
             <button type="button" className="lote-opcao" onClick={() => setMostrarColar((v) => !v)} aria-expanded={mostrarColar}>
               <Icon name="file" size={24} />
@@ -209,7 +223,7 @@ export default function Lotes() {
               <span>Para compras sem nota ou com poucos itens.</span>
             </button>
           </div>
-          <input ref={fileRef} type="file" accept=".xml,text/xml,application/xml" hidden onChange={(e) => { lerArquivo(e.target.files?.[0]); e.target.value = ''; }} />
+          <input ref={fileRef} type="file" accept=".pdf,application/pdf,.xml,text/xml,application/xml" hidden onChange={(e) => { lerArquivo(e.target.files?.[0]); e.target.value = ''; }} />
           {mostrarColar && (
             <div className="lote-colar">
               <label htmlFor="colar-nota">Texto copiado do PDF da nota</label>

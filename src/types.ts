@@ -68,6 +68,21 @@ export interface Vitrine {
   ocultos: string[];
   /** esconde sozinho o produto com estoque controlado que chegou a zero */
   ocultarSemEstoque: boolean;
+  /** botões do cartão, na ordem em que aparecem (sem isto: Cardápio, Instagram, Facebook e WhatsApp) */
+  botoes?: BotaoCartao[];
+}
+
+export type TipoBotao = 'cardapio' | 'whatsapp' | 'instagram' | 'facebook' | 'maps' | 'ifood' | 'site' | 'telefone';
+
+/** Um botão do cartão de visita (estilo "link na bio"). */
+export interface BotaoCartao {
+  id: string;
+  tipo: TipoBotao;
+  /** texto do botão, ex.: "Peça pelo WhatsApp" */
+  rotulo: string;
+  /** link, número ou endereço (WhatsApp, Instagram e Facebook vazios usam os da loja) */
+  valor: string;
+  ativo: boolean;
 }
 
 export interface FixedCost {

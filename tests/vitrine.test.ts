@@ -11,6 +11,9 @@ import {
   normalizarInstagram,
   normalizarWhatsapp,
   vitrineDe,
+  botoesPadrao,
+  linkBotao,
+  novoBotao,
 } from '../src/core/vitrine';
 import type { ListState, Product } from '../src/types';
 
@@ -187,5 +190,45 @@ describe('página do cliente: lib.js', () => {
     expect(txt).toContain('*Observações:* sem sal');
     const url = L.urlWhatsapp('+55 (86) 99999-1234', 'olá & tudo\nbem');
     expect(url).toBe('https://wa.me/5586999991234?text=ol%C3%A1%20%26%20tudo%0Abem');
+  });
+});
+
+describe('botões do cartão (link na bio)', () => {
+  const v = { ...VITRINE_PADRAO, whatsapp: '(86) 99999-1234', instagram: '@temperei' };
+  const loja = { telefone: '', nomeFantasia: 'Temperei' };
+  const b = (tipo: Parameters<typeof novoBotao>[0], valor = '') => ({ ...novoBotao(tipo), valor });
+
+  it('monta o link certo para cada tipo', () => {
+    expect(linkBotao(b('cardapio'), v, loja)).toBe('#cardapio');
+    expect(linkBotao(b('whatsapp'), v, loja)).toMatch(/^https:\/\/wa\.me\/5586999991234\?text=/);
+    expect(linkBotao(b('whatsapp', '86 98888-7777'), v, loja)).toMatch(/^https:\/\/wa\.me\/5586988887777/);
+    expect(linkBotao(b('instagram'), v, loja)).toBe('https://instagram.com/temperei');
+    expect(linkBotao(b('facebook'), v, loja)).toBe(''); // sem Facebook: o botão não aparece
+    expect(linkBotao(b('maps', 'Rua Santa Rita, 579, Parnaíba'), v, loja)).toBe('https://www.google.com/maps/search/?api=1&query=Rua%20Santa%20Rita%2C%20579%2C%20Parna%C3%ADba');
+    expect(linkBotao(b('maps', 'https://maps.app.goo.gl/abc123'), v, loja)).toBe('https://maps.app.goo.gl/abc123');
+    expect(linkBotao(b('ifood', 'www.ifood.com.br/delivery/parnaiba-pi/temperei'), v, loja)).toBe('https://www.ifood.com.br/delivery/parnaiba-pi/temperei');
+    expect(linkBotao(b('ifood', 'https://outro.com/x'), v, loja)).toBe('');
+    expect(linkBotao(b('site', 'linktr.ee/temperei'), v, loja)).toBe('https://linktr.ee/temperei');
+    expect(linkBotao(b('telefone', '(86) 3322-1100'), v, loja)).toBe('tel:+558633221100');
+  });
+
+  it('recusa links perigosos', () => {
+    for (const ruim of ['javascript:alert(1)', 'data:text/html,oi', 'vbscript:x', 'ftp://x.com']) {
+      expect(linkBotao(b('site', ruim), v, loja)).toBe('');
+      expect(linkBotao(b('maps', ruim), v, loja)).toBe('');
+    }
+  });
+
+  it('o arquivo do cardápio leva os botões ativos, na ordem, com o texto escolhido', () => {
+    const botoes = [b('whatsapp'), { ...b('cardapio'), rotulo: 'Fazer pedido' }, { ...b('site', 'temperei.com.br'), ativo: false }, b('facebook'), b('maps', 'Parnaíba')];
+    const r = montarCardapio({ nome: 'L', categorias: [], produtos: [] }, { ...defaultStore(), vitrine: { ...v, botoes } }, null);
+    expect(r.arquivo.loja.botoes.map((x) => [x.t, x.r])).toEqual([['whatsapp', 'WhatsApp'], ['cardapio', 'Fazer pedido'], ['maps', 'Como chegar']]);
+  });
+
+  it('sem botões escolhidos usa o padrão (Cardápio, Instagram, Facebook, WhatsApp) e sobrevive ao backup', () => {
+    expect(botoesPadrao().map((x) => x.tipo)).toEqual(['cardapio', 'instagram', 'facebook', 'whatsapp']);
+    const loja2 = { ...defaultStore(), vitrine: { ...v, botoes: [{ ...b('maps', 'Parnaíba'), rotulo: 'Onde estamos' }] } };
+    const r = lerBackup(criarBackup({ nome: 'L', produtos: [], categorias: [] }, loja2, defaultSettings()));
+    expect(r.ok && r.loja.vitrine?.botoes).toEqual(loja2.vitrine.botoes);
   });
 });

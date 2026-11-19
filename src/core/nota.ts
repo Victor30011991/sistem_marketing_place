@@ -116,6 +116,50 @@ function nomeSemCodigos(trecho: string): string {
   return t.join(' ');
 }
 
+// rótulos do quadro "Cálculo do imposto" do DANFE (os mais longos primeiro, para "VALOR DO ICMS SUBST." não virar "VALOR DO ICMS")
+const ROTULOS_TOTAIS: [string, RegExp][] = [
+  ['bcIcmsSt', /BASE DE C[ÁA]LC\.? (?:DO )?ICMS S\.?T\.?/i],
+  ['bcIcms', /BASE DE C[ÁA]LC\.? DO ICMS/i],
+  ['icmsSt', /VALOR DO ICMS SUBST\.?/i],
+  ['icms', /VALOR DO ICMS/i],
+  ['importacao', /V\.? IMP\.? IMPORTA[ÇC][ÃA]O/i],
+  ['pis', /VALOR DO PIS/i],
+  ['totalProdutos', /V(?:\.|ALOR)? TOTAL (?:DOS )?PRODUTOS/i],
+  ['frete', /VALOR DO FRETE/i],
+  ['seguro', /VALOR DO SEGURO/i],
+  ['desconto', /DESCONTO/i],
+  ['outras', /OUTRAS DESPESAS/i],
+  ['ipi', /VALOR TOTAL (?:DO )?IPI/i],
+  ['cofins', /VALOR DA COFINS/i],
+  ['totalNota', /V(?:\.|ALOR)? TOTAL DA NOTA/i],
+];
+
+/**
+ * No PDF o quadro de totais vem como tabela: uma linha com vários rótulos e, na linha de baixo, os valores na mesma ordem.
+ * Casa cada rótulo com o valor da mesma posição (só quando a quantidade de rótulos e de valores é igual).
+ */
+export function totaisEmTabela(texto: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  const linhas = texto.replace(/\r/g, '').split('\n');
+  for (let i = 0; i + 1 < linhas.length; i++) {
+    let resto = linhas[i];
+    const achados: { k: string; pos: number }[] = [];
+    for (const [k, re] of ROTULOS_TOTAIS) {
+      const m = resto.match(re);
+      if (!m || m.index == null) continue;
+      achados.push({ k, pos: m.index });
+      resto = resto.slice(0, m.index) + ' '.repeat(m[0].length) + resto.slice(m.index + m[0].length); // não casa duas vezes
+    }
+    if (achados.length < 2) continue;
+    const valores = linhas[i + 1].trim().split(/\s+/);
+    if (valores.length !== achados.length || !valores.every((v) => /^[\d.]*\d,\d{2}$/.test(v))) continue;
+    achados.sort((a, b) => a.pos - b.pos).forEach((a, j) => {
+      if (!(a.k in out)) out[a.k] = brNum(valores[j]);
+    });
+  }
+  return out;
+}
+
 function numeroDepois(texto: string, rotulo: RegExp): number {
   const m = texto.match(new RegExp(rotulo.source + '\\s*:?\\s*([\\d.]*\\d,\\d{2})', rotulo.flags));
   return m ? brNum(m[1]) : 0;
@@ -132,13 +176,17 @@ export function lerTextoNota(texto: string): ResultadoNota {
   let ajustados = 0;
   let cursor = 0;
   // só existe coluna de desconto quando o cabeçalho tem "DESC" (VALOR DESC / V. DESC); senão o 8º número é a base do ICMS
-  const temDesconto = /\b(VALOR|V\.)\s*DESC\b/i.test(plano);
+  // a coluna "VALOR DESC" pode vir quebrada em duas linhas ("VALOR … / … DESC"): basta a palavra DESC sozinha no cabeçalho
+  const temDesconto = /(^|\s)DESC(\.|\s|$)/i.test(plano);
   LINHA_ITEM.lastIndex = 0;
   for (let m = LINHA_ITEM.exec(plano); m; m = LINHA_ITEM.exec(plano)) {
     let trecho = plano.slice(cursor, m.index);
     // cabeçalho da tabela (início da nota e início de cada página): o nome vem depois de "ALÍQ. IPI"
-    const cab = [...trecho.matchAll(/AL[ÍI]Q\.? IPI/gi)].pop();
-    if (cab && cab.index != null) trecho = trecho.slice(cab.index + cab[0].length);
+    // (no PDF o cabeçalho pode vir quebrado: "…ALÍQ. ALÍQ. … UNIT TOTAL DESC ICMS ICMS IPI ICMS IPI"; cortamos no último IPI/ALÍQ)
+    if (/NCM|QUANT|DESCRI[ÇC][ÃA]O DO PRODUTO|AL[ÍI]Q/i.test(trecho)) {
+      const cab = [...trecho.matchAll(/\bIPI\b|AL[ÍI]Q\./gi)].pop();
+      if (cab && cab.index != null) trecho = trecho.slice(cab.index + cab[0].length);
+    }
     cursor = m.index + m[0].length;
     const nome = nomeSemCodigos(trecho);
     if (!nome) continue;
@@ -155,15 +203,17 @@ export function lerTextoNota(texto: string): ResultadoNota {
   const forn = plano.match(/RECEBEMOS DE (.+?) OS PRODUTOS/i);
   const num = plano.match(/N[º°o]\.?\s*([\d.]{3,})/i);
   const dt = plano.match(/EMISS[ÃA]O:?\s*(\d{2})\/(\d{2})\/(\d{4})/i);
-  const frete = cents(numeroDepois(plano, /VALOR DO FRETE/i));
-  const seguro = cents(numeroDepois(plano, /VALOR DO SEGURO/i));
-  const outrasDesp = cents(numeroDepois(plano, /OUTRAS DESPESAS/i));
-  const ipi = cents(numeroDepois(plano, /VALOR TOTAL (?:DO )?IPI/i));
-  const st = cents(numeroDepois(plano, /VALOR DO ICMS SUBST\.?/i));
-  const descTotal = cents(numeroDepois(plano, /\bDESCONTO/i));
+  const tab = totaisEmTabela(texto);
+  const total = (k: string, re: RegExp) => cents(k in tab ? tab[k] : numeroDepois(plano, re));
+  const frete = total('frete', /VALOR DO FRETE/i);
+  const seguro = total('seguro', /VALOR DO SEGURO/i);
+  const outrasDesp = total('outras', /OUTRAS DESPESAS/i);
+  const ipi = total('ipi', /VALOR TOTAL (?:DO )?IPI/i);
+  const st = total('icmsSt', /VALOR DO ICMS SUBST\.?/i);
+  const descTotal = total('desconto', /\bDESCONTO/i);
   const descItens = itens.reduce((a, i) => a + i.desconto, 0);
   const avisos: string[] = [];
-  const totalProdutos = cents(numeroDepois(plano, /V\. TOTAL PRODUTOS/i));
+  const totalProdutos = total('totalProdutos', /V\. TOTAL PRODUTOS/i);
   const somaItens = itens.reduce((a, i) => a + i.valor, 0);
   if (totalProdutos && itens.length && Math.abs(totalProdutos - somaItens) > 1) {
     avisos.push('A soma dos itens lidos não bate com o total de produtos da nota. Pode haver item faltando: confira a tabela.');

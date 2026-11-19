@@ -592,3 +592,31 @@ ol.pdv-pag li strong { float: right; }
 .lote-passo h2 { margin-bottom: 4px; }
 .lote-final td.strong { min-width: 180px; }
 @media (max-width: 760px) { .lote-regra { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Início: entrada única ---------- */
+.entrada { display: grid; gap: 14px; }
+.entrada.arrastando { outline: 2px dashed var(--primary); outline-offset: 4px; }
+.entrada-opcoes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.entrada-opcoes .lote-opcao.on { border-color: var(--primary); background: var(--primary-soft); }
+.entrada-passo { display: grid; gap: 10px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.entrada-passo h3 { font-size: 1.1rem; margin: 6px 0 0; }
+.entrada-soltar { display: grid; justify-items: center; gap: 6px; padding: 26px 16px; border: 2px dashed var(--line); border-radius: var(--radius); background: var(--bg-2); color: var(--ink); font: inherit; cursor: pointer; text-align: center; }
+.entrada-soltar svg { color: var(--primary); }
+.entrada-soltar span { color: var(--muted); font-size: 0.9rem; }
+.entrada-soltar:hover { border-color: var(--primary); }
+@media (max-width: 960px) { .entrada-opcoes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .entrada-opcoes { grid-template-columns: minmax(0, 1fr); } }
+.vit-botoes { list-style: none; margin: var(--sp-3) 0; padding: 0; display: grid; gap: 8px; }
+.vit-botoes li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); }
+.vit-botoes li.off { opacity: 0.6; }
+.vit-botoes li > input[type='checkbox'] { width: 18px; height: 18px; min-height: 0; margin-top: 4px; accent-color: var(--primary); }
+.vit-botao-campos { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
+.vit-botao-tipo { grid-column: 1 / -1; font-weight: 600; font-size: 0.9rem; }
+.vit-botao-campos input { min-height: 38px; }
+.vit-botao-campos small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vit-botao-erro { color: var(--warn); font-weight: 600; }
+.vit-botao-acoes { display: flex; gap: 4px; }
+@media (max-width: 640px) {
+  .vit-botoes li { grid-template-columns: auto minmax(0, 1fr); }
+  .vit-botao-acoes { grid-column: 1 / -1; justify-content: flex-end; }
+}
