@@ -7,6 +7,7 @@ import { logoSrc } from '../ui/logo';
 import { fotoProduto } from '../ui/foto';
 import { newId } from '../core/normalize';
 import { contatosLoja } from '../core/orcamentos';
+import { ANGULOS, TEMAS, entender, sugerirLegendas, type Sugestao, type Tema } from '../core/legendas';
 import { FORMATOS_IDEIA, TIPOS_IDEIA, frasesArriscadas, gerarIdeias, ideiaLivre, legendaCompleta, type Ideia } from '../core/postaai';
 import { CORES_ARTE, ENFEITES, ESTILOS_PRONTOS, FAMILIAS_ARTE, FORMATOS_ARTE, VARIACOES, corArte, novaCamada, type FormatoArte } from '../core/estilosArte';
 import { AJUSTE_PADRAO, arteEmImagem, camadaEm, carregarImagem, carrosselEmImagens, desenharArte, garantirFontes, videoDasFotos, type AjusteFoto, type ConteudoArte, type OpcoesArte } from '../export/arte';
@@ -327,6 +328,26 @@ export default function PostaAi() {
 
   const familias = [...FAMILIAS_ARTE.map((f) => ({ id: f.id, rotulo: f.rotulo })), ...fontes.map((f) => ({ id: `f:${f.id}`, rotulo: `${f.nome} (sua)` }))];
   const set = (patch: Partial<ConteudoArte>) => setConteudo((k) => ({ ...k, ...patch }));
+
+  // ---------------------------------------------------------------- legendas a partir do que vai ser postado
+  const [pedido, setPedido] = useState('');
+  const [temaEscolhido, setTemaEscolhido] = useState<Tema | 'auto'>('auto');
+  const [semente, setSemente] = useState(1);
+  const [sugestoes, setSugestoes] = useState<Sugestao[]>([]);
+  const temaAuto = useMemo(() => entender(pedido, lista.produtos).tema, [pedido, lista.produtos]);
+  function sugerir(nova = false) {
+    const sem = nova ? semente + 1 : semente;
+    setSemente(sem);
+    setSugestoes(sugerirLegendas({ texto: pedido, tema: temaEscolhido === 'auto' ? undefined : temaEscolhido, produtos: lista.produtos, loja, cidade: pa.cidade ?? '', insta, semente: sem }));
+  }
+  function usarLegenda(x: Sugestao) {
+    setLegenda(x.legenda);
+    toast('Legenda trocada. Dá para editar à vontade lá embaixo.');
+  }
+  function usarNaArte(x: Sugestao) {
+    set({ titulo: x.textoArte, subtitulo: x.subtituloArte });
+    toast('Frase colocada na arte.');
+  }
   void prontas;
 
   return (
@@ -373,6 +394,61 @@ export default function PostaAi() {
               {TIPOS_IDEIA[ideia.tipo]} · {FORMATOS_IDEIA[ideia.formato]}
             </span>
           </div>
+
+          <fieldset className="pa-pedido">
+            <legend>O que você vai postar?</legend>
+            <Field label="Conte em poucas palavras" hint="Ex.: frango assado com a nossa páprica · chegou cúrcuma · embalando canela · kit de presente">
+              {(id) => (
+                <textarea
+                  id={id}
+                  rows={2}
+                  value={pedido}
+                  placeholder="Ex.: frango assado com a nossa páprica defumada"
+                  onChange={(e) => setPedido(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sugerir(true);
+                    }
+                  }}
+                />
+              )}
+            </Field>
+            <div className="pa-filtros" role="radiogroup" aria-label="Assunto do post">
+              <button type="button" role="radio" aria-checked={temaEscolhido === 'auto'} className={`pa-chip ${temaEscolhido === 'auto' ? 'on' : ''}`} onClick={() => setTemaEscolhido('auto')}>
+                Automático{pedido.trim() ? `: ${TEMAS.find((t) => t.id === temaAuto)?.rotulo}` : ''}
+              </button>
+              {TEMAS.map((t) => (
+                <button key={t.id} type="button" role="radio" aria-checked={temaEscolhido === t.id} title={t.dica} className={`pa-chip ${temaEscolhido === t.id ? 'on' : ''}`} onClick={() => setTemaEscolhido(t.id)}>
+                  {t.rotulo}
+                </button>
+              ))}
+            </div>
+            <div className="pa-linha">
+              <Button icon="sparkle" onClick={() => sugerir(sugestoes.length > 0)}>
+                {sugestoes.length ? 'Outras sugestões' : 'Sugerir legendas'}
+              </Button>
+              {sugestoes.length > 0 && <span className="muted small">Cada uma num formato diferente. Toque de novo para variar.</span>}
+            </div>
+            {sugestoes.length > 0 && (
+              <div className="pa-sugs">
+                {sugestoes.map((x) => (
+                  <article key={x.angulo + x.gancho} className="pa-sug">
+                    <span className="pa-tag">{ANGULOS[x.angulo]}</span>
+                    <p className="pa-sug-texto">{x.legenda}</p>
+                    <div className="pa-linha">
+                      <Button variant="secondary" icon="check" onClick={() => usarLegenda(x)}>
+                        Usar legenda
+                      </Button>
+                      <Button variant="ghost" icon="edit" onClick={() => usarNaArte(x)}>
+                        Frase na arte
+                      </Button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </fieldset>
 
           <div className="pa-fotos">
             <label className="pa-subir">
