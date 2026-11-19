@@ -585,3 +585,10 @@ ol.pdv-pag li strong { float: right; }
   .nav-item { min-height: 40px; }
 }
 .pdv-etiqueta { display: grid; gap: 6px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: var(--r-control); background: var(--bg-2); }
+.lote-regra { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: var(--sp-3) 0; }
+.lote-regra .lote-opcao { position: relative; }
+.lote-regra .lote-opcao input { position: absolute; top: 14px; right: 14px; width: 18px; height: 18px; min-height: 0; }
+.lote-regra .lote-opcao.on { border-color: var(--primary); background: var(--primary-soft); }
+.lote-passo h2 { margin-bottom: 4px; }
+.lote-final td.strong { min-width: 180px; }
+@media (max-width: 760px) { .lote-regra { grid-template-columns: minmax(0, 1fr); } }
