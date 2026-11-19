@@ -381,77 +381,98 @@
     var ms = modos(); if (ms.indexOf(form.modo) < 0) form.modo = ms[0];
     var ps = pagamentos(); if (ps.indexOf(form.pagamento) < 0) form.pagamento = ps[0];
     var sub = L.subtotal(its), tx = taxa();
-    var box = h('div', { class: 'pg' });
+    var e = entrega();
+    var pg = h('div', { class: 'pg' });
+    function bloco(titulo, conteudo) { return h('section', { class: 'bloco' }, h('h2', { text: titulo }), conteudo); }
+
+    // 1. itens: foto, nome, preço por 100 g, − quantidade +, valor e "tirar"
+    var passo = Math.max(50, min());
     var lista = h('ul', { class: 'ped-lista' });
     its.forEach(function (it) {
-      var campo = h('input', { type: 'text', inputmode: 'numeric', value: String(it.g), 'aria-label': 'Gramas de ' + it.n });
-      var val = h('b', { class: 'valor', text: L.brl(it.total) });
-      var err = h('p', { class: 'erro', role: 'alert' });
+      var x = mapa[it.chave];
+      function mudar(g) { if (g < min()) return; carrinho[it.chave] = g; guardar(); desenhar(true); }
+      var campo = h('input', { class: 'qtd-campo', type: 'text', inputmode: 'numeric', value: String(it.g), 'aria-label': 'Gramas de ' + it.n });
       campo.addEventListener('change', function () {
         var g = L.parseGramas(campo.value);
-        if (!g || g < min()) { err.textContent = g ? 'O mínimo é ' + L.fmtGramas(min()) + '.' : 'Digite só números, por exemplo 250.'; return; }
-        carrinho[it.chave] = g; guardar(); desenhar(true);
+        if (!g || g < min()) { campo.value = String(it.g); avisar('O mínimo é ' + L.fmtGramas(min())); return; }
+        mudar(g);
       });
-      campo.addEventListener('input', function () { var g = L.parseGramas(campo.value); if (g && g >= min()) val.textContent = L.brl(L.precoItem(g, mapa[it.chave].pk)); });
-      lista.appendChild(h('li', null, foto(mapa[it.chave], 'img'),
-        h('div', { class: 'ped-meio' }, h('strong', { text: it.n }), h('div', { class: 'entrada' }, campo, h('span', { text: 'g' })), err),
-        h('div', { class: 'ped-dir' }, val, h('button', { class: 'rem', type: 'button', 'aria-label': 'Tirar ' + it.n, onclick: function () { delete carrinho[it.chave]; guardar(); desenhar(true); } }, icone('x', 18)))));
+      campo.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') campo.blur(); });
+      lista.appendChild(h('li', { class: 'ped-item' },
+        foto(x, 'img'),
+        h('div', { class: 'ped-meio' },
+          h('strong', { text: it.n }),
+          h('span', { class: 'ped-sub', text: por100(x.pk) + ' / 100 g' }),
+          h('div', { class: 'qtd' },
+            h('button', { type: 'button', class: 'qtd-bt', 'aria-label': 'Menos ' + L.fmtGramas(passo) + ' de ' + it.n, disabled: it.g - passo < min(), onclick: function () { mudar(it.g - passo); } }, '−'),
+            h('label', { class: 'qtd-valor' }, campo, h('span', { text: 'g' })),
+            h('button', { type: 'button', class: 'qtd-bt', 'aria-label': 'Mais ' + L.fmtGramas(passo) + ' de ' + it.n, onclick: function () { mudar(it.g + passo); } }, '+'))),
+        h('div', { class: 'ped-dir' },
+          h('b', { text: L.brl(it.total) }),
+          h('button', { class: 'tirar', type: 'button', 'aria-label': 'Tirar ' + it.n + ' do pedido', onclick: function () { delete carrinho[it.chave]; guardar(); desenhar(true); } }, icone('x', 16), 'Tirar'))));
     });
-    box.appendChild(lista);
-    var e = entrega();
-    var resumo = h('div', { class: 'resumo' },
-      h('div', null, h('span', { text: 'Produtos' }), h('span', { text: L.brl(sub) })),
-      form.modo === 'entrega' ? h('div', null, h('span', { text: 'Entrega' }), h('span', { text: tx ? L.brl(tx) : 'a combinar' })) : h('div', null, h('span', { text: 'Retirada' }), h('span', { text: 'grátis' })),
-      h('div', { class: 'total' }, h('span', { text: 'Total' }), h('span', { text: L.brl(sub + tx) + (form.modo === 'entrega' && !tx ? ' + entrega' : '') })));
-    box.appendChild(resumo);
+    pg.appendChild(bloco('Itens (' + its.length + ')', h('div', null, lista,
+      h('button', { class: 'link-add', type: 'button', onclick: function () { ir(''); } }, icone('mais', 16), 'Adicionar mais produtos'))));
 
-    if (ms.length > 1) box.appendChild(seg('Como receber', [{ id: 'retirada', rotulo: 'Retirar na loja', icone: 'loja' }, { id: 'entrega', rotulo: 'Entrega', icone: 'moto' }], form.modo, function (m) { form.modo = m; guardar(); desenhar(true); }));
-    else box.appendChild(h('p', { class: 'aviso', text: ms[0] === 'retirada' ? 'Pedido para retirar na loja.' : (e.taxa === 'fixa' && e.valor ? 'Entrega com taxa de ' + L.brl(e.valor) + '.' : 'A taxa de entrega é combinada com a gente pelo WhatsApp.') }));
-    if (form.modo === 'entrega' && !tx && ms.length > 1) box.appendChild(h('p', { class: 'aviso', text: 'A taxa de entrega é combinada com a gente pelo WhatsApp.' }));
+    // 2. como receber
+    var receber = h('div', { class: 'bloco-in' });
+    if (ms.length > 1) receber.appendChild(seg('Como receber', [{ id: 'retirada', rotulo: 'Retirar na loja', icone: 'loja' }, { id: 'entrega', rotulo: 'Entrega', icone: 'moto' }], form.modo, function (m) { form.modo = m; guardar(); desenhar(true); }));
+    var dicaReceber = form.modo === 'retirada' ? 'Avisamos pelo WhatsApp quando estiver pronto para retirar.' : (tx ? 'Taxa de entrega: ' + L.brl(tx) + '.' : 'A taxa de entrega é combinada com a gente pelo WhatsApp.');
+    receber.appendChild(h('p', { class: 'dica-bloco', text: dicaReceber }));
+    pg.appendChild(bloco('Como receber', receber));
 
+    // 3. seus dados
     var erroEl = h('p', { class: 'erro', role: 'alert', text: ui.erro });
     function limpaErro() { if (ui.erro) { ui.erro = ''; erroEl.textContent = ''; } }
     function campoTexto(id, rotulo, chave, attrs, dica) {
-      var el = attrs.tag === 'textarea' ? h('textarea', { id: id, autocomplete: attrs.ac || null }) : h('input', { id: id, type: attrs.type || 'text', inputmode: attrs.im || null, autocomplete: attrs.ac || null });
+      var el = attrs.tag === 'textarea' ? h('textarea', { id: id, rows: attrs.rows || 2, autocomplete: attrs.ac || null, placeholder: attrs.ph || null }) : h('input', { id: id, type: attrs.type || 'text', inputmode: attrs.im || null, autocomplete: attrs.ac || null, placeholder: attrs.ph || null });
       el.value = form[chave] || '';
       if (attrs.obrig && ui.tentou && !String(form[chave] || '').trim()) el.className = 'invalido';
       el.addEventListener('input', function () { form[chave] = el.value; guardar(); limpaErro(); });
-      return h('label', { for: id }, rotulo, dica ? h('small', { text: dica }) : null, el);
+      return h('label', { class: 'campo', for: id }, h('span', { text: rotulo }), dica ? h('small', { text: dica }) : null, el);
     }
-    var campos = h('div', { class: 'form' },
-      campoTexto('f-nome', 'Seu nome', 'nome', { ac: 'name', obrig: true }),
-      campoTexto('f-tel', 'Seu WhatsApp', 'telefone', { type: 'tel', im: 'tel', ac: 'tel', obrig: true }, 'Para confirmarmos o pedido.'),
-      form.modo === 'entrega' ? campoTexto('f-end', 'Endereço de entrega', 'endereco', { tag: 'textarea', ac: 'street-address', obrig: true }, 'Rua, número, bairro e ponto de referência.') : null);
-    box.appendChild(campos);
+    pg.appendChild(bloco('Seus dados', h('div', { class: 'bloco-in' },
+      campoTexto('f-nome', 'Nome', 'nome', { ac: 'name', obrig: true }),
+      campoTexto('f-tel', 'WhatsApp', 'telefone', { type: 'tel', im: 'tel', ac: 'tel', obrig: true, ph: '(86) 9 9999-9999' }),
+      form.modo === 'entrega' ? campoTexto('f-end', 'Endereço de entrega', 'endereco', { tag: 'textarea', ac: 'street-address', obrig: true, ph: 'Rua, número, bairro e ponto de referência' }) : null)));
 
-    box.appendChild(h('h3', { text: 'Pagamento' }));
+    // 4. pagamento
+    var pag = h('div', { class: 'bloco-in' });
     var rot = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
-    box.appendChild(seg('Pagamento', ps.map(function (p) { return { id: p, rotulo: rot[p] }; }), form.pagamento, function (p) { form.pagamento = p; guardar(); desenhar(true); }));
-    if (form.pagamento === 'cartao') box.appendChild(h('p', { class: 'aviso', text: form.modo === 'retirada' ? 'Pague com cartão na hora de retirar.' : 'Levamos a maquininha na entrega.' }));
-    if (form.pagamento === 'dinheiro') box.appendChild(campoTexto('f-troco', 'Troco para quanto? (opcional)', 'troco', { im: 'decimal' }));
+    pag.appendChild(seg('Pagamento', ps.map(function (p) { return { id: p, rotulo: rot[p] }; }), form.pagamento, function (p) { form.pagamento = p; guardar(); desenhar(true); }));
+    if (form.pagamento === 'cartao') pag.appendChild(h('p', { class: 'dica-bloco', text: form.modo === 'retirada' ? 'Pague com cartão na hora de retirar.' : 'Levamos a maquininha na entrega.' }));
+    if (form.pagamento === 'dinheiro') pag.appendChild(campoTexto('f-troco', 'Troco para quanto? (opcional)', 'troco', { im: 'decimal', ph: 'Ex.: 100' }));
     if (form.pagamento === 'pix') {
       var pix = L.pixCopiaECola(dados.loja.pix, sub + tx, 'CARDAPIO');
       if (pix) {
         var cod = h('code', { class: 'pix-cod', text: pix });
-        box.appendChild(h('div', { class: 'pix' },
-          h('strong', { text: 'Pix copia e cola · ' + L.brl(sub + tx) }),
-          h('p', { text: form.modo === 'entrega' && !tx ? 'Valor só dos produtos (a entrega é combinada à parte). Pague no app do seu banco e envie o comprovante no WhatsApp.' : 'Pague no app do seu banco e envie o comprovante no WhatsApp.' }),
+        pag.appendChild(h('div', { class: 'pix' },
+          h('p', { text: (form.modo === 'entrega' && !tx ? 'Valor dos produtos (a entrega é combinada à parte). ' : '') + 'Pague no app do seu banco e mande o comprovante no WhatsApp.' }),
           cod,
           h('button', { class: 'b sec', type: 'button', onclick: function () {
             (navigator.clipboard ? navigator.clipboard.writeText(pix) : Promise.reject()).then(function () { avisar('Código Pix copiado'); }, function () {
-              var r = document.createRange(); r.selectNodeContents(cod); var s = getSelection(); s.removeAllRanges(); s.addRange(r); avisar('Selecione e copie o código');
+              var r = document.createRange(); r.selectNodeContents(cod); var sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); avisar('Selecione e copie o código');
             });
-          } }, icone('copiar', 18), 'Copiar código Pix')));
-      } else box.appendChild(h('p', { class: 'aviso', text: 'Enviamos a chave Pix pelo WhatsApp junto da confirmação.' }));
+          } }, icone('copiar', 18), 'Copiar código Pix · ' + L.brl(sub + tx))));
+      } else pag.appendChild(h('p', { class: 'dica-bloco', text: 'Mandamos a chave Pix pelo WhatsApp junto da confirmação.' }));
     }
-    box.appendChild(campoTexto('f-obs', 'Observações (opcional)', 'obs', { tag: 'textarea' }));
+    pg.appendChild(bloco('Pagamento', pag));
 
+    // 5. observações
+    pg.appendChild(bloco('Observações', h('div', { class: 'bloco-in' }, campoTexto('f-obs', 'Algum recado? (opcional)', 'obs', { tag: 'textarea', ph: 'Ex.: moído bem fininho, entregar depois das 17h' }))));
+
+    // 6. resumo e enviar
     var st = L.statusHorario(dados.loja.horarios, new Date());
-    if (st && !st.aberto) box.appendChild(h('p', { class: 'aviso fechado', text: 'Estamos fechados agora (' + st.texto.replace(/^Fechado · /, '') + '). Pode mandar o pedido: respondemos assim que abrirmos.' }));
-    box.appendChild(erroEl);
-    box.appendChild(h('button', { class: 'b enviar', type: 'button', onclick: finalizar }, icone('whatsapp'), 'Enviar pedido pelo WhatsApp'));
-    box.appendChild(h('p', { class: 'nota', text: 'O pedido também chega direto no sistema da loja.' }));
-    raiz.appendChild(box);
+    pg.appendChild(h('section', { class: 'bloco resumo-bloco' },
+      h('div', { class: 'resumo' },
+        h('div', null, h('span', { text: 'Produtos' }), h('span', { text: L.brl(sub) })),
+        form.modo === 'entrega' ? h('div', null, h('span', { text: 'Entrega' }), h('span', { text: tx ? L.brl(tx) : 'a combinar' })) : h('div', null, h('span', { text: 'Retirada na loja' }), h('span', { text: 'grátis' })),
+        h('div', { class: 'total' }, h('span', { text: 'Total' }), h('span', { text: L.brl(sub + tx) + (form.modo === 'entrega' && !tx ? ' + entrega' : '') }))),
+      st && !st.aberto ? h('p', { class: 'aviso fechado', text: 'Estamos fechados agora (' + st.texto.replace(/^Fechado · /, '') + '). Pode mandar: respondemos assim que abrirmos.' }) : null,
+      erroEl,
+      h('button', { class: 'b enviar', type: 'button', onclick: finalizar }, icone('whatsapp'), 'Enviar pedido pelo WhatsApp'),
+      h('p', { class: 'nota', text: 'Você confirma tudo com a gente pelo WhatsApp.' })));
+    raiz.appendChild(pg);
     return raiz;
   }
 

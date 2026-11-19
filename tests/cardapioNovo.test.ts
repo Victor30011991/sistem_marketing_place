@@ -51,6 +51,11 @@ describe('cardápio novo: arquivo publicado', () => {
     expect(arquivo.mixes![0].i.sort()).toEqual(['a', 'c', 'o', 'p']);
     expect(JSON.stringify(arquivo)).not.toContain('custo secreto');
   });
+  it('mix só usa o produto cujo nome começa com o tempero (amendoim com salsa não vira salsa)', () => {
+    const l2 = { ...lista, produtos: [...lista.produtos.filter((p) => p.id !== 'o'), prod({ id: 'x', nome: 'Amendoim crocante cebola e oregano' })] };
+    const r = montarCardapio(l2, loja, null);
+    expect(r.arquivo.mixes?.some((m) => m.i.includes('x'))).toBeFalsy();
+  });
   it('mixes podem ser desligados', () => {
     const r = montarCardapio(lista, { ...loja, vitrine: { ...loja.vitrine, mixes: false } }, null);
     expect(r.arquivo.mixes).toBeUndefined();

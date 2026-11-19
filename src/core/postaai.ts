@@ -415,7 +415,7 @@ const temEstoque = (p: Product) => p.estoque == null || p.estoque > 0;
 /** Produto da loja que corresponde a um tempero da receita ('curcuma|acafrao'). */
 function achar(produtos: Product[], chave: string): Product | undefined {
   const alts = chave.split('|');
-  return produtos.find((p) => temEstoque(p) && alts.some((a) => norm(p.nome).includes(a)));
+  return produtos.find((p) => temEstoque(p) && alts.some((a) => norm(p.nome).startsWith(a)));
 }
 
 const ehPeso = (p: Product) => ['kg', 'g'].includes(String(p.unidade).toLowerCase());
