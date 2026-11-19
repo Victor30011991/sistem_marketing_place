@@ -57,7 +57,7 @@ export default function Home() {
           <span className="eyebrow">Sistema da loja</span>
           <h1>Do custo ao balcão, tudo num lugar.</h1>
           <p>
-            Preços com margem certa, estoque, vendas no PDV, pedidos do cardápio, orçamentos e relatórios. Funciona no computador e no celular, com os dados na nuvem para vocês dois.
+            Preços com margem certa, estoque, vendas no PDV, pedidos do cardápio, orçamentos e relatórios. Funciona no computador e no celular, com os dados na nuvem para vocês dois. <a href="https://github.com/Victor30011991/sistem_marketing_place#manual-de-uso" target="_blank" rel="noopener noreferrer">Ver o manual de uso</a>.
           </p>
         </div>
         <div className="hero-logo">
