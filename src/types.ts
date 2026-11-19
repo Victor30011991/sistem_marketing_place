@@ -300,6 +300,8 @@ export interface ConfigBalanca {
 
 export interface Settings {
   balanca?: ConfigBalanca;
+  /** retirada mensal dos donos, em centavos (opcional; usada no resultado do mês) */
+  proLabore?: number;
   /** modelos de etiqueta da impressora térmica */
   etiquetas?: ModeloEtiqueta[];
   /** vendas pausadas no PDV, para retomar depois */
