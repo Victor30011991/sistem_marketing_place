@@ -1,5 +1,6 @@
 import type { FixedCost, InstallmentFee, ListaCompras, ListState, Lote, LoteItem, Product, Settings, StoreInfo, VariableCost, Venda, VendaItem, VendaPausada } from '../types';
 import { defaultSettings, defaultStore } from './defaults';
+import { etiquetasDe, nutricaoDe } from './etiquetas';
 import { newId, newKey } from './normalize';
 import { paymentOptions } from './pricing';
 import { vitrineDe } from './vitrine';
@@ -65,6 +66,9 @@ function lerProduto(v: unknown): Product | null {
   if (v.conteudoQtd !== undefined) p.conteudoQtd = num(v.conteudoQtd);
   if (v.conteudoUnidade !== undefined) p.conteudoUnidade = typeof v.conteudoUnidade === 'string' ? v.conteudoUnidade : null;
   if (typeof v.plu === 'number' && Number.isInteger(v.plu) && v.plu > 0 && v.plu <= 999999) p.plu = v.plu;
+  if (typeof v.ingredientes === 'string' && v.ingredientes.trim()) p.ingredientes = v.ingredientes;
+  const nutri = nutricaoDe(v.nutricao);
+  if (nutri) p.nutricao = nutri;
   return p;
 }
 
@@ -211,6 +215,8 @@ function lerConfig(raw: unknown): Settings {
     return x ? [x] : [];
   });
   if (isObj(raw.balanca)) cfg.balanca = balancaDe(raw.balanca);
+  const etiquetas = etiquetasDe(raw.etiquetas);
+  if (etiquetas?.length) cfg.etiquetas = etiquetas;
   if (Array.isArray(raw.vendasPausadas)) cfg.vendasPausadas = raw.vendasPausadas.flatMap((x) => {
     const y = lerPausada(x);
     return y ? [y] : [];
