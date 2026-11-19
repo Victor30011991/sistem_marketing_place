@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { aplicarLote, calcularLote, itemVazio, loteVazio, repartir, sugerirCategoria, sugerirProduto } from '../src/core/lote';
+import { aplicarLote, arredondar, calcularLote, itemVazio, loteVazio, precoMultiplicador, REGRA_PADRAO, repartir, sugerirCategoria, sugerirProduto } from '../src/core/lote';
 import { lerNFeXml, lerTextoNota, type NotaLida } from '../src/core/nota';
 import { criarBackup, lerBackup } from '../src/core/backup';
 import { defaultSettings, defaultStore } from '../src/core/defaults';
@@ -156,7 +156,7 @@ describe('aplicar o lote aos produtos', () => {
     expect(a.custo).toBe(1736); // (53,70 − 1,61) ÷ 3 kg
     expect(a.estoque).toBe(4); // 1 + 3
     const h = r.produtos.find((p) => p.nome === 'Hortela')!;
-    expect(h).toMatchObject({ unidade: 'kg', estoque: 2, categoria: 'Chás e ervas', venda: null });
+    expect(h).toMatchObject({ unidade: 'kg', estoque: 2, categoria: 'Chás e ervas', venda: 2750 }); // R$ 13,82 × 2 = 27,64 → 27,50
     expect(h.custo).toBe(1382); // (28,50 − 0,86) ÷ 2
     expect(r.categorias).toContain('Chás e ervas');
     expect(r.atualizados).toBe(1);
@@ -273,5 +273,43 @@ describe('achados da vistoria', () => {
     cfg.lotes = [{ ...loteVazio(), itens: [it2({ nome: '', produtoId: 'acafrao', qtd: 1, valor: 100 })] }];
     const r = lerBackup(criarBackup({ nome: 'L', produtos: [], categorias: [] }, defaultStore(), cfg));
     expect(r.ok && r.config.lotes![0].itens).toHaveLength(1);
+  });
+});
+
+describe('regra de preço do lote', () => {
+  it('reproduz a tabela do dono: custo × 2 arredondado para R$ 0,50', () => {
+    const casos: [number, number][] = [[2617, 5250], [2851, 5700], [5232, 10450], [4153, 8300], [1250, 2500], [2471, 4950]];
+    for (const [custo, venda] of casos) expect(precoMultiplicador(custo, 'kg', REGRA_PADRAO)).toBe(venda);
+    expect(arredondar(5234, 100)).toBe(5200);
+    expect(arredondar(5234, 1)).toBe(5234);
+  });
+
+  const base = (): Product[] => [prod({ id: 'a', nome: 'Açafrão', custo: 2000, venda: 9990, estoque: 0 })];
+  const it1 = (): LoteItem => ({ ...itemVazio(), nome: 'Açafrão', produtoId: 'a', qtd: 3, valor: 6000 }); // R$ 20,00/kg
+
+  it('multiplicador muda o preço dos produtos da nota', () => {
+    const r = aplicarLote({ ...loteVazio(), itens: [it1()] }, base(), []);
+    expect(r.produtos[0]).toMatchObject({ custo: 2000, venda: 4000 });
+    expect(r.linhas[0]).toMatchObject({ vendaAntes: 9990, vendaDepois: 4000 });
+  });
+  it('manter não mexe no preço', () => {
+    const r = aplicarLote({ ...loteVazio({ ...REGRA_PADRAO, modo: 'manter' }), itens: [it1()] }, base(), []);
+    expect(r.produtos[0].venda).toBe(9990);
+  });
+  it('sugerido usa o preço da margem do sistema, arredondado', () => {
+    const r = aplicarLote({ ...loteVazio({ modo: 'sugerido', fator: 2, passo: 50 }), itens: [it1()] }, base(), [], (p) => (p.custo ?? 0) * 1.7 + 3);
+    expect(r.produtos[0].venda).toBe(3400); // 3403 → 34,00
+  });
+  it('produto por grama arredonda o preço do quilo', () => {
+    const g = [prod({ id: 'g', nome: 'Pimenta', unidade: 'g', custo: 2, venda: 5 })];
+    // R$ 30,00 por 1000 g = 3 centavos/g; × 1,75 = 5,25 centavos/g = R$ 52,50/kg (o arredondamento é no preço do quilo)
+    const r = aplicarLote({ ...loteVazio({ modo: 'multiplicador', fator: 1.75, passo: 50 }), custo: 'ultimo', itens: [{ ...itemVazio(), nome: 'Pimenta', produtoId: 'g', unidade: 'g', qtd: 1000, valor: 3000 }] }, g, []);
+    expect(Math.round(r.produtos[0].venda! * 1000)).toBe(5250);
+  });
+  it('a regra fica guardada no lote e volta do backup', () => {
+    const cfg = defaultSettings();
+    cfg.lotes = [{ ...loteVazio({ modo: 'multiplicador', fator: 2.2, passo: 100 }), itens: [it1()] }];
+    const r = lerBackup(criarBackup({ nome: 'L', produtos: [], categorias: [] }, defaultStore(), cfg));
+    expect(r.ok && r.config.lotes![0].preco).toEqual({ modo: 'multiplicador', fator: 2.2, passo: 100 });
   });
 });
