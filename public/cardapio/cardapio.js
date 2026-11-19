@@ -159,6 +159,16 @@
 
   // ---------- montinho de tempero desenhado (a miniatura de quem ainda não tem foto) ----------
   var TONS = [
+    [/\bmel\b|melado/, '#D9921A'],
+    [/molho|tabasco|sriracha/, '#B5201A'],
+    [/azeite|oleo/, '#8A8A2A'],
+    [/vinagre|shoyu|xarope|melaco/, '#5A2A14'],
+    [/amendoim/, '#B9824A'],
+    [/castanha|caju|amendoa|macadamia|pistache|baru/, '#D8B98C'],
+    [/nozes|\bnoz\b|pecan/, '#8A5A30'],
+    [/chocolate|cacau/, '#4A2A1A'],
+    [/passa|ameixa|tamara/, '#4A2030'],
+    [/damasco/, '#E08A2A'],
     [/paprica|colorau|urucum|pimenta|chili|calabresa|tomate|goji|hibisco/, '#B5401A'],
     [/curcuma|acafrao|curry|acafr|mostarda/, '#E3A21A'],
     [/lemon|limao/, '#C9B64A'],
@@ -251,6 +261,7 @@
     }
     function mh(a, b, t) { var p = parseInt(a.slice(1), 16), q = parseInt(b.slice(1), 16); return '#' + [16, 8, 0].map(function (s) { var u = (p >> s) & 255, v = (q >> s) & 255; return Math.round(u + (v - u) * t).toString(16).padStart(2, '0'); }).join(''); }
     var seed = 7; function r() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    if (tipo === 'mel' || tipo === 'molho' || tipo === 'garrafa') return (cachePote[chave] = frasco(c, x, tom, px, tipo, mh));
     var cx = px / 2, topo = px * 0.50, rx = px * 0.40, ry = rx * 0.30, fundoY = px * 0.86;
     // sombra no balcão
     var sg = x.createRadialGradient(cx, fundoY, 0, cx, fundoY, rx * 1.15);
@@ -283,12 +294,43 @@
     x.fillStyle = base; monte(); x.fill();
     x.save(); monte(); x.clip();
     var pal = [tom, mh(tom, '#000000', .25), mh(tom, '#ffffff', .2), mh(tom, '#000000', .45), mh(tom, '#ffffff', .4)];
-    var n = Math.round(px * px / (tipo === 'graos' ? 14 : 6)), gr = Math.max(.7, px / (tipo === 'graos' ? 110 : 260));
-    for (var i = 0; i < n; i++) {
-      var gx = cx - irx + r() * irx * 2, gy = pico + r() * (topo + iry - pico);
-      x.globalAlpha = .55 + r() * .45; x.fillStyle = pal[Math.floor(r() * pal.length)];
-      if (tipo === 'graos') { x.beginPath(); x.ellipse(gx, gy, gr * (1 + r()), gr * .6, r() * 3, 0, 6.28); x.fill(); }
-      else x.fillRect(gx, gy, gr * (1 + r()), gr * (1 + r()));
+    var forma = { castanha: 22, amendoim: 30, folhas: 30, doce: 30, fruta: 26 }[tipo];
+    if (forma) {
+      // peças grandes, de trás para a frente
+      var sz = px / forma, pecas = [];
+      var qtd = Math.round((irx * 2 * (topo + iry - pico)) / (sz * sz * (tipo === 'castanha' ? 1.6 : 1.9)));
+      for (var q = 0; q < qtd; q++) pecas.push([cx - irx + r() * irx * 2, pico + sz * .4 + r() * (topo + iry - pico), r() * 6.28, .8 + r() * .45, Math.floor(r() * pal.length)]);
+      pecas.sort(function (a, b) { return a[1] - b[1]; });
+      var doces = [tom, mh(tom, '#ffffff', .3), '#C0392B', '#E8B04A', '#6E8B3D', '#8E4A7A'];
+      pecas.forEach(function (pc) {
+        var gx = pc[0], gy = pc[1], ang = pc[2], k = pc[3] * sz, cor = pal[pc[4]];
+        x.save(); x.translate(gx, gy); x.rotate(ang);
+        if (tipo === 'castanha') {
+          x.lineCap = 'round'; x.lineWidth = k * .7; x.strokeStyle = mh(cor, '#000000', .25); x.beginPath(); x.arc(0, 0, k, .3, 2.9); x.stroke();
+          x.lineWidth = k * .55; x.strokeStyle = mh(tom, '#ffffff', .15 + (pc[4] % 3) * .08); x.beginPath(); x.arc(0, 0, k, .35, 2.85); x.stroke();
+          x.lineWidth = k * .14; x.strokeStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.arc(0, -k * .08, k * 1.05, .7, 2.3); x.stroke();
+        } else if (tipo === 'amendoim') {
+          x.fillStyle = mh(cor, '#000000', .2); x.beginPath(); x.arc(-k * .45, 0, k * .62, 0, 6.28); x.arc(k * .45, 0, k * .58, 0, 6.28); x.fill();
+          x.fillStyle = cor; x.beginPath(); x.arc(-k * .45, -k * .05, k * .52, 0, 6.28); x.arc(k * .45, -k * .05, k * .48, 0, 6.28); x.fill();
+          x.fillStyle = 'rgba(255,255,255,.25)'; x.beginPath(); x.arc(-k * .6, -k * .25, k * .16, 0, 6.28); x.fill();
+        } else if (tipo === 'folhas') {
+          x.fillStyle = mh(cor, '#000000', .1); x.beginPath(); x.ellipse(0, 0, k * 1.1, k * .42, 0, 0, 6.28); x.fill();
+          x.strokeStyle = 'rgba(255,255,255,.25)'; x.lineWidth = Math.max(.6, k * .08); x.beginPath(); x.moveTo(-k, 0); x.lineTo(k, 0); x.stroke();
+        } else {
+          var cd = tipo === 'fruta' ? cor : doces[pc[4] % doces.length]; x.fillStyle = mh(cd, '#000000', .25); x.beginPath(); x.arc(0, k * .08, k * .62, 0, 6.28); x.fill();
+          x.fillStyle = cd; x.beginPath(); x.arc(0, 0, k * .58, 0, 6.28); x.fill();
+          x.fillStyle = 'rgba(255,255,255,.55)'; x.beginPath(); x.arc(-k * .2, -k * .22, k * .16, 0, 6.28); x.fill();
+        }
+        x.restore();
+      });
+    } else {
+      var n = Math.round(px * px / (tipo === 'graos' ? 14 : 6)), gr = Math.max(.7, px / (tipo === 'graos' ? 110 : 260));
+      for (var i = 0; i < n; i++) {
+        var gx2 = cx - irx + r() * irx * 2, gy2 = pico + r() * (topo + iry - pico);
+        x.globalAlpha = .55 + r() * .45; x.fillStyle = pal[Math.floor(r() * pal.length)];
+        if (tipo === 'graos') { x.beginPath(); x.ellipse(gx2, gy2, gr * (1 + r()), gr * .6, r() * 3, 0, 6.28); x.fill(); }
+        else x.fillRect(gx2, gy2, gr * (1 + r()), gr * (1 + r()));
+      }
     }
     x.globalAlpha = 1;
     var sombraMonte = x.createLinearGradient(cx - irx, 0, cx + irx, 0);
@@ -302,8 +344,68 @@
     return (cachePote[chave] = c.toDataURL('image/png'));
   }
 
-  var GRAOS = /chia|linhaca|gergelim|granola|castanha|amendoim|semente|grao|graos|quinoa|aveia em flocos|mix de|nozes|uva passa|cravo|erva doce|anis|coentro em grao/;
-  function tipoDe(nome) { return GRAOS.test(semAcento(nome)) ? 'graos' : ''; }
+  /** Frasco de molho, pote de mel ou garrafa (vidro com o líquido na cor do produto). */
+  function frasco(c, x, tom, px, tipo, mh) {
+    var cx = px / 2, base = px * .88;
+    var sg = x.createRadialGradient(cx, base, 0, cx, base, px * .32);
+    sg.addColorStop(0, 'rgba(40,25,15,.35)'); sg.addColorStop(1, 'rgba(40,25,15,0)');
+    x.fillStyle = sg; x.beginPath(); x.ellipse(cx, base, px * .32, px * .05, 0, 0, 6.28); x.fill();
+    function rr(x0, y0, w, h, rad) { x.beginPath(); x.roundRect(x0, y0, w, h, rad); }
+    var liquido = x.createLinearGradient(cx - px * .3, 0, cx + px * .3, 0);
+    liquido.addColorStop(0, mh(tom, '#000000', .35)); liquido.addColorStop(.35, mh(tom, '#ffffff', .18)); liquido.addColorStop(.6, tom); liquido.addColorStop(1, mh(tom, '#000000', .45));
+    if (tipo === 'mel') {
+      var w = px * .5, t = px * .34;
+      x.fillStyle = 'rgba(255,255,255,.35)'; rr(cx - w / 2, t, w, base - t, px * .07); x.fill();
+      x.fillStyle = liquido; rr(cx - w / 2 + px * .015, t + px * .05, w - px * .03, base - t - px * .065, px * .06); x.fill();
+      // favo no rótulo
+      x.fillStyle = '#F4E3C3'; rr(cx - w * .36, t + (base - t) * .38, w * .72, (base - t) * .34, px * .02); x.fill();
+      x.strokeStyle = mh(tom, '#000000', .3); x.lineWidth = Math.max(1, px / 160);
+      for (var hx = -1; hx <= 1; hx++) { var hcx = cx + hx * w * .17, hcy = t + (base - t) * .55, hr = w * .085; x.beginPath(); for (var a = 0; a < 6; a++) { var aa = Math.PI / 3 * a + Math.PI / 6; x.lineTo(hcx + Math.cos(aa) * hr, hcy + Math.sin(aa) * hr); } x.closePath(); x.stroke(); }
+      // tampa de tecido e laço
+      x.fillStyle = '#B5793A'; rr(cx - w * .55, t - px * .07, w * 1.1, px * .09, px * .03); x.fill();
+      x.fillStyle = '#E9D2A6'; for (var d = 0; d < 7; d++) { x.beginPath(); x.arc(cx - w * .45 + d * w * .15, t - px * .025, px * .012, 0, 6.28); x.fill(); }
+      // colher de mel
+      x.save(); x.translate(cx + w * .38, t - px * .02); x.rotate(.5);
+      x.fillStyle = '#8A5528'; x.fillRect(-px * .012, -px * .26, px * .024, px * .26);
+      x.fillStyle = '#A86A3A'; for (var g = 0; g < 4; g++) { x.beginPath(); x.ellipse(0, -px * .27 - g * px * .025, px * .04 - g * px * .004, px * .012, 0, 0, 6.28); x.fill(); }
+      x.restore();
+      x.fillStyle = 'rgba(255,255,255,.4)'; rr(cx - w / 2 + px * .04, t + px * .07, px * .03, (base - t) * .7, px * .015); x.fill();
+    } else {
+      var garrafa = tipo === 'garrafa';
+      var bw = px * (garrafa ? .24 : .3), topoCorpo = px * (garrafa ? .36 : .4), pesc = px * (garrafa ? .07 : .09), alturaPesc = px * (garrafa ? .14 : .1);
+      // corpo e gargalo de vidro
+      x.fillStyle = 'rgba(255,255,255,.3)'; rr(cx - bw / 2, topoCorpo, bw, base - topoCorpo, px * .05); x.fill();
+      x.fillStyle = liquido; rr(cx - bw / 2 + px * .012, topoCorpo + px * .02, bw - px * .024, base - topoCorpo - px * .032, px * .045); x.fill();
+      x.fillStyle = mh(tom, '#000000', .25); x.fillRect(cx - pesc / 2, topoCorpo - alturaPesc, pesc, alturaPesc + px * .02);
+      // tampa
+      x.fillStyle = garrafa ? '#2B2B2B' : '#F2EDE4'; rr(cx - pesc * .75, topoCorpo - alturaPesc - px * .07, pesc * 1.5, px * .08, px * .015); x.fill();
+      if (!garrafa) { x.fillStyle = '#C0392B'; rr(cx - pesc * .75, topoCorpo - alturaPesc - px * .03, pesc * 1.5, px * .03, px * .01); x.fill(); }
+      // rótulo
+      var ly = topoCorpo + (base - topoCorpo) * .28, lh = (base - topoCorpo) * .42;
+      x.fillStyle = '#F4E8D3'; x.fillRect(cx - bw / 2 + px * .012, ly, bw - px * .024, lh);
+      x.fillStyle = mh(tom, '#000000', .1);
+      if (!garrafa) { x.save(); x.translate(cx, ly + lh * .55); x.rotate(-.5); x.beginPath(); x.ellipse(0, 0, bw * .26, bw * .08, 0, 0, 6.28); x.fill(); x.fillStyle = '#4E7A2E'; x.fillRect(bw * .22, -bw * .03, bw * .1, bw * .06); x.restore(); }
+      else { x.beginPath(); x.ellipse(cx, ly + lh * .55, bw * .14, bw * .2, 0, 0, 6.28); x.fill(); }
+      x.fillStyle = mh(tom, '#000000', .3); x.fillRect(cx - bw * .3, ly + lh * .14, bw * .6, Math.max(1, lh * .07));
+      // brilho do vidro
+      x.fillStyle = 'rgba(255,255,255,.45)'; rr(cx - bw / 2 + px * .025, topoCorpo + px * .04, px * .022, (base - topoCorpo) * .75, px * .01); x.fill();
+    }
+    return c.toDataURL('image/png');
+  }
+
+  /** Como desenhar cada produto: frasco, pote de mel, garrafa, castanhas, amendoins, folhas, doces, grãos ou pó. */
+  var TIPOS = [
+    [/\bmel\b|melado/, 'mel'],
+    [/molho|pimenta liquida|tabasco|sriracha/, 'molho'],
+    [/azeite|oleo|vinagre|extrato|essencia|xarope|shoyu|melaco/, 'garrafa'],
+    [/amendoim/, 'amendoim'],
+    [/castanha|caju|nozes|\bnoz\b|amendoa|macadamia|pistache|pecan|baru/, 'castanha'],
+    [/passa|damasco|tamara|cranberry|goji|banana desidratada|fruta desidratada|ameixa/, 'fruta'],
+    [/doce|bala|confeito|goma|jujuba|chocolate|drageado|chips|coco queimado|cocada|pacoca/, 'doce'],
+    [/\bcha\b|cha |hortela|camomila|boldo|cidreira|capim|folha|louro|oregano|alecrim|manjericao|salsa|cebolinha|chimichurri|tomilho|\bervas?\b|hibisco|melissa|carqueja|espinheira/, 'folhas'],
+    [/chia|linhaca|gergelim|granola|semente|grao|graos|quinoa|aveia|mix de|cravo|erva doce|anis|coentro|mostarda em grao|pimenta do reino em grao/, 'graos'],
+  ];
+  function tipoDe(nome) { var n = semAcento(nome); for (var i = 0; i < TIPOS.length; i++) if (TIPOS[i][0].test(n)) return TIPOS[i][1]; return ''; }
   // ---------- peças ----------
   function foto(it, cls, grande) {
     if (it.f) return h('img', { class: cls, src: it.f, alt: '', loading: 'lazy' });
