@@ -9,6 +9,7 @@ import { slug } from '../core/normalize';
 import { logoDataUrl } from '../ui/logo';
 import { useSaveBackup, useSaveExcel, XLSX_MIME } from '../export/useSave';
 import { useRestaurarBackup } from '../ui/useRestaurarBackup';
+import { useNuvem } from '../nuvem/NuvemProvider';
 import type { PdfLayout, PdfOptions, PriceMode } from '../export/pdf';
 import { suggestedCents } from '../core/pricing';
 
@@ -108,9 +109,78 @@ function ExcelPanel() {
         </div>
         <p className="muted small">
           Faça um backup sempre que terminar um bloco de alterações. O arquivo fica no seu computador ou celular, nunca é enviado para a internet, e não deve ser editado à mão.
+          {state.config.ultimoDownload && <> Último backup baixado: {new Date(state.config.ultimoDownload).toLocaleDateString('pt-BR')}.</>}
         </p>
       </section>
+      <CopiasNuvem />
     </div>
+  );
+}
+
+/** Cópias automáticas semanais guardadas na nuvem: dá para voltar a uma delas se algo for apagado sem querer. */
+function CopiasNuvem() {
+  const { fase, servico } = useNuvem();
+  const { state } = useApp();
+  const { toast } = useFeedback();
+  const restaurarTexto = useRestaurarBackup();
+  const [lista, setLista] = useState<{ id: string; quando: string; produtos: number; tamanho: number }[] | null>(null);
+  useEffect(() => {
+    if (fase !== 'conectado' || !servico) return;
+    let vivo = true;
+    servico.listarCopias().then((l) => vivo && setLista(l)).catch(() => vivo && setLista([]));
+    return () => {
+      vivo = false;
+    };
+  }, [fase, servico, state.config.ultimaCopia]);
+  if (fase !== 'conectado') return null;
+  async function texto(id: string) {
+    const gz = await servico!.lerCopia(id);
+    if (!gz) throw new Error('vazia');
+    const { descompactar } = await import('../core/compactar');
+    return descompactar(gz);
+  }
+  async function voltar(id: string) {
+    try {
+      await restaurarTexto(await texto(id));
+    } catch {
+      toast('Não foi possível abrir esta cópia.', 'erro');
+    }
+  }
+  async function baixar(id: string) {
+    try {
+      downloadBlob(new Blob([await texto(id)], { type: 'text/plain;charset=utf-8' }), `backup-copia-${id}.txt`, 'text/plain');
+    } catch {
+      toast('Não foi possível baixar esta cópia.', 'erro');
+    }
+  }
+  return (
+    <section className="card span-all">
+      <h2>Cópias automáticas na nuvem</h2>
+      <p className="muted small">Toda semana o sistema guarda sozinho uma cópia de tudo na nuvem (ficam as 8 mais novas). Se algo for apagado sem querer, volte para uma delas.</p>
+      {!lista ? (
+        <p className="muted">Carregando…</p>
+      ) : lista.length === 0 ? (
+        <p className="muted">A primeira cópia é feita alguns segundos depois de entrar na nuvem.</p>
+      ) : (
+        <ul className="pdv-pag">
+          {lista.map((c) => (
+            <li key={c.id}>
+              <span>
+                {new Date(c.quando).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} <small className="muted">· {c.produtos} produtos</small>
+              </span>
+              <span className="row-gap">
+                <Button variant="ghost" icon="download" onClick={() => baixar(c.id)}>
+                  Baixar
+                </Button>
+                <Button variant="secondary" icon="undo" onClick={() => voltar(c.id)}>
+                  Voltar para esta
+                </Button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

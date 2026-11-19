@@ -3,6 +3,7 @@ import { useApp } from '../state/store';
 import { useFeedback, useDocumentTitle } from '../ui/feedback';
 import { logoSrc } from '../ui/logo';
 import Entrada from './Entrada';
+import { Avisos } from '../components/Avisos';
 import { useNuvem } from '../nuvem/NuvemProvider';
 
 export default function Home() {
@@ -64,6 +65,7 @@ export default function Home() {
         </div>
       </section>
 
+      <Avisos />
       <Entrada onNovaLista={novaLista} />
 
       {total > 0 && (

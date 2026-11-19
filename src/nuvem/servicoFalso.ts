@@ -124,3 +124,20 @@ export async function lerHistorico(max = 300): Promise<Registro[]> {
   const l: Registro[] = JSON.parse(localStorage.getItem('falso.historico') ?? '[]');
   return l.sort((a, b) => b.quando.localeCompare(a.quando)).slice(0, max);
 }
+
+type Copia = { id: string; quando: string; produtos: number; tamanho: number; gz: string };
+const lerCopias = (): Copia[] => JSON.parse(localStorage.getItem('falso.copias') ?? '[]');
+export async function salvarCopia(c: Copia) {
+  localStorage.setItem('falso.copias', JSON.stringify([...lerCopias().filter((x) => x.id !== c.id), c]));
+}
+export async function listarCopias() {
+  return lerCopias()
+    .sort((a, b) => b.quando.localeCompare(a.quando))
+    .map(({ gz: _g, ...i }) => i);
+}
+export async function lerCopia(id: string) {
+  return lerCopias().find((c) => c.id === id)?.gz ?? null;
+}
+export async function apagarCopia(id: string) {
+  localStorage.setItem('falso.copias', JSON.stringify(lerCopias().filter((c) => c.id !== id)));
+}

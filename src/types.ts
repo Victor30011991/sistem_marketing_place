@@ -187,6 +187,8 @@ export interface LoteItem {
   valor: number;
   /** desconto do próprio item, em centavos */
   desconto: number;
+  /** validade da mercadoria deste item, AAAA-MM-DD (opcional) */
+  validade?: string;
 }
 
 /** Uma compra de mercadoria (uma nota). Frete, juros e extras são repartidos entre os itens. */
@@ -459,6 +461,10 @@ export interface Settings {
   contas?: Conta[];
   /** dias para pagar o fiado (padrão 30) */
   prazoFiado?: number;
+  /** ISO da última cópia automática guardada na nuvem */
+  ultimaCopia?: string;
+  /** ISO do último backup .txt baixado */
+  ultimoDownload?: string;
   /** caixas por dia (na nuvem ficam um por documento) */
   caixas?: Caixa[];
   /** clientes cadastrados (na nuvem ficam um por documento) */

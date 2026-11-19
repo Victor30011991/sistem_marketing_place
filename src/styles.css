@@ -878,3 +878,14 @@ ol.pdv-pag li strong { float: right; }
   .toasts { bottom: calc(76px + env(safe-area-inset-bottom)); }
 }
 @media print { .barra-baixo, .menu-fundo { display: none !important; } }
+
+/* ------------------------------------------------------------ avisos do dia e validade */
+.avisos ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.avisos li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: var(--r-control); background: var(--bg-2); }
+.avisos li a { font-weight: 650; color: var(--primary); white-space: nowrap; min-height: 32px; display: inline-flex; align-items: center; }
+.aviso-bad { background: color-mix(in srgb, var(--danger) 9%, white) !important; color: var(--danger); }
+.aviso-warn { background: var(--warn-bg) !important; }
+.aviso-bad span, .aviso-warn span { color: var(--ink); }
+.lote-validade { min-width: 140px; }
+.lote-validade-todos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+@media (max-width: 600px) { .avisos li { grid-template-columns: auto minmax(0, 1fr); } .avisos li a { grid-column: 2; } }

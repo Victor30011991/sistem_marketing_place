@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNuvem } from '../nuvem/NuvemProvider';
 import { pagoNoPeriodo, saldo } from '../core/contas';
+import { vencendo } from '../core/validade';
 import type { Registro } from '../types';
 import { Link } from 'react-router-dom';
 import { useApp } from '../state/store';
@@ -75,6 +76,7 @@ export default function Relatorios() {
     toast(`${novos.length} produto(s) na lista de compras, com a quantidade de 1 mês de vendas.`);
   }
 
+  const venc = vencendo(config.lotes ?? [], lista.produtos, periodoDe('hoje').ate, 60);
   const pagoContas = pagoNoPeriodo(config.contas ?? [], periodo.de, periodo.ate);
   const aReceber = (config.contas ?? []).filter((c) => c.tipo === 'receber').reduce((a, c) => a + saldo(c), 0);
   const porVendedor = useMemo(() => {
@@ -388,6 +390,22 @@ export default function Relatorios() {
                   </div>
                 )}
               </section>
+              {venc.length > 0 && (
+                <section className="card">
+                  <h2>Validade</h2>
+                  <p className="muted small">Pela validade informada nos lotes de compra. Confira na prateleira: pode já ter vendido essa parte.</p>
+                  <ul className="pdv-pag">
+                    {venc.map((v) => (
+                      <li key={v.nome + v.validade}>
+                        <span>
+                          {v.nome} <small className="muted">· {v.lote}</small>
+                        </span>
+                        <strong className={v.dias <= 7 ? 'rel-desce' : ''}>{v.dias < 0 ? `venceu ${brLongo(v.validade)}` : `${brLongo(v.validade)} · ${v.dias} dia(s)`}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
               <section className="card">
                 <h2>Parados</h2>
                 <p className="muted small">Dinheiro que está na prateleira sem girar. Bons candidatos para promoção.</p>

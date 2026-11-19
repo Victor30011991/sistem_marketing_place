@@ -17,6 +17,8 @@ import {
   persistentMultipleTabManager,
   query,
   setDoc,
+  getDoc,
+  deleteDoc,
   getDocs,
   orderBy,
   limit,
@@ -146,6 +148,30 @@ export async function lerHistorico(max = 300): Promise<Registro[]> {
   const s = await getDocs(query(collection(db, 'lojas', LOJA_ID, 'historico'), orderBy('quando', 'desc'), limit(max)));
   return s.docs.map((d) => d.data() as Registro);
 }
+
+export interface CopiaInfo {
+  id: string;
+  quando: string;
+  produtos: number;
+  tamanho: number;
+}
+
+/** Cópia automática do backup (compactada), guardada na própria nuvem. */
+export async function salvarCopia(c: CopiaInfo & { gz: string }): Promise<void> {
+  await setDoc(doc(db, 'lojas', LOJA_ID, 'copias', c.id), c);
+}
+export async function listarCopias(): Promise<CopiaInfo[]> {
+  const s = await getDocs(query(collection(db, 'lojas', LOJA_ID, 'copias'), orderBy('quando', 'desc')));
+  return s.docs.map((d) => {
+    const { gz: _g, ...info } = d.data() as CopiaInfo & { gz: string };
+    return info;
+  });
+}
+export async function lerCopia(id: string): Promise<string | null> {
+  const s = await getDoc(doc(db, 'lojas', LOJA_ID, 'copias', id));
+  return s.exists() ? ((s.data() as { gz: string }).gz ?? null) : null;
+}
+export const apagarCopia = (id: string) => deleteDoc(doc(db, 'lojas', LOJA_ID, 'copias', id));
 
 /** Publica o cardápio que o cliente vê (só nome, categoria e preço; nunca custos). */
 export function publicarCardapio(json: string): Promise<void> {

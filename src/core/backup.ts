@@ -106,6 +106,7 @@ function lerLote(raw: unknown): Lote | null {
       qtd: Math.max(0, numOr(i.qtd, 0)),
       valor: cent(i.valor),
       desconto: cent(i.desconto),
+      ...(/^\d{4}-\d{2}-\d{2}$/.test(str(i.validade)) ? { validade: str(i.validade) } : {}),
     }];
   });
   const l: Lote = {

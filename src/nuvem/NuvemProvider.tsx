@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useApp } from '../state/store';
 import { montarCardapio } from '../core/vitrine';
 import { registrosDe } from '../core/historico';
+import { criarBackup } from '../core/backup';
+import { compactar } from '../core/compactar';
 import { Button, Modal } from '../ui/ui';
 import { COLECOES, dividir, igual, inicioJanela, juntar, nuvemVazia, planejarEscritas, type Nuvem } from './modelo';
 import type { Parte } from './servico';
@@ -218,6 +220,30 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('offline', off);
     };
   }, [enviar]);
+
+  // uma vez por semana, guarda uma cópia compactada de tudo na própria nuvem (as 8 mais novas)
+  useEffect(() => {
+    if (fase !== 'conectado') return;
+    const t = setTimeout(async () => {
+      const s = svc.current;
+      const st = stateRef.current;
+      const ultima = st.config.ultimaCopia ? Date.parse(st.config.ultimaCopia) : 0;
+      if (!s || !st.lista.produtos.length || Date.now() - ultima < 7 * 86400000) return;
+      try {
+        const texto = criarBackup(st.lista, st.loja, st.config);
+        const gz = await compactar(texto);
+        if (!gz || gz.length > 900_000) return;
+        const quando = new Date().toISOString();
+        await s.salvarCopia({ id: quando.slice(0, 10), quando, produtos: st.lista.produtos.length, tamanho: gz.length, gz });
+        act.config((c) => ({ ...c, ultimaCopia: quando }));
+        const todas = await s.listarCopias();
+        await Promise.all(todas.slice(8).map((c) => s.apagarCopia(c.id)));
+      } catch {
+        /* tenta de novo na próxima abertura */
+      }
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [fase, act]);
 
   // o cardápio do cliente se atualiza sozinho (só nome, categoria e preço)
   useEffect(() => {
