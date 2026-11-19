@@ -275,6 +275,8 @@ export interface Venda {
   cliente: string;
   /** cliente cadastrado (opcional) */
   clienteId?: string;
+  /** quem registrou a venda */
+  por?: string;
   /** formas de pagamento usadas (vendas antigas não têm: valem `pagamento` e `total`) */
   pagamentos?: PagamentoVenda[];
   /** troco devolvido em dinheiro, em centavos */
@@ -382,8 +384,47 @@ export interface Pedido {
   vendaPausada?: string;
 }
 
+export interface MovimentoCaixa {
+  id: string;
+  /** ISO */
+  quando: string;
+  tipo: 'sangria' | 'reforco';
+  valor: number;
+  motivo: string;
+  por: string;
+}
+
+/** Caixa de um dia: troco inicial, sangrias e reforços, e a conferência no fechamento. */
+export interface Caixa {
+  id: string;
+  /** AAAA-MM-DD */
+  dia: string;
+  abertoEm: string;
+  abertoPor: string;
+  trocoInicial: number;
+  movimentos: MovimentoCaixa[];
+  fechadoEm?: string;
+  fechadoPor?: string;
+  /** dinheiro previsto na gaveta no fechamento */
+  previsto?: number;
+  /** dinheiro contado no fechamento */
+  contado?: number;
+  obs?: string;
+}
+
+/** Uma alteração registrada (quem mudou o quê). */
+export interface Registro {
+  id: string;
+  quando: string;
+  por: string;
+  acao: string;
+  detalhe: string;
+}
+
 export interface Settings {
   balanca?: ConfigBalanca;
+  /** caixas por dia (na nuvem ficam um por documento) */
+  caixas?: Caixa[];
   /** clientes cadastrados (na nuvem ficam um por documento) */
   clientes?: Cliente[];
   /** orçamentos salvos (na nuvem ficam um por documento) */

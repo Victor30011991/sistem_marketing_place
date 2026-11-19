@@ -3,7 +3,7 @@
  * Guarda os "documentos" no localStorage e avisa as outras abas, simulando dois aparelhos.
  * No build normal este arquivo nem entra no site.
  */
-import type { Pedido, Product, StoreInfo, Venda } from '../types';
+import type { Pedido, Product, Registro, StoreInfo, Venda } from '../types';
 import { pedidoDe } from '../core/clientes';
 import { COLECOES, DEL, INC, type ItemColecao, type Op, type Raiz } from './modelo';
 import type { Parte } from './servico';
@@ -114,4 +114,13 @@ export async function mudarPedido(id: string, patch: Partial<Pedido>) {
   t[id] = { ...(t[id] as object), ...patch };
   localStorage.setItem('falso.pedidos', JSON.stringify(t));
   window.dispatchEvent(new StorageEvent('storage', { key: 'falso.pedidos' }));
+}
+
+export async function registrar(regs: Registro[]) {
+  const l: Registro[] = JSON.parse(localStorage.getItem('falso.historico') ?? '[]');
+  localStorage.setItem('falso.historico', JSON.stringify([...l, ...regs]));
+}
+export async function lerHistorico(max = 300): Promise<Registro[]> {
+  const l: Registro[] = JSON.parse(localStorage.getItem('falso.historico') ?? '[]');
+  return l.sort((a, b) => b.quando.localeCompare(a.quando)).slice(0, max);
 }

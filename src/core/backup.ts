@@ -3,6 +3,7 @@ import { defaultSettings, defaultStore } from './defaults';
 import { etiquetasDe, nutricaoDe } from './etiquetas';
 import { cfgOrcamento, orcamentosDe } from './orcamentos';
 import { clientesDe } from './clientes';
+import { caixasDe } from './caixa';
 import { newId, newKey } from './normalize';
 import { paymentOptions } from './pricing';
 import { vitrineDe } from './vitrine';
@@ -150,6 +151,7 @@ function lerVenda(raw: unknown): Venda | null {
     taxa: cent(raw.taxa),
     cliente: str(raw.cliente),
     ...(str(raw.clienteId) ? { clienteId: str(raw.clienteId) } : {}),
+    ...(str(raw.por) ? { por: str(raw.por) } : {}),
   };
   if (Array.isArray(raw.pagamentos)) {
     const pags = raw.pagamentos.flatMap((pg) => (isObj(pg) && typeof pg.forma === 'string' ? [{ forma: pg.forma, label: str(pg.label) || pg.forma, valor: cent(pg.valor), taxa: cent(pg.taxa) }] : []));
@@ -219,6 +221,8 @@ function lerConfig(raw: unknown): Settings {
   });
   if (isObj(raw.balanca)) cfg.balanca = balancaDe(raw.balanca);
   if (num(raw.proLabore) != null && (raw.proLabore as number) >= 0) cfg.proLabore = raw.proLabore as number;
+  const caixas = caixasDe(raw.caixas);
+  if (caixas?.length) cfg.caixas = caixas;
   const clientes = clientesDe(raw.clientes);
   if (clientes?.length) cfg.clientes = clientes;
   const orcamentos = orcamentosDe(raw.orcamentos);

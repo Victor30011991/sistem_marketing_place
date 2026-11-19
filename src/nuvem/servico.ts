@@ -17,12 +17,15 @@ import {
   persistentMultipleTabManager,
   query,
   setDoc,
+  getDocs,
+  orderBy,
+  limit,
   updateDoc,
   where,
   writeBatch,
   type DocumentData,
 } from 'firebase/firestore';
-import type { Pedido, Product, StoreInfo, Venda } from '../types';
+import type { Pedido, Product, Registro, StoreInfo, Venda } from '../types';
 import { pedidoDe } from '../core/clientes';
 import { COLECOES, DEL, INC, LOJA_ID, emLotes, type Colecao, type ItemColecao, type Op, type Raiz } from './modelo';
 
@@ -130,6 +133,19 @@ export function ouvirPedidos(desde: string, cb: (lista: Pedido[]) => void, erro:
 }
 
 export const mudarPedido = (id: string, patch: Partial<Pick<Pedido, 'situacao' | 'vendaPausada'>>) => updateDoc(doc(db, 'pedidos', id), patch);
+
+/** Grava o histórico de alterações (quem mudou o quê). */
+export async function registrar(regs: Registro[]): Promise<void> {
+  const b = writeBatch(db);
+  for (const r of regs.slice(0, 450)) b.set(doc(db, 'lojas', LOJA_ID, 'historico', r.id), r);
+  await b.commit();
+}
+
+/** Últimas alterações, da mais nova para a mais antiga. */
+export async function lerHistorico(max = 300): Promise<Registro[]> {
+  const s = await getDocs(query(collection(db, 'lojas', LOJA_ID, 'historico'), orderBy('quando', 'desc'), limit(max)));
+  return s.docs.map((d) => d.data() as Registro);
+}
 
 /** Publica o cardápio que o cliente vê (só nome, categoria e preço; nunca custos). */
 export function publicarCardapio(json: string): Promise<void> {

@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNuvem } from '../nuvem/NuvemProvider';
+import type { Registro } from '../types';
 import { Link } from 'react-router-dom';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
@@ -7,7 +9,7 @@ import { Barras } from '../components/Barras';
 import { formatBRL } from '../core/money';
 import { compras, estoque, noPeriodo, painel, periodoAnterior, periodoDe, ranking, resultado, variacao, type Atalho, type LinhaRanking, type Periodo } from '../core/relatorios';
 
-type Aba = 'painel' | 'vendas' | 'resultado' | 'estoque' | 'compras';
+type Aba = 'painel' | 'vendas' | 'resultado' | 'estoque' | 'compras' | 'alteracoes';
 const ATALHOS: { id: Atalho; rotulo: string }[] = [
   { id: 'hoje', rotulo: 'Hoje' },
   { id: '7d', rotulo: '7 dias' },
@@ -72,6 +74,18 @@ export default function Relatorios() {
     toast(`${novos.length} produto(s) na lista de compras, com a quantidade de 1 mês de vendas.`);
   }
 
+  const porVendedor = useMemo(() => {
+    const m = new Map<string, { nome: string; vendas: number; total: number }>();
+    for (const v of noPeriodo(vendas, periodo)) {
+      if (v.cancelada) continue;
+      const k = v.por || 'Sem nome';
+      const x = m.get(k) ?? { nome: k, vendas: 0, total: 0 };
+      x.vendas++;
+      x.total += v.total;
+      m.set(k, x);
+    }
+    return [...m.values()].sort((a, b) => b.total - a.total);
+  }, [vendas, periodo]);
   const produtosOrdenados = [...rk.produtos].sort((a, b) => (ordem === 'lucro' ? b.lucro - a.lucro : ordem === 'qtd' ? b.qtd - a.qtd : b.total - a.total));
 
   return (
@@ -101,6 +115,7 @@ export default function Relatorios() {
           { id: 'resultado', label: 'Resultado' },
           { id: 'estoque', label: 'Estoque' },
           { id: 'compras', label: 'Compras' },
+          { id: 'alteracoes', label: 'Alterações' },
         ]}
       />
 
@@ -185,6 +200,21 @@ export default function Relatorios() {
                   </li>
                 </ul>
               </div>
+              {porVendedor.length > 1 || (porVendedor[0] && porVendedor[0].nome !== 'Sem nome') ? (
+                <div>
+                  <h2>Quem vendeu</h2>
+                  <ul className="pdv-pag">
+                    {porVendedor.map((x) => (
+                      <li key={x.nome}>
+                        <span>
+                          {x.nome} <small className="muted">· {x.vendas}</small>
+                        </span>
+                        <strong>{formatBRL(x.total)}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <div>
                 <h2>Descontos e cancelamentos</h2>
                 <ul className="pdv-pag">
@@ -384,6 +414,8 @@ export default function Relatorios() {
         </>
       )}
 
+      {aba === 'alteracoes' && <Alteracoes />}
+
       {aba === 'compras' && (
         <>
           <Indicadores
@@ -490,6 +522,51 @@ export default function Relatorios() {
         </>
       )}
     </div>
+  );
+}
+
+function Alteracoes() {
+  const { fase, servico } = useNuvem();
+  const [regs, setRegs] = useState<Registro[] | null>(null);
+  const [quem, setQuem] = useState('');
+  useEffect(() => {
+    if (fase !== 'conectado' || !servico) return;
+    let vivo = true;
+    servico.lerHistorico(400).then((r) => vivo && setRegs(r)).catch(() => vivo && setRegs([]));
+    return () => {
+      vivo = false;
+    };
+  }, [fase, servico]);
+  if (fase !== 'conectado') return <Empty icon="cloud" titulo="O histórico fica na nuvem">Entre na nuvem para ver quem mudou preços, custos, estoque e produtos.</Empty>;
+  if (!regs) return <p className="muted">Carregando…</p>;
+  if (!regs.length) return <Empty icon="list" titulo="Nenhuma alteração registrada ainda">A partir de agora, toda mudança de preço, custo, estoque à mão, produto novo ou excluído e venda cancelada aparece aqui, com quem fez.</Empty>;
+  const nomes = [...new Set(regs.map((r) => r.por).filter(Boolean))];
+  const lista = regs.filter((r) => !quem || r.por === quem);
+  return (
+    <section className="card">
+      <div className="card-head">
+        <h2>Últimas alterações</h2>
+        {nomes.length > 1 && (
+          <select aria-label="Filtrar por pessoa" value={quem} onChange={(e) => setQuem(e.target.value)}>
+            <option value="">Todos</option>
+            {nomes.map((n) => (
+              <option key={n}>{n}</option>
+            ))}
+          </select>
+        )}
+      </div>
+      <ul className="hist">
+        {lista.map((r) => (
+          <li key={r.id}>
+            <time>{new Date(r.quando).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</time>
+            <span>
+              <strong>{r.acao}</strong> · {r.detalhe}
+            </span>
+            <small className="muted">{r.por || '—'}</small>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

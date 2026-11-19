@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { acharCliente } from '../core/clientes';
+import { CaixaBarra, CaixasAnteriores } from '../components/CaixaBarra';
+import { useQuem } from '../nuvem/NuvemProvider';
 import { Link } from 'react-router-dom';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
@@ -66,6 +68,7 @@ function QtdLinha({ valor, unidade, rotulo, onChange }: { valor: number; unidade
 export default function Pdv() {
   useDocumentTitle('Vendas (PDV)');
   const { state, act } = useApp();
+  const quem = useQuem();
   const { toast, confirm } = useFeedback();
   const { lista, config } = state;
   const [r, setR] = useState<Rascunho>(() => rascunho ?? vazio());
@@ -211,6 +214,7 @@ export default function Pdv() {
       pagamentoLabel: pagamentos.pagamentos.map((p) => p.label).join(' + ') || principal.label,
       taxa: pagamentos.taxa,
       cliente: r.cliente.trim(),
+      ...(quem ? { por: quem } : {}),
       ...((r.clienteId ?? acharCliente(config.clientes ?? [], { nome: r.cliente })?.id) ? { clienteId: r.clienteId ?? acharCliente(config.clientes ?? [], { nome: r.cliente })!.id } : {}),
       pagamentos: pagamentos.pagamentos,
       ...(pagamentos.troco > 0 ? { troco: pagamentos.troco } : {}),
@@ -234,6 +238,8 @@ export default function Pdv() {
   return (
     <div className="page">
       <PageHeader titulo="Vendas (PDV)" subtitulo="Busque ou passe o código de barras, ajuste quantidades e descontos e receba em uma ou mais formas de pagamento. O estoque baixa sozinho." />
+
+      <CaixaBarra />
 
       {vendaveis.length === 0 && (
         <Notice tone="info">
@@ -609,7 +615,10 @@ export default function Pdv() {
                 <tbody>
                   {doDia.map((v) => (
                     <tr key={v.id} className={v.cancelada ? 'pdv-cancelada' : ''}>
-                      <td className="nowrap">{new Date(v.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+                      <td className="nowrap">
+                        {new Date(v.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        {v.por && <small className="muted"> · {v.por}</small>}
+                      </td>
                       <td>
                         {v.cliente && <strong>{v.cliente}: </strong>}
                         {v.itens.map((i) => `${i.nome} (${qtdTexto(i.qtd, i.unidade)})`).join(', ')}
@@ -632,6 +641,7 @@ export default function Pdv() {
           </>
         )}
       </section>
+      <CaixasAnteriores />
     </div>
   );
 }

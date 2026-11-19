@@ -843,3 +843,15 @@ ol.pdv-pag li strong { float: right; }
 .link-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
 .cli-det { display: flex; flex-direction: column; gap: 14px; }
 .cli-hist { max-height: 260px; overflow-y: auto; }
+
+/* ------------------------------------------------------------ caixa */
+.caixa-barra { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 14px 20px; }
+.caixa-barra.aberto { border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.caixa-info { display: flex; flex-direction: column; gap: 2px; }
+.caixa-info strong { display: inline-flex; align-items: center; gap: 6px; }
+.caixa-barra.aberto .caixa-info:first-child strong { color: var(--ok); }
+.caixa-valor { font-family: var(--font-head); font-size: 1.35rem; }
+.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hist li { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-2); align-items: baseline; }
+.hist time { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) { .hist li { grid-template-columns: minmax(0, 1fr) auto; } .hist time { grid-column: 1 / -1; } }

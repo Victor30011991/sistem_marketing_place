@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useApp } from '../state/store';
 import { montarCardapio } from '../core/vitrine';
+import { registrosDe } from '../core/historico';
 import { Button, Modal } from '../ui/ui';
 import { COLECOES, dividir, igual, inicioJanela, juntar, nuvemVazia, planejarEscritas, type Nuvem } from './modelo';
 import type { Parte } from './servico';
@@ -9,6 +10,9 @@ type Servico = typeof import('./servico');
 
 /** Quem pode entrar. A mesma lista está nas regras do Firestore (é lá que vale de verdade). */
 export const EQUIPE = ['j.victor.baros.live@gmail.com', 'samara778@gmail.com'];
+/** Nome curto de quem está usando, para gravar em vendas, caixa e histórico. */
+export const NOMES: Record<string, string> = { 'j.victor.baros.live@gmail.com': 'Victor', 'samara778@gmail.com': 'Samara' };
+export const nomeDe = (email: string) => NOMES[email] ?? (email ? email.split('@')[0] : '');
 const MARCA = 'temperei.nuvem';
 
 export type Fase = 'desligado' | 'carregando' | 'sincronizando' | 'escolher' | 'conectado' | 'negado' | 'erro';
@@ -68,6 +72,8 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
   const faseRef = useRef(fase);
+  const emailRef = useRef('');
+  emailRef.current = email;
 
   const ir = useCallback((f: Fase) => {
     faseRef.current = f;
@@ -94,6 +100,8 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
     const atual = dividir(stateRef.current);
     const ops = planejarEscritas(base.current, atual);
     if (!ops.length) return;
+    const regs = registrosDe(base.current, atual, nomeDe(emailRef.current));
+    if (regs.length) s.registrar(regs).catch(() => undefined);
     base.current = atual;
     setPendentes((n) => n + 1);
     s.gravar(ops)
@@ -295,6 +303,12 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
       </Modal>
     </Ctx.Provider>
   );
+}
+
+/** Nome de quem está usando (vazio fora da nuvem). */
+export function useQuem(): string {
+  const n = useNuvem();
+  return n.fase === 'conectado' ? nomeDe(n.email) : '';
 }
 
 export function useNuvem() {
