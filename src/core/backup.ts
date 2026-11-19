@@ -73,6 +73,10 @@ function lerProduto(v: unknown): Product | null {
   if (typeof v.ingredientes === 'string' && v.ingredientes.trim()) p.ingredientes = v.ingredientes;
   const nutri = nutricaoDe(v.nutricao);
   if (nutri) p.nutricao = nutri;
+  if (v.gluten === 'contem' || v.gluten === 'nao-contem') p.gluten = v.gluten;
+  if (str(v.alergenicos).trim()) p.alergenicos = str(v.alergenicos);
+  if (str(v.modoUso).trim()) p.modoUso = str(v.modoUso);
+  if (v.especiariaPura === true) p.especiariaPura = true;
   if (typeof v.foto === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(v.foto) && v.foto.length < 60000) p.foto = v.foto;
   if (isObj(v.promo) && num(v.promo.preco) != null && (v.promo.preco as number) > 0)
     p.promo = { preco: v.promo.preco as number, ate: /^\d{4}-\d{2}-\d{2}$/.test(str(v.promo.ate)) ? str(v.promo.ate) : '', selo: str(v.promo.selo).slice(0, 24) };

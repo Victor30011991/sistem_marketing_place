@@ -1,6 +1,6 @@
 import type { CSSProperties, KeyboardEvent, PointerEvent, ReactNode } from 'react';
 import type { ConfigBalanca, ModeloEtiqueta, PecaEtiqueta, Product, StoreInfo } from '../types';
-import { PECAS, codigoEtiqueta, linhasNutricao, textoPeca, type DadosImpressao } from '../core/etiquetas';
+import { FAMILIAS, PECAS, SELOS, areaDe, codigoEtiqueta, corDe, linhasNutricao, textoPeca, type DadosImpressao } from '../core/etiquetas';
 import { ean13, modulosEan13 } from '../core/ean';
 
 export interface EdicaoEtiqueta {
@@ -47,16 +47,9 @@ function Barras({ codigo, fonte }: { codigo: string; fonte: number }) {
   );
 }
 
-/** Desenha a etiqueta no tamanho real (milímetros). Com `edicao`, as peças podem ser arrastadas. */
-export function Etiqueta({
-  modelo,
-  produto,
-  loja,
-  logo,
-  dados,
-  balanca,
-  edicao,
-}: {
+const RAIO_FORMA: Record<NonNullable<ModeloEtiqueta['forma']>, string> = { retangulo: '0', arredondado: '4mm', redondo: '50%', oval: '50%' };
+
+interface Props {
   modelo: ModeloEtiqueta;
   produto: Product | null;
   loja: StoreInfo;
@@ -64,43 +57,96 @@ export function Etiqueta({
   dados: DadosImpressao;
   balanca?: ConfigBalanca;
   edicao?: EdicaoEtiqueta;
-}) {
+  /** solapa: qual face desenhar (cada face é metade da altura) */
+  lado?: 'frente' | 'verso';
+}
+
+/** Desenha a etiqueta (ou uma face da solapa) no tamanho real (milímetros). Com `edicao`, as peças podem ser arrastadas. */
+export function Etiqueta({ modelo, produto, loja, logo, dados, balanca, edicao, lado = 'frente' }: Props) {
   const moldura = MOLDURA[modelo.moldura];
   const colorida = modelo.cor === 'cor';
+  const area = areaDe(modelo);
+  const raio = RAIO_FORMA[modelo.forma ?? 'retangulo'];
+  const fundo = corDe(modelo.fundo, loja) ?? '#fff';
+  const pecas = modelo.pecas.filter((p) => p.ativo && (!modelo.solapa || (p.lado ?? 'frente') === lado));
   return (
     <div
       className="etq"
       style={{
         position: 'relative',
-        width: `${modelo.largura}mm`,
-        height: `${modelo.altura}mm`,
-        background: '#fff',
+        width: `${area.largura}mm`,
+        height: `${area.altura}mm`,
+        background: colorida ? fundo : '#fff',
         color: '#000',
         overflow: 'hidden',
-        fontFamily: '"DM Sans Variable", "DM Sans", Arial, sans-serif',
+        borderRadius: raio,
+        fontFamily: FAMILIAS[0].css,
         boxSizing: 'border-box',
+        filter: colorida ? undefined : 'grayscale(1)',
       }}
     >
-      {moldura && <div aria-hidden="true" style={{ position: 'absolute', inset: '0.8mm', boxSizing: 'border-box', pointerEvents: 'none', ...moldura, ...(colorida ? { borderColor: loja.cores.primaria } : {}) }} />}
+      {moldura && <div aria-hidden="true" style={{ position: 'absolute', inset: '0.8mm', boxSizing: 'border-box', pointerEvents: 'none', ...moldura, borderRadius: modelo.forma && modelo.forma !== 'retangulo' ? raio : moldura.borderRadius, ...(colorida ? { borderColor: loja.cores.primaria } : {}), zIndex: 2 }} />}
+      {modelo.solapa && <span aria-hidden="true" title="Furo para pendurar" style={{ position: 'absolute', left: `calc(${area.largura / 2}mm - 1.75mm)`, top: '2.5mm', width: '3.5mm', height: '3.5mm', borderRadius: '50%', border: '0.2mm dashed #888', boxSizing: 'border-box', zIndex: 3, pointerEvents: 'none' }} />}
       {edicao && (modelo.margem ?? 0) > 0 && (
-        <div aria-hidden="true" className="etq-margem" style={{ position: 'absolute', inset: `${modelo.margem}mm`, boxSizing: 'border-box', pointerEvents: 'none' }} />
+        <div aria-hidden="true" className="etq-margem" style={{ position: 'absolute', inset: `${modelo.margem}mm`, boxSizing: 'border-box', pointerEvents: 'none', borderRadius: raio, zIndex: 4 }} />
       )}
-      {modelo.pecas
-        .filter((p) => p.ativo)
-        .map((p) => (
-          <Peca key={p.id} p={p} produto={produto} loja={loja} logo={logo} dados={dados} balanca={balanca} edicao={edicao} colorida={colorida} />
-        ))}
+      {pecas.map((p) => (
+        <Peca key={p.id} p={p} produto={produto} loja={loja} logo={logo} dados={dados} balanca={balanca} edicao={edicao} colorida={colorida} />
+      ))}
     </div>
   );
 }
 
+/** Para imprimir: a solapa sai aberta (verso de cabeça para baixo em cima, dobra no meio, frente embaixo). */
+export function EtiquetaImpressa(props: Omit<Props, 'edicao' | 'lado'>) {
+  if (!props.modelo.solapa) return <Etiqueta {...props} />;
+  const { largura, altura } = props.modelo;
+  return (
+    <div style={{ position: 'relative', width: `${largura}mm`, height: `${altura}mm` }}>
+      <div style={{ transform: 'rotate(180deg)' }}>
+        <Etiqueta {...props} lado="verso" />
+      </div>
+      <Etiqueta {...props} lado="frente" />
+      <div aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, top: `${altura / 2}mm`, borderTop: '0.2mm dashed #999' }} />
+    </div>
+  );
+}
+
+function Selo({ id, cor }: { id: string; cor: string }) {
+  const s = SELOS.find((x) => x.id === id);
+  if (!s) return null;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25em', whiteSpace: 'nowrap' }}>
+      <svg viewBox="0 0 24 24" style={{ width: '2em', height: '2em', flex: '0 0 auto' }} aria-hidden="true">
+        <circle cx="12" cy="12" r="11" fill="none" stroke={cor} strokeWidth="1.2" />
+        <g transform="translate(4.8 4.8) scale(0.6)">
+          <path d={s.icone} fill="none" stroke={cor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+      </svg>
+      <span style={{ lineHeight: 1.05 }}>{s.rotulo}</span>
+    </span>
+  );
+}
+
 function Peca({ p, produto, loja, logo, dados, balanca, edicao, colorida }: { p: PecaEtiqueta; produto: Product | null; loja: StoreInfo; logo: string; dados: DadosImpressao; balanca?: ConfigBalanca; edicao?: EdicaoEtiqueta; colorida: boolean }) {
-  const rotulo = PECAS.find((x) => x.tipo === p.tipo)!.rotulo;
+  const rotulo = PECAS.find((x) => x.tipo === p.tipo)?.rotulo ?? p.tipo;
+  const corTexto = !colorida ? (p.cor === 'branco' ? '#fff' : '#000') : (p.cor === 'livre' ? corDe(p.corLivre, loja) : corDe(p.cor, loja)) ?? '#000';
+  const fundoPeca = corDe(p.fundo, loja);
+  const raioPeca = p.raio ? (p.raio >= 999 ? '50%' : `${p.raio}mm`) : undefined;
   let conteudo: ReactNode = null;
   let vazio = false;
 
   if (p.tipo === 'logo') {
-    conteudo = <img src={logo} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', filter: colorida ? undefined : 'grayscale(1) contrast(1.25)' }} />;
+    conteudo = <img src={logo} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: p.raio ? 'cover' : 'contain', borderRadius: raioPeca, filter: colorida ? undefined : 'grayscale(1) contrast(1.25)' }} />;
+  } else if (p.tipo === 'imagem') {
+    if (p.imagem) conteudo = <img src={p.imagem} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: p.raio ? (p.raio >= 999 ? '50%' : `${p.raio}mm`) : undefined }} />;
+    else vazio = true;
+  } else if (p.tipo === 'forma') {
+    conteudo = null;
+  } else if (p.tipo === 'selos') {
+    const lista = p.selos ?? [];
+    if (lista.length) conteudo = <span style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4em 0.9em', alignItems: 'center', justifyContent: 'inherit', width: '100%' }}>{lista.map((id) => <Selo key={id} id={id} cor={corTexto} />)}</span>;
+    else vazio = true;
   } else if (p.tipo === 'codigo') {
     const cod = produto ? codigoEtiqueta(produto, dados.pesoG, balanca) : ean13('200123400440');
     if (cod) conteudo = <Barras codigo={cod} fonte={p.fonte} />;
@@ -156,8 +202,13 @@ function Peca({ p, produto, loja, logo, dados, balanca, edicao, colorida }: { p:
     justifyContent: JUSTIFICA[p.alinhar],
     fontSize: `${p.fonte}pt`,
     fontWeight: p.negrito ? 700 : 400,
-    color: colorida && p.cor === 'primaria' ? loja.cores.primaria : colorida && p.cor === 'destaque' ? loja.cores.destaque : '#000',
-    lineHeight: 1.1,
+    fontFamily: FAMILIAS.find((f) => f.id === (p.familia ?? 'sans'))!.css,
+    textTransform: p.maiusculas ? 'uppercase' : undefined,
+    letterSpacing: p.familia === 'forte' ? '0.04em' : undefined,
+    color: corTexto,
+    background: p.tipo === 'forma' ? fundoPeca ?? loja.cores.primaria : fundoPeca,
+    borderRadius: p.tipo === 'forma' || fundoPeca ? raioPeca : undefined,
+    lineHeight: p.familia === 'manuscrita' ? 0.95 : 1.1,
     overflow: 'hidden',
     boxSizing: 'border-box',
   };
@@ -177,6 +228,7 @@ function Peca({ p, produto, loja, logo, dados, balanca, edicao, colorida }: { p:
     >
       <div style={{ width: '100%', height: '100%', overflow: 'hidden', display: 'flex', alignItems: 'inherit', justifyContent: 'inherit' }}>
         {vazio ? <span className="etq-vazio">{rotulo}</span> : conteudo}
+        {p.tipo === 'forma' && <span className="etq-vazio" style={{ opacity: 0.5 }} />}
       </div>
       {sel && <span className="etq-alca" aria-hidden="true" onPointerDown={(e) => { e.stopPropagation(); edicao.onPeca(p.id, e, 'tamanho'); }} />}
     </div>

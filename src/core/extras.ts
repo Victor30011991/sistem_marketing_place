@@ -11,6 +11,10 @@ export interface ProductExtra {
   nutricao?: InfoNutricional | null;
   foto?: string;
   promo?: Product['promo'];
+  gluten?: Product['gluten'];
+  alergenicos?: string;
+  modoUso?: string;
+  especiariaPura?: boolean;
 }
 
 export type ExtrasMap = Record<string, ProductExtra>;
@@ -30,6 +34,10 @@ export function buildExtras(produtos: Product[]): ExtrasMap {
     if (p.nutricao) e.nutricao = p.nutricao;
     if (p.foto) e.foto = p.foto;
     if (p.promo) e.promo = p.promo;
+    if (p.gluten) e.gluten = p.gluten;
+    if (p.alergenicos?.trim()) e.alergenicos = p.alergenicos;
+    if (p.modoUso?.trim()) e.modoUso = p.modoUso;
+    if (p.especiariaPura) e.especiariaPura = true;
     if (p.conteudoQtd && p.conteudoUnidade) {
       e.conteudoQtd = p.conteudoQtd;
       e.conteudoUnidade = p.conteudoUnidade;
