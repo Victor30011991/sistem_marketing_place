@@ -903,3 +903,31 @@ ol.pdv-pag li strong { float: right; }
 .etq-cheia .etq-palco { max-height: none; min-height: 50vh; }
 .etq-cheia .etq-editor { grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
 @media (max-width: 860px) { .etq-cheia .etq-editor { grid-template-columns: minmax(0, 1fr); } .etq-cheia { padding-bottom: 90px; } }
+
+/* ------------------------------------------------------------ rótulos prontos */
+.etq-prontos summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; cursor: pointer; list-style: none; min-height: 44px; }
+.etq-prontos summary::-webkit-details-marker { display: none; }
+.etq-prontos summary::before { content: '▸'; color: var(--muted); }
+.etq-prontos[open] summary::before { content: '▾'; }
+.etq-prontos summary h2 { margin: 0; }
+.etq-galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin-top: 14px; }
+.etq-pronto { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); }
+.etq-pronto h3 { margin: 0; font-size: 0.98rem; }
+.etq-pronto p { margin: 0; flex: 1; }
+.etq-miniatura { display: flex; align-items: center; justify-content: center; background: repeating-conic-gradient(var(--line-2) 0 25%, var(--card) 0 50%) 0 0 / 14px 14px; border-radius: 10px; overflow: hidden; }
+.etq-miniatura .etq, .etq-miniatura > div > div > div { box-shadow: 0 1px 4px rgba(43, 29, 23, 0.2); }
+.etq-face { display: flex; gap: 8px; margin-bottom: 10px; }
+.etq-add { display: flex; flex-wrap: wrap; gap: 4px; }
+.etq-add label.btn { cursor: pointer; }
+.etq-conf { margin-top: 12px; border-top: 1px solid var(--line-2); padding-top: 10px; }
+.etq-conf summary { cursor: pointer; font-weight: 650; min-height: 40px; display: flex; align-items: center; }
+.etq-conf ul { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.etq-conf li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; font-size: 0.86rem; }
+.etq-conf li small { display: block; color: var(--muted); }
+.etq-conf li.ok { color: var(--ok); }
+.etq-conf li.falta { color: var(--warn); }
+.etq-conf li strong { color: var(--ink); }
+.etq-selos { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 12px; }
+.etq-selos small { grid-column: 1 / -1; }
+.etq-solapa-check { align-self: end; min-height: 44px; }
+input[type='color'] { width: 44px; min-width: 44px; height: 40px; padding: 2px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); }

@@ -19,8 +19,45 @@ export const PECAS: { tipo: TipoPeca; rotulo: string; dica: string }[] = [
   { tipo: 'lote', rotulo: 'Lote', dica: '' },
   { tipo: 'ingredientes', rotulo: 'Ingredientes', dica: 'Preencha nos dados do rótulo do produto' },
   { tipo: 'nutricao', rotulo: 'Tabela nutricional', dica: 'Preencha nos dados do rótulo do produto' },
-  { tipo: 'texto', rotulo: 'Texto livre', dica: 'Ex.: “Produto natural”, @instagram' },
+  { tipo: 'texto', rotulo: 'Texto livre', dica: 'Ex.: “Tempero natural”, @instagram' },
+  { tipo: 'pesoLiquido', rotulo: 'Peso líquido', dica: 'Obrigatório no rótulo, na frente' },
+  { tipo: 'gluten', rotulo: 'Glúten e alérgicos', dica: '“NÃO CONTÉM GLÚTEN” é obrigatório' },
+  { tipo: 'fabricante', rotulo: 'Fabricante', dica: 'Razão social, CNPJ e endereço (Minha loja)' },
+  { tipo: 'conservacao', rotulo: 'Conservação', dica: 'Como guardar o produto' },
+  { tipo: 'fabricacao', rotulo: 'Data de fabricação', dica: 'A data em que imprimir' },
+  { tipo: 'modoUso', rotulo: 'Modo de usar', dica: 'Preencha nos dados do rótulo do produto' },
+  { tipo: 'selos', rotulo: 'Selos', dica: 'Ícones como “artesanal”, “seleção especial”' },
+  { tipo: 'imagem', rotulo: 'Imagem', dica: 'Ilustração, textura ou foto sua' },
+  { tipo: 'forma', rotulo: 'Faixa / forma de cor', dica: 'Bloco de cor para compor o fundo' },
 ];
+
+/** Peças que podem ter várias na mesma etiqueta (entram por botão, não pela lista). */
+export const PECAS_MULTIPLAS: TipoPeca[] = ['texto', 'imagem', 'forma'];
+
+export const FAMILIAS: { id: NonNullable<PecaEtiqueta['familia']>; rotulo: string; css: string }[] = [
+  { id: 'sans', rotulo: 'Moderna', css: '"DM Sans Variable", "DM Sans", Arial, sans-serif' },
+  { id: 'serif', rotulo: 'Clássica', css: '"Fraunces Variable", Georgia, serif' },
+  { id: 'elegante', rotulo: 'Elegante', css: '"Playfair Display Variable", Georgia, serif' },
+  { id: 'manuscrita', rotulo: 'Manuscrita', css: '"Caveat Variable", "Segoe Script", cursive' },
+  { id: 'forte', rotulo: 'Forte (condensada)', css: '"Bebas Neue", Impact, "Arial Narrow", sans-serif' },
+];
+
+/**
+ * Selos com ícone. Frases como "sem conservantes" ou "100% natural" podem ser proibidas ou exigir comprovação
+ * (alegações): por isso os selos padrão falam do jeito de fazer, e cada texto pode ser trocado.
+ */
+export const SELOS: { id: string; rotulo: string; icone: string }[] = [
+  { id: 'artesanal', rotulo: 'Feito à mão', icone: 'M7 14l-2-6a1.5 1.5 0 013-1l1 3V5a1.5 1.5 0 013 0v5V4a1.5 1.5 0 013 0v6V6a1.5 1.5 0 013 0v8c0 4-3 6-6 6s-4-1-5-3z' },
+  { id: 'selecao', rotulo: 'Seleção especial', icone: 'M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6-5.3-3-5.3 3 1.2-6L3.4 9.3l6-.7z' },
+  { id: 'fresco', rotulo: 'Moído na hora', icone: 'M5 10h14l-2 9H7zM8 10V7a4 4 0 018 0v3M12 3v2' },
+  { id: 'folha', rotulo: 'Ingredientes selecionados', icone: 'M5 19c0-8 6-14 14-14 0 8-6 14-14 14zM5 19l8-8' },
+  { id: 'coracao', rotulo: 'Feito com carinho', icone: 'M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z' },
+  { id: 'casa', rotulo: 'Produção própria', icone: 'M4 11l8-7 8 7M6 10v9h12v-9M10 19v-5h4v5' },
+  { id: 'gluten', rotulo: 'Não contém glúten', icone: 'M12 4v16M12 8l-3-2M12 8l3-2M12 12l-3-2M12 12l3-2M12 16l-3-2M12 16l3-2M4 4l16 16' },
+  { id: 'vegano', rotulo: 'Vegano', icone: 'M12 20c-4-3-6-7-6-11 3 0 5 2 6 5 1-3 3-5 6-5 0 4-2 8-6 11z' },
+];
+
+export const CONSERVACAO_PADRAO = 'Conservar em local seco e fresco, ao abrigo da luz. Após aberto, manter bem fechado.';
 
 export const TAMANHOS: { rotulo: string; largura: number; altura: number }[] = [
   { rotulo: '40 × 25 mm', largura: 40, altura: 25 },
@@ -58,7 +95,7 @@ const peca = (tipo: TipoPeca, x: number, y: number, w: number, h: number, fonte:
 /** Todas as peças que faltam num modelo entram desligadas, num canto, para poderem ser ligadas depois. */
 function completar(m: ModeloEtiqueta): ModeloEtiqueta {
   const tem = new Set(m.pecas.map((p) => p.tipo));
-  const faltam = PECAS.filter((t) => t.tipo !== 'texto' && !tem.has(t.tipo)).map((t) =>
+  const faltam = PECAS.filter((t) => !PECAS_MULTIPLAS.includes(t.tipo) && !tem.has(t.tipo)).map((t) =>
     peca(t.tipo, 1, 1, Math.min(m.largura - 2, t.tipo === 'nutricao' ? 40 : 30), Math.min(m.altura - 2, t.tipo === 'nutricao' ? 30 : t.tipo === 'codigo' ? 12 : 6), 8, { ativo: false }),
   );
   return { ...m, pecas: [...m.pecas, ...faltam] };
@@ -115,7 +152,8 @@ export function novoTexto(m: ModeloEtiqueta): PecaEtiqueta {
 }
 
 /** Mantém a peça dentro da área de impressão (etiqueta menos a margem) e com tamanho mínimo. */
-export function limitar(p: PecaEtiqueta, m: Pick<ModeloEtiqueta, 'largura' | 'altura' | 'margem'>): PecaEtiqueta {
+export function limitar(p: PecaEtiqueta, modelo: Pick<ModeloEtiqueta, 'largura' | 'altura' | 'margem' | 'solapa'>): PecaEtiqueta {
+  const m = areaDe(modelo);
   const r = (n: number) => Math.round(n * 2) / 2;
   const mg = Math.min(Math.max(m.margem ?? 0, 0), Math.min(m.largura, m.altura) / 4);
   const W = m.largura - 2 * mg;
@@ -125,10 +163,28 @@ export function limitar(p: PecaEtiqueta, m: Pick<ModeloEtiqueta, 'largura' | 'al
   return { ...p, w, h, x: Math.min(Math.max(r(p.x), mg), mg + W - w), y: Math.min(Math.max(r(p.y), mg), mg + H - h) };
 }
 
+/** Área de uma face: na solapa, cada lado é metade da altura. */
+export function areaDe<T extends Pick<ModeloEtiqueta, 'largura' | 'altura' | 'margem' | 'solapa'>>(m: T): T {
+  return m.solapa ? { ...m, altura: m.altura / 2 } : m;
+}
+
+/** Cores podem ser #rrggbb ou as da loja: primaria, destaque, fundo, branco, preto. */
+export function corDe(v: string | undefined, loja: StoreInfo): string | undefined {
+  if (!v) return undefined;
+  if (v === 'primaria') return loja.cores.primaria;
+  if (v === 'destaque') return loja.cores.destaque;
+  if (v === 'fundo') return loja.cores.fundo;
+  if (v === 'branco') return '#ffffff';
+  if (v === 'preto') return '#000000';
+  return /^#[0-9a-f]{6}$/i.test(v) ? v : undefined;
+}
+
 export const CORES_PECA: { id: NonNullable<PecaEtiqueta['cor']>; rotulo: string }[] = [
   { id: 'preto', rotulo: 'Preto' },
   { id: 'primaria', rotulo: 'Cor principal da loja' },
   { id: 'destaque', rotulo: 'Cor de destaque da loja' },
+  { id: 'branco', rotulo: 'Branco' },
+  { id: 'livre', rotulo: 'Outra cor…' },
 ];
 
 /** Lê modelos vindos de backup/nuvem, descartando o que não faz sentido. */
@@ -157,14 +213,26 @@ export function etiquetasDe(raw: unknown): ModeloEtiqueta[] | undefined {
         negrito: q.negrito === true,
         alinhar: q.alinhar === 'centro' || q.alinhar === 'dir' ? q.alinhar : 'esq',
       };
-      if (p.tipo === 'texto') p.texto = typeof q.texto === 'string' ? q.texto : '';
-      if (q.cor === 'primaria' || q.cor === 'destaque') p.cor = q.cor;
-      return [limitar(p, { largura, altura, margem: n(o.margem, 0) })];
+      if (typeof q.texto === 'string') p.texto = q.texto;
+      if (['primaria', 'destaque', 'branco', 'livre'].includes(q.cor as string)) p.cor = q.cor as PecaEtiqueta['cor'];
+      const hex = (v: unknown) => (typeof v === 'string' && (/^#[0-9a-f]{6}$/i.test(v) || ['primaria', 'destaque', 'fundo', 'branco', 'preto'].includes(v)) ? v : undefined);
+      if (hex(q.corLivre)) p.corLivre = hex(q.corLivre);
+      if (hex(q.fundo)) p.fundo = hex(q.fundo);
+      if (FAMILIAS.some((f) => f.id === q.familia)) p.familia = q.familia as PecaEtiqueta['familia'];
+      if (typeof q.raio === 'number' && q.raio > 0) p.raio = Math.min(q.raio, 999);
+      if (q.maiusculas === true) p.maiusculas = true;
+      if (q.lado === 'verso' || q.lado === 'frente') p.lado = q.lado;
+      if (typeof q.imagem === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(q.imagem) && q.imagem.length < 400_000) p.imagem = q.imagem;
+      if (Array.isArray(q.selos)) p.selos = q.selos.filter((x): x is string => typeof x === 'string').slice(0, 8);
+      return [limitar(p, { largura, altura, margem: n(o.margem, 0), solapa: o.solapa === true })];
     });
     const moldura = MOLDURAS.some((x) => x.id === o.moldura) ? (o.moldura as ModeloEtiqueta['moldura']) : 'nenhuma';
     const extra: Partial<ModeloEtiqueta> = {};
     if (n(o.margem, 0) > 0) extra.margem = Math.min(n(o.margem, 0), 20);
     if (o.cor === 'cor') extra.cor = 'cor';
+    if (['arredondado', 'redondo', 'oval'].includes(o.forma as string)) extra.forma = o.forma as ModeloEtiqueta['forma'];
+    if (typeof o.fundo === 'string' && (/^#[0-9a-f]{6}$/i.test(o.fundo) || ['primaria', 'destaque', 'fundo', 'branco'].includes(o.fundo))) extra.fundo = o.fundo;
+    if (o.solapa === true) extra.solapa = true;
     return [completar({ id: typeof o.id === 'string' && o.id ? o.id : newId(), nome: typeof o.nome === 'string' && o.nome.trim() ? o.nome : 'Etiqueta', largura, altura, moldura, pecas, ...extra })];
   });
 }
@@ -204,6 +272,8 @@ export interface DadosImpressao {
   /** AAAA-MM-DD */
   validade: string;
   lote: string;
+  /** AAAA-MM-DD (padrão: hoje) */
+  fabricacao?: string;
 }
 
 export const porPeso = (p: Product) => familyOf(p.unidade) === 'massa';
@@ -266,6 +336,28 @@ export function textoPeca(peca: PecaEtiqueta, p: Product | null, loja: StoreInfo
       return d.lote.trim() ? `Lote: ${d.lote.trim()}` : '';
     case 'ingredientes':
       return p?.ingredientes?.trim() ? `Ingredientes: ${p.ingredientes.trim()}` : p ? '' : 'Ingredientes: …';
+    case 'pesoLiquido':
+      if (p && !porPeso(p)) return p.conteudoQtd && p.conteudoUnidade ? `Peso líquido ${fmtNum(p.conteudoQtd, 3)} ${p.conteudoUnidade}` : '';
+      return d.pesoG ? `Peso líquido ${formatPeso(d.pesoG)}` : '';
+    case 'gluten': {
+      if (!p) return 'NÃO CONTÉM GLÚTEN';
+      const g = p.gluten === 'contem' ? 'CONTÉM GLÚTEN' : p.gluten === 'nao-contem' ? 'NÃO CONTÉM GLÚTEN' : '';
+      const a = p.alergenicos?.trim() ? `ALÉRGICOS: ${p.alergenicos.trim().replace(/^al[ée]rgicos:\s*/i, '').toUpperCase()}` : '';
+      return [a, g].filter(Boolean).join('\n');
+    }
+    case 'fabricante': {
+      if (peca.texto?.trim()) return peca.texto.trim();
+      const partes = [loja.razaoSocial.trim() || loja.nomeFantasia.trim(), loja.cnpj.trim() && `CNPJ ${loja.cnpj.trim()}`, loja.endereco.trim(), loja.telefone.trim() && `SAC ${loja.telefone.trim()}`].filter(Boolean);
+      return partes.length ? `Fracionado e embalado por: ${partes.join(' · ')}. INDÚSTRIA BRASILEIRA` : '';
+    }
+    case 'conservacao':
+      return peca.texto?.trim() || CONSERVACAO_PADRAO;
+    case 'fabricacao': {
+      const f = d.fabricacao ?? new Date().toISOString().slice(0, 10);
+      return `Fab.: ${dataBR(f)}`;
+    }
+    case 'modoUso':
+      return p?.modoUso?.trim() ? `Modo de usar: ${p.modoUso.trim()}` : p ? '' : 'Modo de usar: …';
     case 'texto':
       return peca.texto ?? '';
     default:

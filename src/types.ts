@@ -27,6 +27,14 @@ export interface Product {
   nutricao?: InfoNutricional | null;
   /** foto pequena para o cardápio (data URL, ~120 px) */
   foto?: string;
+  /** rótulo: glúten (obrigatório no rótulo de alimento embalado) */
+  gluten?: 'contem' | 'nao-contem';
+  /** rótulo: texto depois de "ALÉRGICOS:", ex.: "PODE CONTER AMENDOIM" */
+  alergenicos?: string;
+  /** rótulo: modo de usar */
+  modoUso?: string;
+  /** especiaria pura, sem mistura: dispensada da tabela nutricional */
+  especiariaPura?: boolean;
   /** promoção: preço na unidade do produto, até quando (AAAA-MM-DD, vazio = sem fim) e o selo */
   promo?: { preco: number; ate: string; selo: string } | null;
 }
@@ -59,7 +67,16 @@ export type TipoPeca =
   | 'lote'
   | 'ingredientes'
   | 'nutricao'
-  | 'texto';
+  | 'texto'
+  | 'imagem'
+  | 'selos'
+  | 'forma'
+  | 'pesoLiquido'
+  | 'fabricante'
+  | 'conservacao'
+  | 'gluten'
+  | 'fabricacao'
+  | 'modoUso';
 
 /** Uma peça da etiqueta. Posição e tamanho em milímetros, a partir do canto de cima à esquerda. */
 export interface PecaEtiqueta {
@@ -77,7 +94,22 @@ export interface PecaEtiqueta {
   /** só para o texto livre */
   texto?: string;
   /** cor do texto quando a etiqueta é colorida (padrão: preto) */
-  cor?: 'preto' | 'primaria' | 'destaque';
+  cor?: 'preto' | 'primaria' | 'destaque' | 'branco' | 'livre';
+  /** cor própria (#rrggbb) quando cor = 'livre' */
+  corLivre?: string;
+  /** família da letra */
+  familia?: 'sans' | 'serif' | 'elegante' | 'manuscrita' | 'forte';
+  /** fundo da peça (#rrggbb); na peça "forma" é a cor da forma */
+  fundo?: string;
+  /** cantos arredondados, em mm (forma redonda: 999) */
+  raio?: number;
+  maiusculas?: boolean;
+  /** solapa: em qual lado da dobra fica */
+  lado?: 'frente' | 'verso';
+  /** peça "imagem": a imagem (data URL) */
+  imagem?: string;
+  /** peça "selos": quais selos */
+  selos?: string[];
 }
 
 export interface ModeloEtiqueta {
@@ -92,6 +124,12 @@ export interface ModeloEtiqueta {
   margem?: number;
   /** pb = preto e branco (térmica); cor = colorida (impressora de tinta/laser) */
   cor?: 'pb' | 'cor';
+  /** formato do recorte */
+  forma?: 'retangulo' | 'arredondado' | 'redondo' | 'oval';
+  /** cor de fundo da etiqueta inteira (#rrggbb) */
+  fundo?: string;
+  /** solapa de saquinho: metade de cima é o verso (sai de cabeça para baixo), dobra no meio */
+  solapa?: boolean;
 }
 
 export interface ListState {
