@@ -63,6 +63,10 @@ describe('vitrine: configuração', () => {
     expect(normalizarFacebook('temperei')).toBe('https://facebook.com/temperei');
     expect(normalizarFacebook('https://facebook.com/temperei')).toBe('https://facebook.com/temperei');
     expect(normalizarFacebook('https://outro.com/temperei')).toBe('');
+    // endereço copiado sem o https:// (perfil do Facebook com ?id= e link do Instagram com ?igsh=)
+    expect(normalizarFacebook('facebook.com/profile.php?id=61550000000000')).toBe('https://facebook.com/profile.php?id=61550000000000');
+    expect(normalizarFacebook('www.facebook.com/temperei')).toBe('https://www.facebook.com/temperei');
+    expect(normalizarInstagram('www.instagram.com/temperei_/?igsh=abc')).toBe('https://www.instagram.com/temperei_/?igsh=abc');
   });
 
   it('monta o link do cardápio a partir do endereço do sistema', () => {
