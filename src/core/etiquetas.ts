@@ -7,7 +7,7 @@ import { familyOf } from './units';
 import { newId } from './normalize';
 
 export const PECAS: { tipo: TipoPeca; rotulo: string; dica: string }[] = [
-  { tipo: 'logo', rotulo: 'Logo', dica: 'A logo da loja, em preto e branco' },
+  { tipo: 'logo', rotulo: 'Logo', dica: 'A logo da loja (colorida só na impressão colorida)' },
   { tipo: 'loja', rotulo: 'Nome da loja', dica: '' },
   { tipo: 'nome', rotulo: 'Nome do produto', dica: '' },
   { tipo: 'precoKg', rotulo: 'Preço por kg', dica: 'Ou por unidade, nos produtos vendidos por unidade' },
@@ -114,13 +114,22 @@ export function novoTexto(m: ModeloEtiqueta): PecaEtiqueta {
   return peca('texto', 2, 2, Math.min(40, m.largura - 4), 5, 8, { texto: 'Seu texto' });
 }
 
-/** Mantém a peça dentro da etiqueta e com tamanho mínimo. */
-export function limitar(p: PecaEtiqueta, m: Pick<ModeloEtiqueta, 'largura' | 'altura'>): PecaEtiqueta {
+/** Mantém a peça dentro da área de impressão (etiqueta menos a margem) e com tamanho mínimo. */
+export function limitar(p: PecaEtiqueta, m: Pick<ModeloEtiqueta, 'largura' | 'altura' | 'margem'>): PecaEtiqueta {
   const r = (n: number) => Math.round(n * 2) / 2;
-  const w = Math.min(Math.max(r(p.w), 3), m.largura);
-  const h = Math.min(Math.max(r(p.h), 2), m.altura);
-  return { ...p, w, h, x: Math.min(Math.max(r(p.x), 0), m.largura - w), y: Math.min(Math.max(r(p.y), 0), m.altura - h) };
+  const mg = Math.min(Math.max(m.margem ?? 0, 0), Math.min(m.largura, m.altura) / 4);
+  const W = m.largura - 2 * mg;
+  const H = m.altura - 2 * mg;
+  const w = Math.min(Math.max(r(p.w), 3), W);
+  const h = Math.min(Math.max(r(p.h), 2), H);
+  return { ...p, w, h, x: Math.min(Math.max(r(p.x), mg), mg + W - w), y: Math.min(Math.max(r(p.y), mg), mg + H - h) };
 }
+
+export const CORES_PECA: { id: NonNullable<PecaEtiqueta['cor']>; rotulo: string }[] = [
+  { id: 'preto', rotulo: 'Preto' },
+  { id: 'primaria', rotulo: 'Cor principal da loja' },
+  { id: 'destaque', rotulo: 'Cor de destaque da loja' },
+];
 
 /** Lê modelos vindos de backup/nuvem, descartando o que não faz sentido. */
 export function etiquetasDe(raw: unknown): ModeloEtiqueta[] | undefined {
@@ -149,10 +158,14 @@ export function etiquetasDe(raw: unknown): ModeloEtiqueta[] | undefined {
         alinhar: q.alinhar === 'centro' || q.alinhar === 'dir' ? q.alinhar : 'esq',
       };
       if (p.tipo === 'texto') p.texto = typeof q.texto === 'string' ? q.texto : '';
-      return [limitar(p, { largura, altura })];
+      if (q.cor === 'primaria' || q.cor === 'destaque') p.cor = q.cor;
+      return [limitar(p, { largura, altura, margem: n(o.margem, 0) })];
     });
     const moldura = MOLDURAS.some((x) => x.id === o.moldura) ? (o.moldura as ModeloEtiqueta['moldura']) : 'nenhuma';
-    return [completar({ id: typeof o.id === 'string' && o.id ? o.id : newId(), nome: typeof o.nome === 'string' && o.nome.trim() ? o.nome : 'Etiqueta', largura, altura, moldura, pecas })];
+    const extra: Partial<ModeloEtiqueta> = {};
+    if (n(o.margem, 0) > 0) extra.margem = Math.min(n(o.margem, 0), 20);
+    if (o.cor === 'cor') extra.cor = 'cor';
+    return [completar({ id: typeof o.id === 'string' && o.id ? o.id : newId(), nome: typeof o.nome === 'string' && o.nome.trim() ? o.nome : 'Etiqueta', largura, altura, moldura, pecas, ...extra })];
   });
 }
 

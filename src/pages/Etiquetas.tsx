@@ -7,7 +7,7 @@ import { Button, Field, Notice, NumberInput, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
 import { logoSrc } from '../ui/logo';
 import { Etiqueta, type EdicaoEtiqueta } from '../components/Etiqueta';
-import { MOLDURAS, NUTRI_VAZIA, PECAS, TAMANHOS, codigoEtiqueta, daquiA, limitar, modelosPadrao, novoModelo, novoTexto, porPeso, type DadosImpressao } from '../core/etiquetas';
+import { CORES_PECA, MOLDURAS, NUTRI_VAZIA, PECAS, TAMANHOS, codigoEtiqueta, daquiA, limitar, modelosPadrao, novoModelo, novoTexto, porPeso, type DadosImpressao } from '../core/etiquetas';
 import { balancaDe, casa } from '../core/balanca';
 import type { InfoNutricional, ModeloEtiqueta, PecaEtiqueta, Product } from '../types';
 
@@ -60,7 +60,42 @@ export default function Etiquetas() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const escala = Math.min(Math.max((larguraCaixa - 8) / (modelo.largura * PX_MM), 0.5), 6);
+  const [zoom, setZoom] = useState<'ajustar' | number>('ajustar');
+  const [cheia, setCheia] = useState(false);
+  useEffect(() => {
+    if (!cheia) return;
+    const esc = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && setCheia(false);
+    window.addEventListener('keydown', esc);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', esc);
+      document.body.style.overflow = '';
+    };
+  }, [cheia]);
+  const ajuste = Math.min(Math.max((larguraCaixa - 8) / (modelo.largura * PX_MM), 0.5), cheia ? 10 : 6);
+  const escala = zoom === 'ajustar' ? ajuste : zoom;
+  // medidas em mm (guardadas) ou cm (mostradas), à escolha
+  const [un, setUn] = useState<'mm' | 'cm'>(() => {
+    try {
+      return localStorage.getItem('temperei.etq.un') === 'cm' ? 'cm' : 'mm';
+    } catch {
+      return 'mm';
+    }
+  });
+  const trocarUn = (u: 'mm' | 'cm') => {
+    setUn(u);
+    try {
+      localStorage.setItem('temperei.etq.un', u);
+    } catch {
+      /* sem armazenamento: só não lembra */
+    }
+  };
+  const mostra = (mm: number) => (un === 'cm' ? Math.round(mm) / 10 : mm);
+  const guarda = (v: number) => (un === 'cm' ? Math.round(v * 100) / 10 : v);
+  const salvarComMargem = (margem: number) => {
+    const m = { ...modelo, margem };
+    salvar({ ...m, pecas: m.pecas.map((p) => limitar(p, m)) });
+  };
 
   // ---------- arrastar ----------
   const arrasto = useRef<{ id: string; modo: 'mover' | 'tamanho'; x0: number; y0: number; orig: PecaEtiqueta; m: ModeloEtiqueta } | null>(null);
@@ -120,7 +155,7 @@ export default function Etiquetas() {
 
   // ---------- modelos ----------
   function trocarTamanho(largura: number, altura: number) {
-    salvar({ ...modelo, largura, altura, pecas: modelo.pecas.map((p) => limitar(p, { largura, altura })) });
+    salvar({ ...modelo, largura, altura, pecas: modelo.pecas.map((p) => limitar(p, { largura, altura, margem: modelo.margem })) });
   }
   function novo() {
     const m = novoModelo(modelo.largura, modelo.altura);
@@ -263,8 +298,27 @@ export default function Etiquetas() {
               </select>
             )}
           </Field>
-          <Field label="Largura">{(id) => <NumberInput id={id} value={modelo.largura} min={15} max={300} suffix="mm" onChange={(v) => trocarTamanho(v, modelo.altura)} />}</Field>
-          <Field label="Altura">{(id) => <NumberInput id={id} value={modelo.altura} min={10} max={300} suffix="mm" onChange={(v) => trocarTamanho(modelo.largura, v)} />}</Field>
+          <Field label="Largura">{(id) => <NumberInput key={un} id={id} value={mostra(modelo.largura)} min={mostra(15)} max={mostra(300)} suffix={un} onChange={(v) => trocarTamanho(guarda(v), modelo.altura)} />}</Field>
+          <Field label="Altura">{(id) => <NumberInput key={un} id={id} value={mostra(modelo.altura)} min={mostra(10)} max={mostra(300)} suffix={un} onChange={(v) => trocarTamanho(modelo.largura, guarda(v))} />}</Field>
+          <Field label="Margem da área de impressão" hint="Borda que a impressora não alcança. As peças ficam dentro (linha vermelha no editor).">
+            {(id) => <NumberInput key={un} id={id} value={mostra(modelo.margem ?? 0)} min={0} max={mostra(20)} suffix={un} onChange={(v) => salvarComMargem(guarda(v))} />}
+          </Field>
+          <Field label="Impressão" hint={modelo.cor === 'cor' ? 'Para impressora de tinta ou laser colorida.' : 'Para impressora térmica (só imprime preto).'}>
+            {(id) => (
+              <select id={id} value={modelo.cor ?? 'pb'} onChange={(e) => salvar({ ...modelo, cor: e.target.value === 'cor' ? 'cor' : 'pb' })}>
+                <option value="pb">Preto e branco</option>
+                <option value="cor">Colorida</option>
+              </select>
+            )}
+          </Field>
+          <Field label="Medidas em">
+            {(id) => (
+              <select id={id} value={un} onChange={(e) => trocarUn(e.target.value === 'cm' ? 'cm' : 'mm')}>
+                <option value="mm">milímetros (mm)</option>
+                <option value="cm">centímetros (cm)</option>
+              </select>
+            )}
+          </Field>
           <Field label="Moldura">
             {(id) => (
               <select id={id} value={modelo.moldura} onChange={(e) => salvar({ ...modelo, moldura: e.target.value as ModeloEtiqueta['moldura'] })}>
@@ -287,8 +341,25 @@ export default function Etiquetas() {
         </div>
       </section>
 
-      <section className="card">
-        <h2>Montar</h2>
+      <section className={`card ${cheia ? 'etq-cheia' : ''}`} aria-label="Montar a etiqueta">
+        <div className="card-head">
+          <h2>Montar{cheia ? ` · ${modelo.nome}` : ''}</h2>
+          <div className="row-gap wrap">
+            <label className="row-gap">
+              <span className="muted small">Zoom</span>
+              <select aria-label="Zoom da prévia" value={String(zoom)} onChange={(e) => setZoom(e.target.value === 'ajustar' ? 'ajustar' : Number(e.target.value))}>
+                <option value="ajustar">Ajustar à tela</option>
+                <option value="1">Tamanho real</option>
+                <option value="2">2×</option>
+                <option value="3">3×</option>
+                <option value="4">4×</option>
+              </select>
+            </label>
+            <Button variant="secondary" icon={cheia ? 'x' : 'columns'} onClick={() => setCheia((c) => !c)}>
+              {cheia ? 'Sair da tela cheia' : 'Tela cheia'}
+            </Button>
+          </div>
+        </div>
         <div className="etq-editor">
           <div className="etq-lado">
             <h3 className="etq-sub">Peças</h3>
@@ -362,8 +433,21 @@ export default function Etiquetas() {
                       )}
                     </Field>
                   )}
-                  <Field label="Largura">{(id) => <NumberInput id={id} value={sel.w} min={3} max={modelo.largura} suffix="mm" onChange={(v) => mudarPeca(sel.id, { w: v })} />}</Field>
-                  <Field label="Altura">{(id) => <NumberInput id={id} value={sel.h} min={2} max={modelo.altura} suffix="mm" onChange={(v) => mudarPeca(sel.id, { h: v })} />}</Field>
+                  <Field label="Largura">{(id) => <NumberInput key={un + sel.id} id={id} value={mostra(sel.w)} min={mostra(3)} max={mostra(modelo.largura)} suffix={un} onChange={(v) => mudarPeca(sel.id, { w: guarda(v) })} />}</Field>
+                  <Field label="Altura">{(id) => <NumberInput key={un + sel.id} id={id} value={mostra(sel.h)} min={mostra(2)} max={mostra(modelo.altura)} suffix={un} onChange={(v) => mudarPeca(sel.id, { h: guarda(v) })} />}</Field>
+                  {modelo.cor === 'cor' && sel.tipo !== 'logo' && sel.tipo !== 'codigo' && (
+                    <Field label="Cor">
+                      {(id) => (
+                        <select id={id} value={sel.cor ?? 'preto'} onChange={(e) => mudarPeca(sel.id, { cor: e.target.value as PecaEtiqueta['cor'] })}>
+                          {CORES_PECA.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.rotulo}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                  )}
                 </div>
                 <div className="row-gap wrap">
                   {sel.tipo !== 'logo' && sel.tipo !== 'codigo' && (

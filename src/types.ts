@@ -76,6 +76,8 @@ export interface PecaEtiqueta {
   alinhar: 'esq' | 'centro' | 'dir';
   /** só para o texto livre */
   texto?: string;
+  /** cor do texto quando a etiqueta é colorida (padrão: preto) */
+  cor?: 'preto' | 'primaria' | 'destaque';
 }
 
 export interface ModeloEtiqueta {
@@ -86,6 +88,10 @@ export interface ModeloEtiqueta {
   altura: number;
   moldura: 'nenhuma' | 'simples' | 'dupla' | 'arredondada';
   pecas: PecaEtiqueta[];
+  /** margem que a impressora não alcança, em mm (as peças ficam dentro dela) */
+  margem?: number;
+  /** pb = preto e branco (térmica); cor = colorida (impressora de tinta/laser) */
+  cor?: 'pb' | 'cor';
 }
 
 export interface ListState {

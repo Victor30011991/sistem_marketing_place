@@ -897,3 +897,9 @@ ol.pdv-pag li strong { float: right; }
 .pf-foto img, .pf-foto-vazia { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; border: 1px solid var(--line); }
 .pf-foto-vazia { display: grid; place-items: center; font-size: 0.75rem; color: var(--muted); background: var(--bg-2); }
 .pf-foto label.btn { cursor: pointer; }
+.etq-margem { outline: 0.25mm dashed #d1453b; }
+.etq-palco { overflow: auto; justify-content: safe center; max-height: 70vh; }
+.etq-cheia { position: fixed; inset: 0; z-index: 60; border-radius: 0; overflow-y: auto; margin: 0; }
+.etq-cheia .etq-palco { max-height: none; min-height: 50vh; }
+.etq-cheia .etq-editor { grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
+@media (max-width: 860px) { .etq-cheia .etq-editor { grid-template-columns: minmax(0, 1fr); } .etq-cheia { padding-bottom: 90px; } }
