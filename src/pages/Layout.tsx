@@ -4,6 +4,8 @@ import { useApp } from '../state/store';
 import { Icon } from '../ui/icons';
 import { logoSrc } from '../ui/logo';
 import { useSaveBackup, useSaveExcel } from '../export/useSave';
+import { NuvemBox } from '../nuvem/NuvemBox';
+import { useNuvem } from '../nuvem/NuvemProvider';
 
 const NAV = [
   { to: '/', label: 'Início', icon: 'home', end: true },
@@ -31,6 +33,7 @@ export default function Layout() {
     window.scrollTo(0, 0);
   }, [pathname]);
   const total = state.lista.produtos.length;
+  const naNuvem = useNuvem().fase === 'conectado';
 
   return (
     <div className="shell">
@@ -57,11 +60,8 @@ export default function Layout() {
           <span className="savebox-name" title={state.lista.nome}>
             {state.lista.nome}
           </span>
-          <span className={`savebox-status ${state.sujo ? 'dirty' : 'clean'}`}>
-            <i aria-hidden="true" />
-            {state.sujo ? 'Alterações não salvas' : total > 0 ? 'Tudo salvo' : 'Lista vazia'}
-          </span>
-          <button type="button" className="btn btn-light" onClick={save} disabled={total === 0 && !state.sujo}>
+          <NuvemBox />
+          <button type="button" className={`btn ${naNuvem ? 'btn-ghost-light' : 'btn-light'}`} onClick={save} disabled={total === 0 && !state.sujo}>
             <Icon name="save" /> Salvar em Excel
           </button>
           <button type="button" className="btn btn-ghost-light" onClick={backup} disabled={total === 0 && !state.sujo} title="Baixa um arquivo .txt com tudo o que está no sistema agora">

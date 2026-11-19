@@ -189,6 +189,7 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const tituloId = useId();
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -199,6 +200,7 @@ export function Modal({
     <dialog
       ref={ref}
       className={`modal ${wide ? 'modal-wide' : ''}`}
+      aria-labelledby={tituloId}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -210,7 +212,7 @@ export function Modal({
       {open && (
         <div className="modal-card">
           <div className="modal-head">
-            <h2>{title}</h2>
+            <h2 id={tituloId}>{title}</h2>
             <button type="button" className="icon-btn" onClick={onClose} aria-label="Fechar">
               <Icon name="x" />
             </button>

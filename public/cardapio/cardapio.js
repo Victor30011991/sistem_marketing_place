@@ -1,4 +1,4 @@
-/* Página pública do cardápio. Não conhece o sistema de precificação: só lê cardapio.json (nome, categoria e preço). */
+/* Página pública do cardápio. Não conhece o sistema de precificação: só lê o cardápio publicado (nome, categoria e preço). */
 (function () {
   'use strict';
   var L = window.CardapioLib;
@@ -331,8 +331,13 @@
     });
     if (window.parent !== window) window.parent.postMessage({ tipo: 'cardapio-pronto' }, location.origin);
   } else {
-    fetch('./cardapio.json?t=' + Date.now(), { cache: 'no-store' })
-      .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    // 1º: o cardápio ao vivo, publicado pelo sistema na nuvem; 2º: o arquivo cardapio.json (publicação manual)
+    var NUVEM = 'https://firestore.googleapis.com/v1/projects/temperei/databases/(default)/documents/publico/cardapio?key=AIzaSyBIe_OH9xytji9DKWT_5-Pd-p8PyNk0lUE';
+    var json = function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); };
+    fetch(NUVEM, { cache: 'no-store' })
+      .then(json)
+      .then(function (d) { return JSON.parse(d.fields.json.stringValue); })
+      .catch(function () { return fetch('./cardapio.json?t=' + Date.now(), { cache: 'no-store' }).then(json); })
       .then(iniciar)
       .catch(function () { indisponivel('O cardápio ainda não foi publicado. Volte em instantes.'); });
   }

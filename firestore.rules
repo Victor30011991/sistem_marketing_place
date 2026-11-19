@@ -1,0 +1,26 @@
+rules_version = '2';
+// Regras do banco da Temperei. Cole este texto em Firebase → Firestore Database → Regras → Publicar.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // só os dois e-mails da loja, com e-mail confirmado pelo Google
+    function equipe() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['j.victor.baros.live@gmail.com', 'samara778@gmail.com'];
+    }
+
+    // cardápio do cliente: qualquer pessoa lê; só a equipe publica
+    match /publico/{doc} {
+      allow read: if true;
+      allow write: if equipe();
+    }
+
+    // tudo da loja (produtos, custos, vendas, lotes): só a equipe
+    match /lojas/{loja} {
+      allow read, write: if equipe();
+      match /{resto=**} {
+        allow read, write: if equipe();
+      }
+    }
+  }
+}
