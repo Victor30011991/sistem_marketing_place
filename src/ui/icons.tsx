@@ -31,6 +31,7 @@ const PATHS: Record<string, string> = {
   sparkle: 'M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z',
   chart: 'M4 20h16M7 16v-5M12 16V6M17 16v-8',
   label: 'M4 6h16v12H4zM7 10h6M7 14h10',
+  user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',
   cloud: 'M7 18h10.5a4 4 0 00.6-7.95A6 6 0 006.3 9.1 4.5 4.5 0 007 18z',
   logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
 };

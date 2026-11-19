@@ -15,6 +15,8 @@ import Compras from './pages/Compras';
 import Balanca from './pages/Balanca';
 import Etiquetas from './pages/Etiquetas';
 import Relatorios from './pages/Relatorios';
+import Clientes from './pages/Clientes';
+import Pedidos from './pages/Pedidos';
 
 export default function App() {
   return (
@@ -30,6 +32,8 @@ export default function App() {
         <Route path="balanca" element={<Balanca />} />
         <Route path="etiquetas" element={<Etiquetas />} />
         <Route path="relatorios" element={<Relatorios />} />
+        <Route path="clientes" element={<Clientes />} />
+        <Route path="pedidos" element={<Pedidos />} />
         <Route path="categorias" element={<Categorias />} />
         <Route path="precificacao" element={<Precificacao />} />
         <Route path="orcamento" element={<Orcamento />} />

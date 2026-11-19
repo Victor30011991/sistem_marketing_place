@@ -254,6 +254,7 @@ export interface VendaPausada {
   id: string;
   quando: string;
   cliente: string;
+  clienteId?: string;
   linhas: { produtoId: string; qtd: number; unidade: string; total?: number; desconto?: string }[];
 }
 
@@ -272,6 +273,8 @@ export interface Venda {
   /** taxa da maquininha em centavos */
   taxa: number;
   cliente: string;
+  /** cliente cadastrado (opcional) */
+  clienteId?: string;
   /** formas de pagamento usadas (vendas antigas não têm: valem `pagamento` e `total`) */
   pagamentos?: PagamentoVenda[];
   /** troco devolvido em dinheiro, em centavos */
@@ -328,6 +331,7 @@ export interface OrcamentoSalvo {
   validade: string;
   obs: string;
   situacao: SituacaoOrcamento;
+  clienteId?: string;
 }
 
 export interface ConfigOrcamento {
@@ -346,8 +350,42 @@ export interface ConfigOrcamento {
   cupom: 58 | 80;
 }
 
+/** Cliente cadastrado (o histórico vem das vendas e orçamentos ligados a ele). */
+export interface Cliente {
+  id: string;
+  nome: string;
+  /** WhatsApp/telefone como foi digitado */
+  telefone: string;
+  endereco: string;
+  obs: string;
+  /** ISO */
+  criado: string;
+}
+
+export type SituacaoPedido = 'novo' | 'separando' | 'pronto' | 'entregue' | 'cancelado';
+
+/** Pedido feito pelo cliente no cardápio (fica na nuvem, fora do Excel). */
+export interface Pedido {
+  id: string;
+  /** ISO */
+  criado: string;
+  nome: string;
+  telefone: string;
+  endereco: string;
+  obs: string;
+  /** i = id do produto (cardápios antigos não têm), n = nome, g = gramas, t = valor em centavos */
+  itens: { i?: string; n: string; g: number; t: number }[];
+  total: number;
+  origem: string;
+  situacao: SituacaoPedido;
+  /** venda pausada criada a partir do pedido */
+  vendaPausada?: string;
+}
+
 export interface Settings {
   balanca?: ConfigBalanca;
+  /** clientes cadastrados (na nuvem ficam um por documento) */
+  clientes?: Cliente[];
   /** orçamentos salvos (na nuvem ficam um por documento) */
   orcamentos?: OrcamentoSalvo[];
   orcamentoCfg?: ConfigOrcamento;

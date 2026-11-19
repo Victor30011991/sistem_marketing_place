@@ -265,6 +265,7 @@ export function orcamentosDe(raw: unknown): OrcamentoSalvo[] | undefined {
         validade: s(o.validade),
         obs: s(o.obs),
         situacao: sit,
+        ...(s(o.clienteId) ? { clienteId: s(o.clienteId) } : {}),
       } satisfies OrcamentoSalvo,
     ];
   });

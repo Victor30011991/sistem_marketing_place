@@ -2,6 +2,7 @@ import type { FixedCost, InstallmentFee, ListaCompras, ListState, Lote, LoteItem
 import { defaultSettings, defaultStore } from './defaults';
 import { etiquetasDe, nutricaoDe } from './etiquetas';
 import { cfgOrcamento, orcamentosDe } from './orcamentos';
+import { clientesDe } from './clientes';
 import { newId, newKey } from './normalize';
 import { paymentOptions } from './pricing';
 import { vitrineDe } from './vitrine';
@@ -148,6 +149,7 @@ function lerVenda(raw: unknown): Venda | null {
     pagamentoLabel: str(raw.pagamentoLabel) || 'Dinheiro ou Pix',
     taxa: cent(raw.taxa),
     cliente: str(raw.cliente),
+    ...(str(raw.clienteId) ? { clienteId: str(raw.clienteId) } : {}),
   };
   if (Array.isArray(raw.pagamentos)) {
     const pags = raw.pagamentos.flatMap((pg) => (isObj(pg) && typeof pg.forma === 'string' ? [{ forma: pg.forma, label: str(pg.label) || pg.forma, valor: cent(pg.valor), taxa: cent(pg.taxa) }] : []));
@@ -166,7 +168,7 @@ function lerPausada(raw: unknown): VendaPausada | null {
       : [],
   );
   if (!linhas.length) return null;
-  return { id: str(raw.id) || newKey(), quando: str(raw.quando), cliente: str(raw.cliente), linhas };
+  return { id: str(raw.id) || newKey(), quando: str(raw.quando), cliente: str(raw.cliente), ...(str(raw.clienteId) ? { clienteId: str(raw.clienteId) } : {}), linhas };
 }
 
 function lerCompras(raw: unknown): ListaCompras | null {
@@ -217,6 +219,8 @@ function lerConfig(raw: unknown): Settings {
   });
   if (isObj(raw.balanca)) cfg.balanca = balancaDe(raw.balanca);
   if (num(raw.proLabore) != null && (raw.proLabore as number) >= 0) cfg.proLabore = raw.proLabore as number;
+  const clientes = clientesDe(raw.clientes);
+  if (clientes?.length) cfg.clientes = clientes;
   const orcamentos = orcamentosDe(raw.orcamentos);
   if (orcamentos?.length) cfg.orcamentos = orcamentos;
   if (isObj(raw.orcamentoCfg)) cfg.orcamentoCfg = cfgOrcamento(raw.orcamentoCfg);

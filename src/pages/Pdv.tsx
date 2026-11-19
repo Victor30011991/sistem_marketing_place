@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { acharCliente } from '../core/clientes';
 import { Link } from 'react-router-dom';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
@@ -31,6 +32,7 @@ interface Rascunho {
   desconto: { tipo: 'valor' | 'pct'; valor: number | null };
   pagos: Pago[];
   cliente: string;
+  clienteId?: string;
 }
 const vazio = (): Rascunho => ({ linhas: [], desconto: { tipo: 'valor', valor: null }, pagos: [], cliente: '' });
 let rascunho: Rascunho | null = null;
@@ -171,7 +173,7 @@ export default function Pdv() {
   // ---------- pausar, retomar, cancelar ----------
   function pausar() {
     if (!r.linhas.length) return;
-    const p: VendaPausada = { id: newId(), quando: new Date().toISOString(), cliente: r.cliente.trim(), linhas: r.linhas.map(({ produtoId, qtd, unidade, total, desconto }) => ({ produtoId, qtd, unidade, ...(total != null ? { total } : {}), ...(desconto ? { desconto } : {}) })) };
+    const p: VendaPausada = { id: newId(), quando: new Date().toISOString(), cliente: r.cliente.trim(), ...(r.clienteId ? { clienteId: r.clienteId } : {}), linhas: r.linhas.map(({ produtoId, qtd, unidade, total, desconto }) => ({ produtoId, qtd, unidade, ...(total != null ? { total } : {}), ...(desconto ? { desconto } : {}) })) };
     act.config((s) => ({ ...s, vendasPausadas: [...(s.vendasPausadas ?? []), p] }));
     rascunho = null;
     setR(vazio());
@@ -181,7 +183,7 @@ export default function Pdv() {
     if (r.linhas.length && !(await confirm({ titulo: 'Trocar a venda atual?', mensagem: 'A venda que está aberta agora será pausada para você retomar depois.', confirmar: 'Pausar e retomar a outra' }))) return;
     if (r.linhas.length) pausar();
     act.config((s) => ({ ...s, vendasPausadas: (s.vendasPausadas ?? []).filter((x) => x.id !== p.id) }));
-    const n: Rascunho = { ...vazio(), cliente: p.cliente, linhas: p.linhas.map((l) => ({ key: newId(), ...l })) };
+    const n: Rascunho = { ...vazio(), cliente: p.cliente, ...(p.clienteId ? { clienteId: p.clienteId } : {}), linhas: p.linhas.map((l) => ({ key: newId(), ...l })) };
     rascunho = n;
     setR(n);
   }
@@ -209,6 +211,7 @@ export default function Pdv() {
       pagamentoLabel: pagamentos.pagamentos.map((p) => p.label).join(' + ') || principal.label,
       taxa: pagamentos.taxa,
       cliente: r.cliente.trim(),
+      ...((r.clienteId ?? acharCliente(config.clientes ?? [], { nome: r.cliente })?.id) ? { clienteId: r.clienteId ?? acharCliente(config.clientes ?? [], { nome: r.cliente })!.id } : {}),
       pagamentos: pagamentos.pagamentos,
       ...(pagamentos.troco > 0 ? { troco: pagamentos.troco } : {}),
     };
@@ -397,7 +400,22 @@ export default function Pdv() {
             )}
             <label className="pdv2-cliente">
               <span>Cliente</span>
-              <input value={r.cliente} placeholder="Nome do cliente (opcional)" onChange={(e) => atualizar((x) => ({ ...x, cliente: e.target.value }))} />
+              <input
+                value={r.cliente}
+                list="pdv-clientes"
+                placeholder="Nome do cliente (opcional)"
+                onChange={(e) => {
+                  const nome = e.target.value;
+                  atualizar((x) => ({ ...x, cliente: nome, clienteId: acharCliente(config.clientes ?? [], { nome })?.id }));
+                }}
+              />
+              <datalist id="pdv-clientes">
+                {(config.clientes ?? []).map((c) => (
+                  <option key={c.id} value={c.nome}>
+                    {c.telefone}
+                  </option>
+                ))}
+              </datalist>
             </label>
           </section>
 

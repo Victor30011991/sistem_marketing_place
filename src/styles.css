@@ -706,7 +706,7 @@ ol.pdv-pag li strong { float: right; }
 .savebox-status.bad i { background: #e2735f; }
 .savebox-msg { font-size: 0.8rem; opacity: 0.85; }
 .savebox-sair { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 0.8rem; opacity: 0.8; cursor: pointer; text-align: left; overflow: hidden; }
-.savebox-sair span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.savebox-sair .savebox-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .savebox-sair:hover { opacity: 1; text-decoration: underline; }
 .savebox-sair:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
 @media (max-width: 860px) {
@@ -822,3 +822,24 @@ ol.pdv-pag li strong { float: right; }
 .orc-cfg[open] > .form-grid, .orc-cfg[open] > .notice { margin-top: 14px; }
 .orc-sub { font-size: 1rem; margin: 20px 0 4px; }
 @media (max-width: 900px) { .orc { grid-template-columns: minmax(0, 1fr); } }
+
+/* ------------------------------------------------------------ pedidos e clientes */
+.tab-conta { font-style: normal; margin-left: 6px; display: inline-flex; min-width: 22px; height: 22px; padding: 0 6px; align-items: center; justify-content: center; border-radius: 11px; background: var(--primary); color: var(--on-primary); font-size: 0.78rem; font-weight: 700; }
+.nav-alerta { background: #f0b73a !important; color: #2b1d17 !important; }
+.ped-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.ped { gap: 10px; }
+.ped.novo { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft), var(--shadow); }
+.ped-topo { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.ped-topo h2 { margin: 0; font-size: 1.15rem; }
+.ped-total { font-family: var(--font-head); font-size: 1.4rem; white-space: nowrap; }
+.ped-end { margin: 0; font-size: 0.92rem; }
+.ped-itens { list-style: none; margin: 0; padding: 8px 0; border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 4px; }
+.ped-itens li { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+.ped-obs { margin: 0; font-style: italic; color: var(--muted); }
+.linha-clicavel { cursor: pointer; }
+.linha-clicavel:hover td { background: var(--bg-2); }
+.link-btn { border: 0; background: none; padding: 0; font: inherit; font-weight: 650; color: var(--ink); cursor: pointer; text-align: left; min-height: 32px; }
+.link-btn:hover { text-decoration: underline; }
+.link-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+.cli-det { display: flex; flex-direction: column; gap: 14px; }
+.cli-hist { max-height: 260px; overflow-y: auto; }

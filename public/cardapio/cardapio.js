@@ -9,7 +9,7 @@
 
   var dados = null;
   var carrinho = {}; // chave "categoria|nome" -> gramas
-  var form = { nome: '', endereco: '', obs: '' };
+  var form = { nome: '', telefone: '', endereco: '', obs: '' };
   var ui = { aba: 0, busca: '', aberto: null, erro: '', tentou: false };
 
   // ---------- guarda só nesta aba do navegador (some ao fechar) ----------
@@ -77,7 +77,7 @@
   // ---------- dados ----------
   function todosItens() {
     var out = [];
-    dados.categorias.forEach(function (cat) { cat.itens.forEach(function (it) { out.push({ chave: cat.nome + '|' + it.n, cat: cat.nome, n: it.n, pk: it.pk }); }); });
+    dados.categorias.forEach(function (cat) { cat.itens.forEach(function (it) { out.push({ chave: cat.nome + '|' + it.n, cat: cat.nome, i: it.i, n: it.n, pk: it.pk }); }); });
     return out;
   }
   function itensDoPedido() {
@@ -85,7 +85,7 @@
     todosItens().forEach(function (i) { mapa[i.chave] = i; });
     var out = [];
     Object.keys(carrinho).forEach(function (k) {
-      if (mapa[k]) out.push({ chave: k, n: mapa[k].n, g: carrinho[k], total: L.precoItem(carrinho[k], mapa[k].pk) });
+      if (mapa[k]) out.push({ chave: k, i: mapa[k].i, n: mapa[k].n, g: carrinho[k], total: L.precoItem(carrinho[k], mapa[k].pk) });
       else delete carrinho[k]; // item que saiu do cardápio depois de uma versão antiga
     });
     return out;
@@ -263,12 +263,15 @@
     var nome = h('input', { id: 'f-nome', type: 'text', autocomplete: 'name', value: form.nome, class: ui.tentou && !form.nome.trim() ? 'invalido' : null });
     var end = h('textarea', { id: 'f-end', autocomplete: 'street-address', class: ui.tentou && !form.endereco.trim() ? 'invalido' : null }); end.value = form.endereco;
     var obs = h('textarea', { id: 'f-obs' }); obs.value = form.obs;
+    var tel = h('input', { id: 'f-tel', type: 'tel', inputmode: 'tel', autocomplete: 'tel', value: form.telefone || '' });
+    tel.addEventListener('input', function () { form.telefone = tel.value; guardar(); });
     function limpaErro() { if (ui.erro) { ui.erro = ''; erroEl.textContent = ''; } }
     nome.addEventListener('input', function () { form.nome = nome.value; guardar(); limpaErro(); });
     end.addEventListener('input', function () { form.endereco = end.value; guardar(); limpaErro(); });
     obs.addEventListener('input', function () { form.obs = obs.value; guardar(); });
     box.appendChild(h('div', { class: 'form' },
       h('label', { for: 'f-nome' }, 'Seu nome', nome),
+      h('label', { for: 'f-tel' }, 'Seu WhatsApp (opcional)', h('small', { text: 'Para avisarmos quando o pedido estiver pronto.' }), tel),
       h('label', { for: 'f-end' }, 'Endereço de entrega', h('small', { text: 'Rua, número, bairro e ponto de referência.' }), end),
       h('label', { for: 'f-obs' }, 'Observações (opcional)', obs)));
 
@@ -278,6 +281,7 @@
     return raiz;
   }
 
+  var NUVEM_PEDIDOS = 'https://firestore.googleapis.com/v1/projects/temperei/databases/(default)/documents/pedidos?key=AIzaSyBIe_OH9xytji9DKWT_5-Pd-p8PyNk0lUE';
   function finalizar() {
     var its = itensDoPedido();
     ui.tentou = true;
@@ -286,6 +290,11 @@
     if (!dados.loja.whatsapp) { ui.erro = 'O WhatsApp da loja ainda não foi configurado.'; desenhar(true); return; }
     var texto = L.montarMensagem({ loja: dados.loja.nome, abertura: dados.loja.abertura, fechamento: dados.loja.fechamento,
       itens: its, nome: form.nome, endereco: form.endereco, obs: form.obs, origem: ORIGEM });
+    // o pedido também cai na tela "Pedidos" da loja (se a nuvem estiver ligada); não segura o WhatsApp se falhar
+    if (!PREVIEW) try {
+      fetch(NUVEM_PEDIDOS, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(L.pedidoNuvem({ itens: its, nome: form.nome, telefone: form.telefone, endereco: form.endereco, obs: form.obs, origem: ORIGEM })) }).catch(function () {});
+    } catch (e) { /* navegador antigo: segue só pelo WhatsApp */ }
     var a = h('a', { href: L.urlWhatsapp(dados.loja.whatsapp, texto), target: '_blank', rel: 'noopener noreferrer' });
     document.body.appendChild(a); a.click(); a.remove();
   }

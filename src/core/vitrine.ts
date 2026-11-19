@@ -90,6 +90,8 @@ export function linkCardapio(baseDoSistema: string, origem?: Origem): string {
 }
 
 export interface ItemCardapio {
+  /** id do produto (para o pedido chegar certo no sistema) */
+  i: string;
   n: string;
   /** preço por quilo, em centavos */
   pk: number;
@@ -158,7 +160,7 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
     }
     const cat = p.categoria.trim() || 'Outros';
     if (!porCat.has(cat)) porCat.set(cat, []);
-    porCat.get(cat)!.push({ n: p.nome.trim(), pk });
+    porCat.get(cat)!.push({ i: p.id, n: p.nome.trim(), pk });
   }
   const ordem = [...lista.categorias.filter((c) => porCat.has(c)), ...[...porCat.keys()].filter((c) => !lista.categorias.includes(c) && c !== 'Outros'), ...(porCat.has('Outros') ? ['Outros'] : [])];
   const unicas = [...new Set(ordem)];

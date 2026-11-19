@@ -3,8 +3,9 @@
  * Guarda os "documentos" no localStorage e avisa as outras abas, simulando dois aparelhos.
  * No build normal este arquivo nem entra no site.
  */
-import type { Lote, OrcamentoSalvo, Product, StoreInfo, Venda } from '../types';
-import { DEL, INC, type Op, type Raiz } from './modelo';
+import type { Pedido, Product, StoreInfo, Venda } from '../types';
+import { pedidoDe } from '../core/clientes';
+import { COLECOES, DEL, INC, type ItemColecao, type Op, type Raiz } from './modelo';
 import type { Parte } from './servico';
 
 const DB = 'falso.db';
@@ -46,8 +47,7 @@ export function ouvir(inicio: string, cb: (p: Parte, servidor: boolean) => void)
     cb({ parte: 'loja', valor: (d['lojas/temperei/meta/loja'] as unknown as StoreInfo) ?? null }, true);
     cb({ parte: 'produtos', valor: new Map(col('produtos').map(([id, v]) => [id, { ...(v as unknown as Product), id }])) }, true);
     cb({ parte: 'dias', valor: new Map(col('vendasDia').filter(([id, v]) => id >= inicio && v.v && Object.keys(v.v).length).map(([id, v]) => [id, v.v as Record<string, Venda>])) }, true);
-    cb({ parte: 'lotes', valor: new Map(col('lotes').map(([id, v]) => [id, v as unknown as Lote])) }, true);
-    cb({ parte: 'orcamentos', valor: new Map(col('orcamentos').map(([id, v]) => [id, v as unknown as OrcamentoSalvo])) }, true);
+    for (const c of COLECOES) cb({ parte: c, valor: new Map(col(c).map(([id, v]) => [id, { ...v, id } as ItemColecao])) }, true);
   };
   ouvintes.add(emitir);
   setTimeout(emitir, 20);
@@ -95,4 +95,23 @@ function aplicarNoBanco(ops: Op[]) {
 
 export async function publicarCardapio(json: string) {
   localStorage.setItem('falso.cardapio', json);
+}
+
+// pedidos: guardados em falso.pedidos (id -> dados), como a coleção pública
+const lerPedidos = (): Record<string, unknown> => JSON.parse(localStorage.getItem('falso.pedidos') ?? '{}');
+export function ouvirPedidos(desde: string, cb: (lista: Pedido[]) => void) {
+  const emitir = () => cb(Object.entries(lerPedidos()).flatMap(([id, v]) => {
+    const p = pedidoDe(id, v);
+    return p && p.criado >= desde ? [p] : [];
+  }));
+  const ao = (e: StorageEvent) => e.key === 'falso.pedidos' && emitir();
+  window.addEventListener('storage', ao);
+  setTimeout(emitir, 20);
+  return () => window.removeEventListener('storage', ao);
+}
+export async function mudarPedido(id: string, patch: Partial<Pedido>) {
+  const t = lerPedidos();
+  t[id] = { ...(t[id] as object), ...patch };
+  localStorage.setItem('falso.pedidos', JSON.stringify(t));
+  window.dispatchEvent(new StorageEvent('storage', { key: 'falso.pedidos' }));
 }

@@ -90,6 +90,42 @@
     return partes.join('\n');
   }
 
+  /** Valor no formato da API REST do Firestore. */
+  function campoFs(v) {
+    if (Array.isArray(v)) return { arrayValue: { values: v.map(campoFs) } };
+    if (v && typeof v === 'object') {
+      var f = {};
+      Object.keys(v).forEach(function (k) { if (v[k] !== undefined) f[k] = campoFs(v[k]); });
+      return { mapValue: { fields: f } };
+    }
+    if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    return { stringValue: String(v == null ? '' : v) };
+  }
+
+  /**
+   * Pedido para gravar na nuvem (a loja vê na hora, na tela Pedidos).
+   * dados: { itens: [{ i, n, g, total }], nome, telefone, endereco, obs, origem }
+   */
+  function pedidoNuvem(d) {
+    var itens = d.itens.slice(0, 80).map(function (it) {
+      var x = { n: String(it.n).slice(0, 120), g: Math.round(it.g), t: Math.round(it.total) };
+      if (it.i) x.i = String(it.i).slice(0, 64);
+      return x;
+    });
+    var dados = {
+      criado: new Date().toISOString(),
+      nome: String(d.nome || '').trim().slice(0, 80),
+      telefone: String(d.telefone || '').trim().slice(0, 30),
+      endereco: String(d.endereco || '').trim().slice(0, 300),
+      obs: String(d.obs || '').trim().slice(0, 500),
+      itens: itens,
+      total: subtotal(d.itens),
+      origem: normalizarOrigem(d.origem),
+      situacao: 'novo',
+    };
+    return { fields: campoFs(dados).mapValue.fields };
+  }
+
   function urlWhatsapp(numero, texto) {
     return 'https://wa.me/' + String(numero).replace(/\D/g, '') + '?text=' + encodeURIComponent(texto);
   }
@@ -103,6 +139,7 @@
     normalizarOrigem: normalizarOrigem,
     montarMensagem: montarMensagem,
     urlWhatsapp: urlWhatsapp,
+    pedidoNuvem: pedidoNuvem,
     ROTULO_ORIGEM: ROTULO_ORIGEM,
   };
 

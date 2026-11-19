@@ -6,6 +6,7 @@ import { logoSrc } from '../ui/logo';
 import { useSaveBackup, useSaveExcel } from '../export/useSave';
 import { NuvemBox } from '../nuvem/NuvemBox';
 import { useNuvem } from '../nuvem/NuvemProvider';
+import { usePedidos } from '../nuvem/PedidosProvider';
 
 const NAV = [
   { to: '/', label: 'Início', icon: 'home', end: true },
@@ -13,6 +14,8 @@ const NAV = [
   { to: '/pagina', label: 'Página da loja', icon: 'menu' },
   { to: '/produtos', label: 'Produtos', icon: 'box' },
   { to: '/vendas', label: 'Vendas (PDV)', icon: 'cart' },
+  { to: '/pedidos', label: 'Pedidos', icon: 'list' },
+  { to: '/clientes', label: 'Clientes', icon: 'user' },
   { to: '/relatorios', label: 'Relatórios', icon: 'chart' },
   { to: '/lotes', label: 'Lotes de compra', icon: 'truck' },
   { to: '/compras', label: 'Lista de compras', icon: 'list' },
@@ -36,6 +39,7 @@ export default function Layout() {
   }, [pathname]);
   const total = state.lista.produtos.length;
   const naNuvem = useNuvem().fase === 'conectado';
+  const { novos } = usePedidos();
 
   return (
     <div className="shell">
@@ -55,6 +59,7 @@ export default function Layout() {
               <Icon name={n.icon} />
               <span>{n.label}</span>
               {n.to === '/produtos' && total > 0 && <em className="nav-count">{total}</em>}
+              {n.to === '/pedidos' && novos > 0 && <em className="nav-count nav-alerta">{novos}</em>}
             </NavLink>
           ))}
         </nav>

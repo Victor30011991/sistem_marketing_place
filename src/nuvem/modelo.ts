@@ -7,13 +7,28 @@
  *   lojas/temperei/produtos/{id}   um documento por produto (estoque gravado por incremento)
  *   lojas/temperei/vendasDia/{dia} as vendas de um dia, num mapa por id (duas pessoas vendendo não se atrapalham)
  *   lojas/temperei/lotes/{id}      um documento por lote de compra
- *   lojas/temperei/orcamentos/{id} um documento por orçamento salvo
+ *   lojas/temperei/{coleção}/{id}  orçamentos, clientes… um documento por item (veja COLECOES)
  *   publico/cardapio               o cardápio que o cliente vê (sem custos)
  */
-import type { ListState, Lote, Product, Settings, StoreInfo, Venda, OrcamentoSalvo } from '../types';
+import type { ListState, Lote, Product, Settings, StoreInfo, Venda } from '../types';
 import { diaLocal } from '../core/vendas';
 
 export const LOJA_ID = 'temperei';
+
+/** Listas do sistema que ficam um documento por item na nuvem (o nome é o mesmo campo em Settings). */
+export const COLECOES = ['lotes', 'orcamentos', 'clientes'] as const;
+export type Colecao = (typeof COLECOES)[number];
+export interface ItemColecao {
+  id: string;
+}
+const quandoLote = (l: Lote) => l.aplicadoEm ?? l.data ?? '';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ORDEM: Record<Colecao, (a: any, b: any) => number> = {
+  lotes: (a: Lote, b: Lote) => quandoLote(b).localeCompare(quandoLote(a)),
+  orcamentos: (a: { numero: number }, b: { numero: number }) => b.numero - a.numero,
+  clientes: (a: { nome: string }, b: { nome: string }) => a.nome.localeCompare(b.nome, 'pt-BR'),
+};
+const colecoesVazias = () => Object.fromEntries(COLECOES.map((c) => [c, new Map()])) as Record<Colecao, Map<string, ItemColecao>>;
 export const RAIZ = ['lojas', LOJA_ID];
 
 export interface Raiz {
@@ -22,7 +37,7 @@ export interface Raiz {
   /** ids dos produtos na ordem da lista */
   ordem: string[];
   /** configurações sem as vendas e os lotes (que ficam em documentos próprios) */
-  config: Omit<Settings, 'vendas' | 'lotes' | 'orcamentos'>;
+  config: Omit<Settings, 'vendas' | Colecao>;
 }
 
 /** O retrato da nuvem (ou do sistema, no mesmo formato). */
@@ -32,8 +47,8 @@ export interface Nuvem {
   produtos: Map<string, Product>;
   /** dia (AAAA-MM-DD) → vendas daquele dia, por id */
   dias: Map<string, Record<string, Venda>>;
-  lotes: Map<string, Lote>;
-  orcamentos: Map<string, OrcamentoSalvo>;
+  /** lotes, orçamentos, clientes…: um documento por item */
+  col: Record<Colecao, Map<string, ItemColecao>>;
 }
 
 export interface Estado {
@@ -58,7 +73,7 @@ export interface Op {
   apagar?: true;
 }
 
-export const nuvemVazia = (): Nuvem => ({ raiz: null, loja: null, produtos: new Map(), dias: new Map(), lotes: new Map(), orcamentos: new Map() });
+export const nuvemVazia = (): Nuvem => ({ raiz: null, loja: null, produtos: new Map(), dias: new Map(), col: colecoesVazias() });
 
 /** Comparação profunda que não liga para a ordem das chaves nem para campos `undefined`. */
 export function igual(a: unknown, b: unknown): boolean {
@@ -97,7 +112,9 @@ const arred = (n: number) => Math.round(n * 1e6) / 1e6;
 
 /** Divide o estado do sistema no formato da nuvem. */
 export function dividir(e: Estado): Nuvem {
-  const { vendas, lotes, orcamentos, ...config } = e.config;
+  const { vendas, ...resto } = e.config;
+  const config = stripConfig(e.config);
+  void resto;
   const dias = new Map<string, Record<string, Venda>>();
   for (const v of vendas ?? []) {
     const d = diaLocal(v.quando);
@@ -109,12 +126,9 @@ export function dividir(e: Estado): Nuvem {
     loja: limpo(e.loja),
     produtos: new Map(e.lista.produtos.map((p) => [p.id, limpo(p)])),
     dias,
-    lotes: new Map((lotes ?? []).map((l) => [l.id, limpo(l)])),
-    orcamentos: new Map((orcamentos ?? []).map((o) => [o.id, limpo(o)])),
+    col: Object.fromEntries(COLECOES.map((c) => [c, new Map(((e.config[c] ?? []) as ItemColecao[]).map((x) => [x.id, limpo(x)]))])) as Nuvem['col'],
   };
 }
-
-const quandoLote = (l: Lote) => l.aplicadoEm ?? l.data ?? '';
 
 /** Junta o retrato da nuvem de volta no estado do sistema. `base` dá o que falta (nuvem ainda vazia). */
 export function juntar(n: Nuvem, base: Estado): Estado {
@@ -123,19 +137,24 @@ export function juntar(n: Nuvem, base: Estado): Estado {
     .map((p) => (p.estoque != null ? { ...p, estoque: arred(p.estoque) } : p))
     .sort((a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity) || a.nome.localeCompare(b.nome, 'pt-BR'));
   const vendas = [...n.dias.values()].flatMap((d) => Object.values(d)).sort((a, b) => b.quando.localeCompare(a.quando));
-  const lotes = [...n.lotes.values()].sort((a, b) => quandoLote(b).localeCompare(quandoLote(a)));
-  const orcamentos = [...n.orcamentos.values()].sort((a, b) => b.numero - a.numero);
+  const listas: Partial<Settings> = {};
+  for (const c of COLECOES) {
+    const arr = [...n.col[c].values()].sort(ORDEM[c]);
+    if (arr.length) (listas as Record<string, unknown>)[c] = arr;
+  }
   const config = (n.raiz?.config ?? stripConfig(base.config)) as Settings;
   return {
     lista: { nome: n.raiz?.nome ?? base.lista.nome, categorias: n.raiz?.categorias ?? base.lista.categorias, produtos },
     loja: n.loja ?? base.loja,
-    config: { ...config, ...(vendas.length ? { vendas } : {}), ...(lotes.length ? { lotes } : {}), ...(orcamentos.length ? { orcamentos } : {}) },
+    config: { ...config, ...(vendas.length ? { vendas } : {}), ...listas },
   };
 }
 
-function stripConfig(c: Settings) {
-  const { vendas: _v, lotes: _l, orcamentos: _o, ...resto } = c;
-  return resto;
+function stripConfig(c: Settings): Raiz['config'] {
+  const resto: Record<string, unknown> = { ...c };
+  delete resto.vendas;
+  for (const k of COLECOES) delete resto[k];
+  return resto as Raiz['config'];
 }
 
 const caminho = (...p: string[]) => [...RAIZ, ...p];
@@ -187,18 +206,19 @@ export function planejarEscritas(antes: Nuvem, agora: Nuvem): Op[] {
     if (ids.length) ops.push({ caminho: caminho('vendasDia', d), dados: { dia: d, v: mapa }, campos: [['dia'], ...ids.map((id) => ['v', id])] });
   }
 
-  for (const l of agora.lotes.values()) if (!igual(antes.lotes.get(l.id), l)) ops.push({ caminho: caminho('lotes', l.id), dados: l as unknown as Record<string, Valor> });
-  for (const id of antes.lotes.keys()) if (!agora.lotes.has(id)) ops.push({ caminho: caminho('lotes', id), apagar: true });
-
-  for (const o of agora.orcamentos.values()) if (!igual(antes.orcamentos.get(o.id), o)) ops.push({ caminho: caminho('orcamentos', o.id), dados: o as unknown as Record<string, Valor> });
-  for (const id of antes.orcamentos.keys()) if (!agora.orcamentos.has(id)) ops.push({ caminho: caminho('orcamentos', id), apagar: true });
+  for (const c of COLECOES) {
+    const a = antes.col[c];
+    const b = agora.col[c];
+    for (const x of b.values()) if (!igual(a.get(x.id), x)) ops.push({ caminho: caminho(c, x.id), dados: x as unknown as Record<string, Valor> });
+    for (const id of a.keys()) if (!b.has(id)) ops.push({ caminho: caminho(c, id), apagar: true });
+  }
 
   return ops;
 }
 
 /** Aplica as gravações num retrato (o que a nuvem terá depois delas). Usado para seguir em frente sem esperar a resposta. */
 export function aplicarOps(n: Nuvem, ops: Op[]): Nuvem {
-  const r: Nuvem = { raiz: n.raiz, loja: n.loja, produtos: new Map(n.produtos), dias: new Map(n.dias), lotes: new Map(n.lotes), orcamentos: new Map(n.orcamentos) };
+  const r: Nuvem = { raiz: n.raiz, loja: n.loja, produtos: new Map(n.produtos), dias: new Map(n.dias), col: Object.fromEntries(COLECOES.map((c) => [c, new Map(n.col[c])])) as Nuvem['col'] };
   const val = (atual: unknown, novo: unknown) => {
     if (novo && typeof novo === 'object' && INC in novo) return arred(((typeof atual === 'number' ? atual : 0) as number) + (novo as Record<string, number>)[INC]);
     if (novo && typeof novo === 'object' && DEL in novo) return undefined;
@@ -226,12 +246,10 @@ export function aplicarOps(n: Nuvem, ops: Op[]): Nuvem {
       }
       if (Object.keys(dia).length) r.dias.set(id, dia);
       else r.dias.delete(id);
-    } else if (col === 'lotes') {
-      if (op.apagar) r.lotes.delete(id);
-      else r.lotes.set(id, op.dados as unknown as Lote);
-    } else if (col === 'orcamentos') {
-      if (op.apagar) r.orcamentos.delete(id);
-      else r.orcamentos.set(id, op.dados as unknown as OrcamentoSalvo);
+    } else if ((COLECOES as readonly string[]).includes(col)) {
+      const m = r.col[col as Colecao];
+      if (op.apagar) m.delete(id);
+      else m.set(id, op.dados as unknown as ItemColecao);
     }
   }
   return r;

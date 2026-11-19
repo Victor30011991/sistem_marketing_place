@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useApp } from '../state/store';
 import { montarCardapio } from '../core/vitrine';
 import { Button, Modal } from '../ui/ui';
-import { dividir, igual, inicioJanela, juntar, nuvemVazia, planejarEscritas, type Nuvem } from './modelo';
+import { COLECOES, dividir, igual, inicioJanela, juntar, nuvemVazia, planejarEscritas, type Nuvem } from './modelo';
 import type { Parte } from './servico';
 
 type Servico = typeof import('./servico');
@@ -20,6 +20,8 @@ interface NuvemCtx {
   /** gravações esperando a confirmação da internet */
   enviando: boolean;
   erro: string;
+  /** ligação com o Firebase (null até alguém entrar) */
+  servico: Servico | null;
   entrar: () => void;
   sair: () => void;
   tentarDeNovo: () => void;
@@ -43,9 +45,9 @@ const marcar = (v: boolean) => {
   }
 };
 
-type Recebido = Record<Parte['parte'], boolean>;
+type Recebido = Record<string, boolean>;
 const plural = (n: number) => `${n} produto${n === 1 ? '' : 's'}`;
-const nadaRecebido = (): Recebido => ({ raiz: false, loja: false, produtos: false, dias: false, lotes: false, orcamentos: false });
+const nadaRecebido = (): Recebido => Object.fromEntries(['raiz', 'loja', 'produtos', 'dias', ...COLECOES].map((k) => [k, false]));
 
 export function NuvemProvider({ children }: { children: ReactNode }) {
   const { state, act } = useApp();
@@ -56,6 +58,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
 
   const svc = useRef<Servico | null>(null);
+  const [servico, setServico] = useState<Servico | null>(null);
   const base = useRef<Nuvem>(nuvemVazia());
   const recebido = useRef<Recebido>(nadaRecebido());
   const raizDoServidor = useRef(false);
@@ -114,7 +117,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
     (p: Parte, servidor: boolean) => {
       // antes de trocar a tela pelo que chegou, manda o que ainda estava esperando para subir
       if (faseRef.current === 'conectado') enviar();
-      base.current = { ...base.current, [p.parte]: p.valor };
+      base.current = (COLECOES as readonly string[]).includes(p.parte) ? { ...base.current, col: { ...base.current.col, [p.parte]: p.valor } } : { ...base.current, [p.parte]: p.valor };
       recebido.current[p.parte] = true;
       if (p.parte === 'raiz' && servidor) raizDoServidor.current = true;
 
@@ -150,6 +153,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
     if (pararLogin.current) return svc.current!;
     // VITE_NUVEM_FALSA só existe nos testes automáticos; no site, sempre o Firebase de verdade
     const s = (svc.current ??= import.meta.env.VITE_NUVEM_FALSA ? ((await import('./servicoFalso')) as unknown as Servico) : await import('./servico'));
+    setServico(s);
     if (pararLogin.current) return s;
     pararLogin.current = s.aoMudarUsuario((u) => {
       pararOuvir.current?.();
@@ -258,8 +262,8 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
   };
 
   const value = useMemo<NuvemCtx>(
-    () => ({ fase, email, online, enviando: pendentes > 0, erro, entrar, sair, tentarDeNovo }),
-    [fase, email, online, pendentes, erro, entrar, sair, tentarDeNovo],
+    () => ({ fase, email, online, enviando: pendentes > 0, erro, servico, entrar, sair, tentarDeNovo }),
+    [fase, email, online, pendentes, erro, servico, entrar, sair, tentarDeNovo],
   );
 
   const nuvemTem = base.current.produtos.size;
