@@ -22,7 +22,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   // o cardápio do cliente tem os dados próprios: não guarda cópia dele
-  if (url.pathname.includes('/cardapio/')) return;
+  if (url.pathname.includes('/cardapio/') || url.pathname.includes('/loja/')) return;
   const versionado = url.pathname.includes('/assets/');
   if (versionado) {
     e.respondWith(

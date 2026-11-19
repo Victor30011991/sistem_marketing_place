@@ -177,3 +177,8 @@ export const apagarCopia = (id: string) => deleteDoc(doc(db, 'lojas', LOJA_ID, '
 export function publicarCardapio(json: string): Promise<void> {
   return setDoc(doc(db, 'publico', 'cardapio'), { json, atualizado: new Date().toISOString() });
 }
+
+/** Publica a página de entrada da loja (textos, cores e fotos escolhidas para o público). */
+export function publicarEntrada(json: string): Promise<void> {
+  return setDoc(doc(db, 'publico', 'entrada'), { json, atualizado: new Date().toISOString() });
+}

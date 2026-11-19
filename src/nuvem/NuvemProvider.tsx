@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useApp } from '../state/store';
 import { montarCardapio } from '../core/vitrine';
+import { montarEntrada } from '../core/entrada';
 import { cfgOrcamento, dadosPix } from '../core/orcamentos';
 import { registrosDe } from '../core/historico';
 import { criarBackup } from '../core/backup';
@@ -72,6 +73,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
   const pararOuvir = useRef<(() => void) | null>(null);
   const pararLogin = useRef<(() => void) | null>(null);
   const ultimoCardapio = useRef('');
+  const ultimaEntrada = useRef('');
   const stateRef = useRef(state);
   stateRef.current = state;
   const faseRef = useRef(fase);
@@ -155,6 +157,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
     recebido.current = nadaRecebido();
     raizDoServidor.current = false;
     ultimoCardapio.current = '';
+    ultimaEntrada.current = '';
     setErro('');
     ir('sincronizando');
     pararOuvir.current = svc.current!.ouvir(inicioJanela(), receber, falhar);
@@ -261,6 +264,21 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
     }, 2500);
     return () => clearTimeout(t);
   }, [state.lista, state.loja, state.config.vendas, state.config.lotes, state.config.orcamentoCfg, fase, falhar]);
+
+  // a página de entrada (link da bio) também se atualiza sozinha
+  useEffect(() => {
+    if (fase !== 'conectado') return;
+    const t = setTimeout(() => {
+      const json = JSON.stringify(montarEntrada(state.loja, state.config.imagens).arquivo);
+      if (json === ultimaEntrada.current) return;
+      ultimaEntrada.current = json;
+      svc.current?.publicarEntrada(json).catch((e) => {
+        ultimaEntrada.current = '';
+        falhar(e);
+      });
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [state.loja, state.config.imagens, fase, falhar]);
 
   const entrar = useCallback(() => {
     setErro('');

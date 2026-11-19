@@ -191,6 +191,39 @@ export interface Vitrine {
   pesos?: number[];
   /** mostra os mixes prontos no cardápio (padrão: sim) */
   mixes?: boolean;
+  /** página de entrada (a "primeira impressão" do link da bio) */
+  entrada?: ConfigEntrada;
+}
+
+/** Um capítulo da página de entrada: um tempero que pinta a tela ao rolar. */
+export interface CapituloEntrada {
+  nome: string;
+  sub: string;
+  texto: string;
+  sabia: string;
+  combina: string[];
+  /** cor do fundo do capítulo e do montinho (hex) */
+  tom: string;
+  /** id da foto (coleção imagens); sem foto, desenha um montinho do tempero */
+  foto?: string;
+}
+
+export interface ConfigEntrada {
+  frase: string;
+  texto: string;
+  /** cor escura da página (as outras vêm das cores da loja) */
+  escuro: string;
+  capitulos: CapituloEntrada[];
+  /** ids das fotos da loja (fachada, prateleiras…) */
+  fotos: string[];
+}
+
+/** Imagem guardada na nuvem, uma por documento (fotos da página de entrada). */
+export interface ImagemSalva {
+  id: string;
+  nome: string;
+  /** data:image/jpeg;base64,… */
+  dados: string;
 }
 
 export interface EntregaCardapio {
@@ -594,6 +627,8 @@ export interface Settings {
   postaAi?: ConfigPostaAi;
   /** letras adicionadas para as artes (na nuvem fica uma por documento) */
   fontes?: FonteSalva[];
+  /** fotos da página de entrada (na nuvem fica uma por documento) */
+  imagens?: ImagemSalva[];
   /** contas a receber (fiado) e a pagar (na nuvem ficam uma por documento) */
   contas?: Conta[];
   /** dias para pagar o fiado (padrão 30) */

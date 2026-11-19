@@ -9,10 +9,12 @@ function versaoNoCardapio() {
     name: 'versao-no-cardapio',
     apply: 'build' as const,
     closeBundle() {
-      const f = resolve(__dirname, 'dist/cardapio/index.html');
-      if (!existsSync(f)) return;
       const v = Date.now().toString(36);
-      writeFileSync(f, readFileSync(f, 'utf8').replace(/\.\/(lib\.js|cardapio\.js|cardapio\.css)"/g, `./$1?v=${v}"`));
+      for (const pagina of ['cardapio', 'loja']) {
+        const f = resolve(__dirname, `dist/${pagina}/index.html`);
+        if (!existsSync(f)) continue;
+        writeFileSync(f, readFileSync(f, 'utf8').replace(/"(\.\.?\/[a-z/]*?(?:lib|cardapio|loja)\.(?:js|css))"/g, `"$1?v=${v}"`));
+      }
     },
   };
 }
