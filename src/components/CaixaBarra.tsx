@@ -18,12 +18,13 @@ export function CaixaBarra() {
   const quem = useQuem();
   const caixas = state.config.caixas ?? [];
   const vendas = state.config.vendas ?? [];
+  const contas = state.config.contas ?? [];
   const aberto = caixaAberto(caixas);
   const [janela, setJanela] = useState<Janela>(null);
   const [valor, setValor] = useState<number | null>(null);
   const [motivo, setMotivo] = useState('');
   const [fechado, setFechado] = useState<Caixa | null>(null);
-  const r = aberto ? resumoCaixa(aberto, vendas) : null;
+  const r = aberto ? resumoCaixa(aberto, vendas, contas) : null;
 
   const salvar = (c: Caixa) => act.config((s) => ({ ...s, caixas: [c, ...(s.caixas ?? []).filter((x) => x.id !== c.id)] }));
   const abrirJanela = (j: Janela) => {
@@ -42,7 +43,7 @@ export function CaixaBarra() {
       toast(janela === 'sangria' ? `Sangria de ${formatBRL(valor)} registrada.` : `Reforço de ${formatBRL(valor)} registrado.`);
     } else if (janela === 'fechar' && aberto) {
       if (valor == null) return toast('Conte o dinheiro da gaveta e digite o valor.', 'erro');
-      const f = fecharCaixa(aberto, vendas, valor, quem, motivo);
+      const f = fecharCaixa(aberto, vendas, valor, quem, motivo, new Date(), contas);
       salvar(f);
       setFechado(f);
       setJanela(null);
@@ -52,7 +53,7 @@ export function CaixaBarra() {
   }
   const copiar = async (c: Caixa) => {
     try {
-      await navigator.clipboard.writeText(textoFechamento(c, vendas, state.loja.nomeFantasia));
+      await navigator.clipboard.writeText(textoFechamento(c, vendas, state.loja.nomeFantasia, contas));
       toast('Resumo copiado. É só colar no WhatsApp.');
     } catch {
       toast('Não foi possível copiar.', 'erro');
@@ -125,7 +126,7 @@ export function CaixaBarra() {
               <span>{formatBRL(aberto!.trocoInicial)}</span>
             </li>
             <li>
-              <span>Dinheiro das vendas</span>
+              <span>Dinheiro das vendas e fiado recebido</span>
               <span>+ {formatBRL(r.dinheiro)}</span>
             </li>
             {r.reforcos > 0 && (
@@ -177,7 +178,7 @@ export function CaixaBarra() {
           )
         }
       >
-        {fechado && <pre className="orc-texto">{textoFechamento(fechado, vendas, state.loja.nomeFantasia)}</pre>}
+        {fechado && <pre className="orc-texto">{textoFechamento(fechado, vendas, state.loja.nomeFantasia, contas)}</pre>}
       </Modal>
     </>
   );
@@ -187,6 +188,7 @@ export function CaixaBarra() {
 export function CaixasAnteriores() {
   const { state } = useApp();
   const vendas = state.config.vendas ?? [];
+  const contas = state.config.contas ?? [];
   const fechados = (state.config.caixas ?? []).filter((c) => c.fechadoEm).slice(0, 10);
   if (!fechados.length) return null;
   return (
@@ -206,7 +208,7 @@ export function CaixasAnteriores() {
           </thead>
           <tbody>
             {fechados.map((c) => {
-              const r = resumoCaixa(c, vendas);
+              const r = resumoCaixa(c, vendas, contas);
               return (
                 <tr key={c.id}>
                   <td>{c.dia.split('-').reverse().join('/')}</td>

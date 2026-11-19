@@ -4,6 +4,7 @@ import { etiquetasDe, nutricaoDe } from './etiquetas';
 import { cfgOrcamento, orcamentosDe } from './orcamentos';
 import { clientesDe } from './clientes';
 import { caixasDe } from './caixa';
+import { contasDe } from './contas';
 import { newId, newKey } from './normalize';
 import { paymentOptions } from './pricing';
 import { vitrineDe } from './vitrine';
@@ -221,6 +222,9 @@ function lerConfig(raw: unknown): Settings {
   });
   if (isObj(raw.balanca)) cfg.balanca = balancaDe(raw.balanca);
   if (num(raw.proLabore) != null && (raw.proLabore as number) >= 0) cfg.proLabore = raw.proLabore as number;
+  const contas = contasDe(raw.contas);
+  if (contas?.length) cfg.contas = contas;
+  if (num(raw.prazoFiado) != null) cfg.prazoFiado = Math.max(1, Math.round(raw.prazoFiado as number));
   const caixas = caixasDe(raw.caixas);
   if (caixas?.length) cfg.caixas = caixas;
   const clientes = clientesDe(raw.clientes);

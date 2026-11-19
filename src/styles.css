@@ -855,3 +855,4 @@ ol.pdv-pag li strong { float: right; }
 .hist li { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-2); align-items: baseline; }
 .hist time { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) { .hist li { grid-template-columns: minmax(0, 1fr) auto; } .hist time { grid-column: 1 / -1; } }
+.conta-card.vencida { border-color: color-mix(in srgb, var(--danger) 50%, var(--line)); }

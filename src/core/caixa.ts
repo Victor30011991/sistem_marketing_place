@@ -1,5 +1,6 @@
 /** Caixa do dia: abertura com troco, sangrias e reforços, dinheiro previsto na gaveta e fechamento. */
-import type { Caixa, MovimentoCaixa, Venda } from '../types';
+import type { Caixa, Conta, MovimentoCaixa, Venda } from '../types';
+import { dinheiroDeContas } from './contas';
 import { diaLocal, resumoVendas, type ResumoVendas } from './vendas';
 import { formatBRL } from './money';
 import { newId } from './normalize';
@@ -39,17 +40,18 @@ export interface ResumoCaixa {
   diferenca: number | null;
 }
 
-export function resumoCaixa(c: Caixa, todas: Venda[]): ResumoCaixa {
+export function resumoCaixa(c: Caixa, todas: Venda[], contas: Conta[] = []): ResumoCaixa {
   const vs = vendasDoCaixa(c, todas);
-  const dinheiro = dinheiroRecebido(vs);
+  // dinheiro das vendas + fiado recebido em dinheiro enquanto o caixa estava aberto
+  const dinheiro = dinheiroRecebido(vs) + dinheiroDeContas(contas, c.abertoEm, c.fechadoEm);
   const reforcos = c.movimentos.filter((m) => m.tipo === 'reforco').reduce((a, m) => a + m.valor, 0);
   const sangrias = c.movimentos.filter((m) => m.tipo === 'sangria').reduce((a, m) => a + m.valor, 0);
   const previsto = c.trocoInicial + dinheiro + reforcos - sangrias;
   return { dinheiro, reforcos, sangrias, previsto, vendas: resumoVendas(vs), diferenca: c.contado != null ? c.contado - (c.previsto ?? previsto) : null };
 }
 
-export function fecharCaixa(c: Caixa, todas: Venda[], contado: number, por: string, obs = '', agora = new Date()): Caixa {
-  const r = resumoCaixa({ ...c, fechadoEm: agora.toISOString() }, todas);
+export function fecharCaixa(c: Caixa, todas: Venda[], contado: number, por: string, obs = '', agora = new Date(), contas: Conta[] = []): Caixa {
+  const r = resumoCaixa({ ...c, fechadoEm: agora.toISOString() }, todas, contas);
   return { ...c, fechadoEm: agora.toISOString(), fechadoPor: por, previsto: r.previsto, contado: Math.round(contado), ...(obs.trim() ? { obs: obs.trim() } : {}) };
 }
 
@@ -57,8 +59,8 @@ export function fecharCaixa(c: Caixa, todas: Venda[], contado: number, por: stri
 export const caixaAberto = (caixas: Caixa[]) => [...caixas].sort((a, b) => b.abertoEm.localeCompare(a.abertoEm)).find((c) => !c.fechadoEm) ?? null;
 
 /** Texto do fechamento para mandar no WhatsApp. */
-export function textoFechamento(c: Caixa, todas: Venda[], loja: string): string {
-  const r = resumoCaixa(c, todas);
+export function textoFechamento(c: Caixa, todas: Venda[], loja: string, contas: Conta[] = []): string {
+  const r = resumoCaixa(c, todas, contas);
   const linhas = [
     `*${loja}* · Fechamento do caixa ${c.dia.split('-').reverse().join('/')}`,
     `Aberto por ${c.abertoPor || '—'}${c.fechadoPor ? ` · fechado por ${c.fechadoPor}` : ''}`,

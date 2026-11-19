@@ -7,6 +7,8 @@ import { useSaveBackup, useSaveExcel } from '../export/useSave';
 import { NuvemBox } from '../nuvem/NuvemBox';
 import { useNuvem } from '../nuvem/NuvemProvider';
 import { usePedidos } from '../nuvem/PedidosProvider';
+import { saldo } from '../core/contas';
+import { diaLocal } from '../core/vendas';
 
 const NAV = [
   { to: '/', label: 'Início', icon: 'home', end: true },
@@ -16,6 +18,7 @@ const NAV = [
   { to: '/vendas', label: 'Vendas (PDV)', icon: 'cart' },
   { to: '/pedidos', label: 'Pedidos', icon: 'list' },
   { to: '/clientes', label: 'Clientes', icon: 'user' },
+  { to: '/contas', label: 'Contas e fiado', icon: 'calc' },
   { to: '/relatorios', label: 'Relatórios', icon: 'chart' },
   { to: '/lotes', label: 'Lotes de compra', icon: 'truck' },
   { to: '/compras', label: 'Lista de compras', icon: 'list' },
@@ -40,6 +43,8 @@ export default function Layout() {
   const total = state.lista.produtos.length;
   const naNuvem = useNuvem().fase === 'conectado';
   const { novos } = usePedidos();
+  const hoje = diaLocal(new Date());
+  const vencidas = (state.config.contas ?? []).filter((c) => c.tipo === 'pagar' && saldo(c) > 0 && c.vencimento <= hoje).length;
 
   return (
     <div className="shell">
@@ -60,6 +65,7 @@ export default function Layout() {
               <span>{n.label}</span>
               {n.to === '/produtos' && total > 0 && <em className="nav-count">{total}</em>}
               {n.to === '/pedidos' && novos > 0 && <em className="nav-count nav-alerta">{novos}</em>}
+              {n.to === '/contas' && vencidas > 0 && <em className="nav-count nav-alerta" title="Contas a pagar vencidas ou vencendo hoje">{vencidas}</em>}
             </NavLink>
           ))}
         </nav>

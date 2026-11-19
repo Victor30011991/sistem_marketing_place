@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
-import { acharCliente } from '../core/clientes';
+import { acharCliente, novoCliente } from '../core/clientes';
+import { contaFiado } from '../core/contas';
 import { CaixaBarra, CaixasAnteriores } from '../components/CaixaBarra';
 import { useQuem } from '../nuvem/NuvemProvider';
 import { Link } from 'react-router-dom';
@@ -203,6 +204,8 @@ export default function Pdv() {
     const pagamentos = r.pagos.length ? fech : fecharPdv(itens.map((x) => x.it), r.desconto, [{ forma: 'pix', valor: fech.total }], config);
     if (r.pagos.length && fech.falta > 0) return toast(`Ainda falta receber ${formatBRL(fech.falta)}.`, 'erro');
     if (r.pagos.length && fech.excesso > 0) return toast(`O pagamento passou ${formatBRL(fech.excesso)} da conta e não há dinheiro para dar troco. Ajuste os valores.`, 'erro');
+    const fiado = pagamentos.pagamentos.filter((p) => p.forma === 'fiado').reduce((a, p) => a + p.valor, 0);
+    if (fiado > 0 && !r.cliente.trim()) return toast('Para vender fiado, escreva o nome do cliente.', 'erro');
     const principal = [...pagamentos.pagamentos].sort((a, b) => b.valor - a.valor)[0] ?? { forma: 'pix', label: 'Pix' };
     const venda: Venda = {
       id: newId(),
@@ -219,6 +222,15 @@ export default function Pdv() {
       pagamentos: pagamentos.pagamentos,
       ...(pagamentos.troco > 0 ? { troco: pagamentos.troco } : {}),
     };
+    if (fiado > 0) {
+      // fiado: liga (ou cria) o cliente e abre a conta a receber
+      const clientes = config.clientes ?? [];
+      const existente = (r.clienteId && clientes.find((c) => c.id === r.clienteId)) || acharCliente(clientes, { nome: r.cliente });
+      const cli = existente || novoCliente({ nome: r.cliente });
+      venda.clienteId = cli.id;
+      const conta = contaFiado(fiado, venda.id, cli.id, config.prazoFiado ?? 30);
+      act.config((s) => ({ ...s, clientes: existente ? s.clientes ?? [] : [...(s.clientes ?? []), cli], contas: [...(s.contas ?? []), conta] }));
+    }
     act.registrarVenda(venda);
     rascunho = null;
     setR(vazio());

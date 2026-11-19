@@ -58,7 +58,7 @@ export function comDesconto(item: VendaItem, desconto: number): VendaItem {
 /** Formas de pagamento do PDV: dinheiro separado do Pix (só o dinheiro dá troco). */
 export function formasPdv(s: Settings): { id: string; label: string; taxa: number }[] {
   const outras = paymentOptions(s).filter((o) => o.id !== 'pix');
-  return [{ id: 'dinheiro', label: 'Dinheiro', taxa: 0 }, { id: 'pix', label: 'Pix', taxa: 0 }, ...outras];
+  return [{ id: 'dinheiro', label: 'Dinheiro', taxa: 0 }, { id: 'pix', label: 'Pix', taxa: 0 }, ...outras, { id: 'fiado', label: 'Fiado', taxa: 0 }];
 }
 
 export function formaPdv(s: Settings, id: string): { id: string; label: string; taxa: number } {

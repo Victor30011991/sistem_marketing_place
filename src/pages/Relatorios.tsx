@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNuvem } from '../nuvem/NuvemProvider';
+import { pagoNoPeriodo, saldo } from '../core/contas';
 import type { Registro } from '../types';
 import { Link } from 'react-router-dom';
 import { useApp } from '../state/store';
@@ -74,6 +75,8 @@ export default function Relatorios() {
     toast(`${novos.length} produto(s) na lista de compras, com a quantidade de 1 mês de vendas.`);
   }
 
+  const pagoContas = pagoNoPeriodo(config.contas ?? [], periodo.de, periodo.ate);
+  const aReceber = (config.contas ?? []).filter((c) => c.tipo === 'receber').reduce((a, c) => a + saldo(c), 0);
   const porVendedor = useMemo(() => {
     const m = new Map<string, { nome: string; vendas: number; total: number }>();
     for (const v of noPeriodo(vendas, periodo)) {
@@ -273,7 +276,9 @@ export default function Relatorios() {
                 <dd>{formatBRL(res.contribuicao)}</dd>
               </div>
               <div className="menos">
-                <dt>Despesas fixas</dt>
+                <dt>
+                  Despesas fixas <small>cadastradas em Precificação</small>
+                </dt>
                 <dd>− {formatBRL(res.despesasFixas)}</dd>
               </div>
               <div className={`sub ${res.lucro < 0 ? 'neg' : 'pos'}`}>
@@ -291,6 +296,12 @@ export default function Relatorios() {
                 <dd>{formatBRL(res.lucroFinal)}</dd>
               </div>
             </dl>
+            {pagoContas > 0 && (
+              <p className="muted small">
+                Contas a pagar quitadas no período (Contas e fiado): <strong>{formatBRL(pagoContas)}</strong>. Compare com as despesas fixas cadastradas para ver se elas estão em dia.
+              </p>
+            )}
+            {aReceber > 0 && <p className="muted small">Ainda a receber de fiado (todas as datas): <strong>{formatBRL(aReceber)}</strong>.</p>}
             <div className="rel-prolabore">
               <Field label="Pró-labore por mês" hint="Quanto vocês retiram da loja por mês. Fica guardado.">
                 {(id) => <MoneyInput id={id} value={config.proLabore ?? null} onChange={(v) => act.config((c) => ({ ...c, proLabore: v ?? 0 }))} />}

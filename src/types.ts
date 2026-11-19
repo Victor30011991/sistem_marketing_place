@@ -421,8 +421,44 @@ export interface Registro {
   detalhe: string;
 }
 
+export interface PagamentoConta {
+  id: string;
+  /** ISO */
+  quando: string;
+  valor: number;
+  /** dinheiro, pix, cartão… */
+  forma: string;
+  por: string;
+}
+
+/** Conta a receber (fiado) ou a pagar (fornecedor, aluguel…). */
+export interface Conta {
+  id: string;
+  tipo: 'receber' | 'pagar';
+  descricao: string;
+  /** centavos */
+  valor: number;
+  /** AAAA-MM-DD */
+  vencimento: string;
+  criado: string;
+  /** receber: de quem */
+  clienteId?: string;
+  /** receber: venda que gerou o fiado */
+  vendaId?: string;
+  /** pagar: para quem (fornecedor, imobiliária…) */
+  favorecido?: string;
+  /** pagar: gera a do mês seguinte quando esta for paga */
+  mensal?: boolean;
+  pagamentos: PagamentoConta[];
+  cancelada?: boolean;
+}
+
 export interface Settings {
   balanca?: ConfigBalanca;
+  /** contas a receber (fiado) e a pagar (na nuvem ficam uma por documento) */
+  contas?: Conta[];
+  /** dias para pagar o fiado (padrão 30) */
+  prazoFiado?: number;
   /** caixas por dia (na nuvem ficam um por documento) */
   caixas?: Caixa[];
   /** clientes cadastrados (na nuvem ficam um por documento) */
