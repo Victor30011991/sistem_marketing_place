@@ -13,6 +13,7 @@ const NAV = [
   { to: '/pagina', label: 'Página da loja', icon: 'menu' },
   { to: '/produtos', label: 'Produtos', icon: 'box' },
   { to: '/vendas', label: 'Vendas (PDV)', icon: 'cart' },
+  { to: '/relatorios', label: 'Relatórios', icon: 'chart' },
   { to: '/lotes', label: 'Lotes de compra', icon: 'truck' },
   { to: '/compras', label: 'Lista de compras', icon: 'list' },
   { to: '/balanca', label: 'Balança', icon: 'scale' },

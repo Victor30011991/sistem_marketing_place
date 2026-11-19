@@ -215,6 +215,7 @@ function lerConfig(raw: unknown): Settings {
     return x ? [x] : [];
   });
   if (isObj(raw.balanca)) cfg.balanca = balancaDe(raw.balanca);
+  if (num(raw.proLabore) != null && (raw.proLabore as number) >= 0) cfg.proLabore = raw.proLabore as number;
   const etiquetas = etiquetasDe(raw.etiquetas);
   if (etiquetas?.length) cfg.etiquetas = etiquetas;
   if (Array.isArray(raw.vendasPausadas)) cfg.vendasPausadas = raw.vendasPausadas.flatMap((x) => {
