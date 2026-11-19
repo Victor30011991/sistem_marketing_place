@@ -66,6 +66,7 @@ export function Etiqueta({
   edicao?: EdicaoEtiqueta;
 }) {
   const moldura = MOLDURA[modelo.moldura];
+  const colorida = modelo.cor === 'cor';
   return (
     <div
       className="etq"
@@ -80,23 +81,26 @@ export function Etiqueta({
         boxSizing: 'border-box',
       }}
     >
-      {moldura && <div aria-hidden="true" style={{ position: 'absolute', inset: '0.8mm', boxSizing: 'border-box', pointerEvents: 'none', ...moldura }} />}
+      {moldura && <div aria-hidden="true" style={{ position: 'absolute', inset: '0.8mm', boxSizing: 'border-box', pointerEvents: 'none', ...moldura, ...(colorida ? { borderColor: loja.cores.primaria } : {}) }} />}
+      {edicao && (modelo.margem ?? 0) > 0 && (
+        <div aria-hidden="true" className="etq-margem" style={{ position: 'absolute', inset: `${modelo.margem}mm`, boxSizing: 'border-box', pointerEvents: 'none' }} />
+      )}
       {modelo.pecas
         .filter((p) => p.ativo)
         .map((p) => (
-          <Peca key={p.id} p={p} produto={produto} loja={loja} logo={logo} dados={dados} balanca={balanca} edicao={edicao} />
+          <Peca key={p.id} p={p} produto={produto} loja={loja} logo={logo} dados={dados} balanca={balanca} edicao={edicao} colorida={colorida} />
         ))}
     </div>
   );
 }
 
-function Peca({ p, produto, loja, logo, dados, balanca, edicao }: { p: PecaEtiqueta; produto: Product | null; loja: StoreInfo; logo: string; dados: DadosImpressao; balanca?: ConfigBalanca; edicao?: EdicaoEtiqueta }) {
+function Peca({ p, produto, loja, logo, dados, balanca, edicao, colorida }: { p: PecaEtiqueta; produto: Product | null; loja: StoreInfo; logo: string; dados: DadosImpressao; balanca?: ConfigBalanca; edicao?: EdicaoEtiqueta; colorida: boolean }) {
   const rotulo = PECAS.find((x) => x.tipo === p.tipo)!.rotulo;
   let conteudo: ReactNode = null;
   let vazio = false;
 
   if (p.tipo === 'logo') {
-    conteudo = <img src={logo} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'grayscale(1) contrast(1.25)' }} />;
+    conteudo = <img src={logo} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain', filter: colorida ? undefined : 'grayscale(1) contrast(1.25)' }} />;
   } else if (p.tipo === 'codigo') {
     const cod = produto ? codigoEtiqueta(produto, dados.pesoG, balanca) : ean13('200123400440');
     if (cod) conteudo = <Barras codigo={cod} fonte={p.fonte} />;
@@ -152,6 +156,7 @@ function Peca({ p, produto, loja, logo, dados, balanca, edicao }: { p: PecaEtiqu
     justifyContent: JUSTIFICA[p.alinhar],
     fontSize: `${p.fonte}pt`,
     fontWeight: p.negrito ? 700 : 400,
+    color: colorida && p.cor === 'primaria' ? loja.cores.primaria : colorida && p.cor === 'destaque' ? loja.cores.destaque : '#000',
     lineHeight: 1.1,
     overflow: 'hidden',
     boxSizing: 'border-box',

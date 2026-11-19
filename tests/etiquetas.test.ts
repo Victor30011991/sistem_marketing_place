@@ -66,6 +66,13 @@ describe('modelos', () => {
     const p = limitar({ ...modelosPadrao()[0].pecas[0], x: 48, y: -3, w: 20, h: 1 }, { largura: 50, altura: 30 });
     expect(p).toMatchObject({ x: 30, y: 0, w: 20, h: 2 });
   });
+  it('com margem, a peça fica dentro da área de impressão; cor e margem voltam do backup', () => {
+    const p = limitar({ ...modelosPadrao()[0].pecas[0], x: 0, y: 0, w: 60, h: 40 }, { largura: 50, altura: 30, margem: 2 });
+    expect(p).toMatchObject({ x: 2, y: 2, w: 46, h: 26 });
+    const [m] = etiquetasDe([{ ...modelosPadrao()[0], margem: 3, cor: 'cor', pecas: [{ ...modelosPadrao()[0].pecas[1], cor: 'primaria', x: 0 }] }])!;
+    expect(m).toMatchObject({ margem: 3, cor: 'cor' });
+    expect(m.pecas[0]).toMatchObject({ cor: 'primaria', x: 3 });
+  });
   it('todo modelo tem todas as peças (as que faltam, desligadas)', () => {
     for (const m of modelosPadrao()) {
       const tipos = new Set(m.pecas.map((p) => p.tipo));
