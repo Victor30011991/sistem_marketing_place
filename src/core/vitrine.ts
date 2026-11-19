@@ -51,8 +51,14 @@ function soHandle(raw: string): string {
 }
 
 /** "@temperei", "temperei" ou o endereço completo -> https://instagram.com/temperei. Vazio se não der. */
-export function normalizarInstagram(raw: string): string {
+/** "facebook.com/..." ou "www.instagram.com/..." sem o https:// vira endereço completo (mantém ?id= e o resto). */
+function comProtocolo(raw: string): string {
   const t = raw.trim();
+  return /^(www\.|m\.)?(instagram|facebook|fb)\.(com|me)\//i.test(t) ? `https://${t}` : t;
+}
+
+export function normalizarInstagram(raw: string): string {
+  const t = comProtocolo(raw);
   if (!t) return '';
   if (/^https?:\/\//i.test(t)) return /^https:\/\/([a-z0-9-]+\.)?instagram\.com\//i.test(t) ? t : '';
   const h = soHandle(t);
@@ -61,7 +67,7 @@ export function normalizarInstagram(raw: string): string {
 
 /** Nome da página ou endereço completo -> https://facebook.com/... Vazio se não der. */
 export function normalizarFacebook(raw: string): string {
-  const t = raw.trim();
+  const t = comProtocolo(raw);
   if (!t) return '';
   if (/^https?:\/\//i.test(t)) return /^https:\/\/([a-z0-9-]+\.)?(facebook|fb)\.com\//i.test(t) ? t : '';
   const h = soHandle(t);
