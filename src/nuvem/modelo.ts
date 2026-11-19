@@ -7,9 +7,10 @@
  *   lojas/temperei/produtos/{id}   um documento por produto (estoque gravado por incremento)
  *   lojas/temperei/vendasDia/{dia} as vendas de um dia, num mapa por id (duas pessoas vendendo não se atrapalham)
  *   lojas/temperei/lotes/{id}      um documento por lote de compra
+ *   lojas/temperei/orcamentos/{id} um documento por orçamento salvo
  *   publico/cardapio               o cardápio que o cliente vê (sem custos)
  */
-import type { ListState, Lote, Product, Settings, StoreInfo, Venda } from '../types';
+import type { ListState, Lote, Product, Settings, StoreInfo, Venda, OrcamentoSalvo } from '../types';
 import { diaLocal } from '../core/vendas';
 
 export const LOJA_ID = 'temperei';
@@ -21,7 +22,7 @@ export interface Raiz {
   /** ids dos produtos na ordem da lista */
   ordem: string[];
   /** configurações sem as vendas e os lotes (que ficam em documentos próprios) */
-  config: Omit<Settings, 'vendas' | 'lotes'>;
+  config: Omit<Settings, 'vendas' | 'lotes' | 'orcamentos'>;
 }
 
 /** O retrato da nuvem (ou do sistema, no mesmo formato). */
@@ -32,6 +33,7 @@ export interface Nuvem {
   /** dia (AAAA-MM-DD) → vendas daquele dia, por id */
   dias: Map<string, Record<string, Venda>>;
   lotes: Map<string, Lote>;
+  orcamentos: Map<string, OrcamentoSalvo>;
 }
 
 export interface Estado {
@@ -56,7 +58,7 @@ export interface Op {
   apagar?: true;
 }
 
-export const nuvemVazia = (): Nuvem => ({ raiz: null, loja: null, produtos: new Map(), dias: new Map(), lotes: new Map() });
+export const nuvemVazia = (): Nuvem => ({ raiz: null, loja: null, produtos: new Map(), dias: new Map(), lotes: new Map(), orcamentos: new Map() });
 
 /** Comparação profunda que não liga para a ordem das chaves nem para campos `undefined`. */
 export function igual(a: unknown, b: unknown): boolean {
@@ -95,7 +97,7 @@ const arred = (n: number) => Math.round(n * 1e6) / 1e6;
 
 /** Divide o estado do sistema no formato da nuvem. */
 export function dividir(e: Estado): Nuvem {
-  const { vendas, lotes, ...config } = e.config;
+  const { vendas, lotes, orcamentos, ...config } = e.config;
   const dias = new Map<string, Record<string, Venda>>();
   for (const v of vendas ?? []) {
     const d = diaLocal(v.quando);
@@ -108,6 +110,7 @@ export function dividir(e: Estado): Nuvem {
     produtos: new Map(e.lista.produtos.map((p) => [p.id, limpo(p)])),
     dias,
     lotes: new Map((lotes ?? []).map((l) => [l.id, limpo(l)])),
+    orcamentos: new Map((orcamentos ?? []).map((o) => [o.id, limpo(o)])),
   };
 }
 
@@ -121,16 +124,17 @@ export function juntar(n: Nuvem, base: Estado): Estado {
     .sort((a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity) || a.nome.localeCompare(b.nome, 'pt-BR'));
   const vendas = [...n.dias.values()].flatMap((d) => Object.values(d)).sort((a, b) => b.quando.localeCompare(a.quando));
   const lotes = [...n.lotes.values()].sort((a, b) => quandoLote(b).localeCompare(quandoLote(a)));
+  const orcamentos = [...n.orcamentos.values()].sort((a, b) => b.numero - a.numero);
   const config = (n.raiz?.config ?? stripConfig(base.config)) as Settings;
   return {
     lista: { nome: n.raiz?.nome ?? base.lista.nome, categorias: n.raiz?.categorias ?? base.lista.categorias, produtos },
     loja: n.loja ?? base.loja,
-    config: { ...config, ...(vendas.length ? { vendas } : {}), ...(lotes.length ? { lotes } : {}) },
+    config: { ...config, ...(vendas.length ? { vendas } : {}), ...(lotes.length ? { lotes } : {}), ...(orcamentos.length ? { orcamentos } : {}) },
   };
 }
 
 function stripConfig(c: Settings) {
-  const { vendas: _v, lotes: _l, ...resto } = c;
+  const { vendas: _v, lotes: _l, orcamentos: _o, ...resto } = c;
   return resto;
 }
 
@@ -186,12 +190,15 @@ export function planejarEscritas(antes: Nuvem, agora: Nuvem): Op[] {
   for (const l of agora.lotes.values()) if (!igual(antes.lotes.get(l.id), l)) ops.push({ caminho: caminho('lotes', l.id), dados: l as unknown as Record<string, Valor> });
   for (const id of antes.lotes.keys()) if (!agora.lotes.has(id)) ops.push({ caminho: caminho('lotes', id), apagar: true });
 
+  for (const o of agora.orcamentos.values()) if (!igual(antes.orcamentos.get(o.id), o)) ops.push({ caminho: caminho('orcamentos', o.id), dados: o as unknown as Record<string, Valor> });
+  for (const id of antes.orcamentos.keys()) if (!agora.orcamentos.has(id)) ops.push({ caminho: caminho('orcamentos', id), apagar: true });
+
   return ops;
 }
 
 /** Aplica as gravações num retrato (o que a nuvem terá depois delas). Usado para seguir em frente sem esperar a resposta. */
 export function aplicarOps(n: Nuvem, ops: Op[]): Nuvem {
-  const r: Nuvem = { raiz: n.raiz, loja: n.loja, produtos: new Map(n.produtos), dias: new Map(n.dias), lotes: new Map(n.lotes) };
+  const r: Nuvem = { raiz: n.raiz, loja: n.loja, produtos: new Map(n.produtos), dias: new Map(n.dias), lotes: new Map(n.lotes), orcamentos: new Map(n.orcamentos) };
   const val = (atual: unknown, novo: unknown) => {
     if (novo && typeof novo === 'object' && INC in novo) return arred(((typeof atual === 'number' ? atual : 0) as number) + (novo as Record<string, number>)[INC]);
     if (novo && typeof novo === 'object' && DEL in novo) return undefined;
@@ -222,6 +229,9 @@ export function aplicarOps(n: Nuvem, ops: Op[]): Nuvem {
     } else if (col === 'lotes') {
       if (op.apagar) r.lotes.delete(id);
       else r.lotes.set(id, op.dados as unknown as Lote);
+    } else if (col === 'orcamentos') {
+      if (op.apagar) r.orcamentos.delete(id);
+      else r.orcamentos.set(id, op.dados as unknown as OrcamentoSalvo);
     }
   }
   return r;

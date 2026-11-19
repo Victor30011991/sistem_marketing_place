@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import type { StoreInfo } from '../types';
 import { formatBRL } from '../core/money';
 import { installments } from '../core/orcamento';
+import { qrMatriz } from '../core/qr';
 
 export interface OrcamentoLinha {
   nome: string;
@@ -12,6 +13,17 @@ export interface OrcamentoLinha {
 }
 
 export interface OrcamentoPdfData {
+  numero: number;
+  /** DD/MM/AAAA */
+  data: string;
+  /** "sexta, 22/11" ou vazio */
+  validade: string;
+  formas: string;
+  /** Pix copia e cola (com valor) ou null */
+  pix: string | null;
+  /** link para confirmar pelo WhatsApp da loja, ou null */
+  confirmar: string | null;
+  mensagem: string;
   cliente: { nome: string; telefone: string; endereco: string };
   linhas: OrcamentoLinha[];
   subtotal: number;
@@ -93,12 +105,17 @@ export async function buildOrcamentoPdf(d: OrcamentoPdfData, loja: StoreInfo, lo
   doc.setFont('times', 'bold');
   doc.setFontSize(19);
   doc.setTextColor(...primary);
-  doc.text('Orçamento', M, y);
+  doc.text(`Orçamento nº ${d.numero}`, M, y);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...muted);
-  doc.text(`Emitido em ${new Date().toLocaleDateString('pt-BR')}`, W - M, y, { align: 'right' });
-  y += 7;
+  doc.text(`Emitido em ${d.data}`, W - M, y, { align: 'right' });
+  if (d.validade) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...primary);
+    doc.text(`Preços garantidos até ${d.validade}`, W - M, y + 5, { align: 'right' });
+  }
+  y += 9;
 
   const info: [string, string][] = [];
   if (d.cliente.nome) info.push(['Cliente', d.cliente.nome]);
@@ -138,7 +155,7 @@ export async function buildOrcamentoPdf(d: OrcamentoPdfData, loja: StoreInfo, lo
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fy: number = (doc as any).lastAutoTable.finalY + 6;
   const parcelas = installments(d.total, d.pagamento.parcelas);
-  const extra = (d.observacoes ? 14 + 4.5 * (doc.splitTextToSize(d.observacoes, W - 2 * M) as string[]).length : 0) + (d.desconto > 0 ? 6 : 0);
+  const extra = (d.observacoes ? 14 + 4.5 * (doc.splitTextToSize(d.observacoes, W - 2 * M) as string[]).length : 0) + (d.desconto > 0 ? 14 : 0) + (d.pix || d.confirmar ? 50 : 0) + (d.mensagem ? 10 : 0);
   if (fy + 38 + extra > H - 22) {
     doc.addPage();
     fy = 22;
@@ -159,15 +176,74 @@ export async function buildOrcamentoPdf(d: OrcamentoPdfData, loja: StoreInfo, lo
   doc.line(rx - 62, fy - 3.5, rx, fy - 3.5);
   fy += 1.5;
   line('Total', formatBRL(d.total), true, 14);
+  if (d.pagamento.parcelas > 1) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...ink);
+    doc.text(`ou ${d.pagamento.parcelas}× de ${formatBRL(parcelas[0])} no cartão`, rx, fy - 2, { align: 'right' });
+    fy += 4;
+  }
+  if (d.desconto > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(59, 106, 42);
+    doc.text(`Você economiza ${formatBRL(d.desconto)}`, rx, fy, { align: 'right' });
+    fy += 7;
+  }
 
   fy += 2;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...ink);
-  doc.text('Pagamento:', M, fy);
-  doc.setFont('helvetica', 'normal');
-  doc.text(d.pagamento.parcelas > 1 ? `${d.pagamento.label} — ${d.pagamento.parcelas} parcelas de ${formatBRL(parcelas[0])}` : d.pagamento.label, M + 24, fy);
-  fy += 8;
+  if (d.formas) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...ink);
+    doc.text('Pagamento:', M, fy);
+    doc.setFont('helvetica', 'normal');
+    doc.text(d.formas, M + 24, fy);
+    fy += 8;
+  }
+
+  // ---------- Pix e confirmação (QR codes) ----------
+  const qr = (texto: string, x: number, yy: number, lado: number) => {
+    const m = qrMatriz(texto);
+    const cel = lado / m.length;
+    doc.setFillColor(0, 0, 0);
+    m.forEach((lin, r) => lin.forEach((on, k) => on && doc.rect(x + k * cel, yy + r * cel, cel + 0.02, cel + 0.02, 'F')));
+  };
+  if (d.pix || d.confirmar) {
+    const Q = 34;
+    const y0 = fy;
+    let x = M;
+    const bloco = (titulo: string, linhas: string[], codigo: string) => {
+      qr(codigo, x, y0, Q);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...ink);
+      doc.text(titulo, x + Q + 4, y0 + 6);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...muted);
+      doc.text(linhas, x + Q + 4, y0 + 11);
+      x += (W - 2 * M) / 2;
+    };
+    if (d.pix) bloco('Pague com Pix', doc.splitTextToSize(`Aponte a câmera do app do banco. Valor já preenchido: ${formatBRL(d.total)}.`, (W - 2 * M) / 2 - Q - 8) as string[], d.pix);
+    if (d.confirmar) bloco('Confirme pelo WhatsApp', doc.splitTextToSize('Aponte a câmera do celular: a conversa abre com a mensagem pronta.', (W - 2 * M) / 2 - Q - 8) as string[], d.confirmar);
+    fy = y0 + Q + 5;
+    if (d.pix) {
+      doc.setFont('courier', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...muted);
+      const cod = doc.splitTextToSize(`Pix copia e cola: ${d.pix}`, W - 2 * M) as string[];
+      doc.text(cod, M, fy);
+      fy += cod.length * 2.8 + 4;
+    }
+  }
+  if (d.mensagem) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(...primary);
+    doc.text(d.mensagem, W / 2, fy + 2, { align: 'center' });
+    fy += 10;
+  }
 
   if (d.observacoes) {
     doc.setFont('helvetica', 'bold');
@@ -189,7 +265,7 @@ export async function buildOrcamentoPdf(d: OrcamentoPdfData, loja: StoreInfo, lo
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(...muted);
-    doc.text('Documento sem valor fiscal.', M, H - 8);
+    doc.text('Orçamento sem valor fiscal.', M, H - 8);
     if (n > 1) doc.text(`Página ${i} de ${n}`, W - M, H - 8, { align: 'right' });
   }
   return doc.output('arraybuffer');

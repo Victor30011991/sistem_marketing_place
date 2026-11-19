@@ -45,7 +45,7 @@ const marcar = (v: boolean) => {
 
 type Recebido = Record<Parte['parte'], boolean>;
 const plural = (n: number) => `${n} produto${n === 1 ? '' : 's'}`;
-const nadaRecebido = (): Recebido => ({ raiz: false, loja: false, produtos: false, dias: false, lotes: false });
+const nadaRecebido = (): Recebido => ({ raiz: false, loja: false, produtos: false, dias: false, lotes: false, orcamentos: false });
 
 export function NuvemProvider({ children }: { children: ReactNode }) {
   const { state, act } = useApp();
