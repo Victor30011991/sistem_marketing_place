@@ -26,6 +26,7 @@ import {
 } from '../core/orcamentos';
 import { normalizarWhatsapp } from '../core/vitrine';
 import { ligarCliente } from '../core/clientes';
+import { comPromo } from '../core/promo';
 import { logoDataUrl, logoSrc } from '../ui/logo';
 import { imprimirBobina } from '../ui/imprimir';
 import { CupomOrcamento } from '../components/CupomOrcamento';
@@ -111,7 +112,7 @@ export default function Orcamento() {
   const linhas = r.itens
     .map((it) => {
       const p = produtos.find((x) => x.id === it.produtoId);
-      return p ? { it, p, sub: lineTotal(p, it.qtd, it.unidade) } : null;
+      return p ? { it, p: comPromo(p), sub: lineTotal(comPromo(p), it.qtd, it.unidade) } : null;
     })
     .filter((x): x is NonNullable<typeof x> => x != null);
   const validas = linhas.filter((l) => l.sub != null);

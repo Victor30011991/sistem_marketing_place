@@ -77,9 +77,15 @@
   // ---------- dados ----------
   function todosItens() {
     var out = [];
-    dados.categorias.forEach(function (cat) { cat.itens.forEach(function (it) { out.push({ chave: cat.nome + '|' + it.n, cat: cat.nome, i: it.i, n: it.n, pk: it.pk }); }); });
+    var vistos = {};
+    dados.categorias.forEach(function (cat) { cat.itens.forEach(function (it) {
+      var x = item(cat.nome, it);
+      if (!vistos[x.chave]) { vistos[x.chave] = 1; out.push(x); }
+    }); });
     return out;
   }
+  // a mesma chave para o produto em qualquer categoria (ele pode aparecer também em "Ofertas" ou "Mais vendidos")
+  function item(cat, it) { return { chave: it.i ? 'i:' + it.i : cat + '|' + it.n, cat: cat, i: it.i, n: it.n, pk: it.pk, pa: it.pa, s: it.s, f: /^data:image\/(jpeg|png|webp);base64,/.test(it.f || '') ? it.f : null }; }
   function itensDoPedido() {
     var mapa = {};
     todosItens().forEach(function (i) { mapa[i.chave] = i; });
@@ -152,8 +158,10 @@
     li.appendChild(h('button', { class: 'item-topo', type: 'button', 'aria-expanded': aberto ? 'true' : 'false', onclick: function () {
       ui.aberto = aberto ? null : it.chave; ui.erro = ''; desenhar(true);
     } },
-      h('span', { class: 'item-nome' }, it.n, g ? h('small', { text: L.fmtGramas(g) + ' no pedido' }) : null),
-      h('span', { class: 'item-preco' }, por100, h('small', { text: L.brl(it.pk) + ' / kg' }))));
+      it.f ? h('img', { class: 'item-foto', src: it.f, alt: '', loading: 'lazy' }) : null,
+      h('span', { class: 'item-nome' }, it.n, it.s ? h('em', { class: 'selo', text: it.s }) : null, g ? h('small', { text: L.fmtGramas(g) + ' no pedido' }) : null),
+      h('span', { class: 'item-preco' + (it.pa ? ' promo' : '') }, por100,
+        it.pa ? h('small', null, h('s', { text: L.brl(Math.round(it.pa / 10)) }), ' · ' + L.brl(it.pk) + ' / kg') : h('small', { text: L.brl(it.pk) + ' / kg' }))));
     if (aberto) li.appendChild(painelItem(it));
     return li;
   }
@@ -221,7 +229,7 @@
     } else {
       var cat = dados.categorias[ui.aba];
       if (!cat) ul.appendChild(h('li', { class: 'vazio', text: 'O cardápio está sem produtos no momento.' }));
-      else cat.itens.forEach(function (it) { ul.appendChild(linhaItem({ chave: cat.nome + '|' + it.n, cat: cat.nome, n: it.n, pk: it.pk })); });
+      else cat.itens.forEach(function (it) { ul.appendChild(linhaItem(item(cat.nome, it))); });
     }
     var f = ul.querySelector('input[type=text]'); if (f && ui.focar) { f.focus(); }
   }

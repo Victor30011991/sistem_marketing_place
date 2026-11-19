@@ -249,7 +249,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (fase !== 'conectado') return;
     const t = setTimeout(() => {
-      const { arquivo } = montarCardapio(state.lista, state.loja, state.loja.logo);
+      const { arquivo } = montarCardapio(state.lista, state.loja, state.loja.logo, new Date(), { vendas: state.config.vendas, lotes: state.config.lotes });
       const chave = JSON.stringify({ ...arquivo, gerado: '' });
       if (chave === ultimoCardapio.current) return;
       ultimoCardapio.current = chave;
@@ -259,7 +259,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
       });
     }, 2500);
     return () => clearTimeout(t);
-  }, [state.lista, state.loja, fase, falhar]);
+  }, [state.lista, state.loja, state.config.vendas, state.config.lotes, fase, falhar]);
 
   const entrar = useCallback(() => {
     setErro('');

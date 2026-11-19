@@ -4,6 +4,7 @@ import { roundCents } from './money';
 import { contentOf, convertQty } from './units';
 import { norm } from './normalize';
 import { paymentById, paymentOptions } from './pricing';
+import { comPromo } from './promo';
 
 const D = (n: number | Decimal) => new Decimal(n);
 
@@ -25,7 +26,8 @@ export function qtdNoProduto(p: Product, qtd: number, unidade: string): Decimal 
 }
 
 /** Monta o item com o preço cadastrado e o custo do que sai do estoque. null = sem preço ou quantidade inválida. */
-export function itemVenda(p: Product, qtd: number, unidade = unidadeDeVenda(p)): VendaItem | null {
+export function itemVenda(produto: Product, qtd: number, unidade = unidadeDeVenda(produto)): VendaItem | null {
+  const p = comPromo(produto); // promoção ativa vale no balcão também
   if (!(qtd > 0) || p.venda == null) return null;
   const q = qtdNoProduto(p, qtd, unidade);
   if (q == null) return null;

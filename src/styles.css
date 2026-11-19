@@ -889,3 +889,11 @@ ol.pdv-pag li strong { float: right; }
 .lote-validade { min-width: 140px; }
 .lote-validade-todos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 @media (max-width: 600px) { .avisos li { grid-template-columns: auto minmax(0, 1fr); } .avisos li a { grid-column: 2; } }
+
+/* ------------------------------------------------------------ foto e promoção no produto */
+.pf-extra { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+.pf-extra legend { font-weight: 650; padding: 0 6px; }
+.pf-foto { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.pf-foto img, .pf-foto-vazia { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; border: 1px solid var(--line); }
+.pf-foto-vazia { display: grid; place-items: center; font-size: 0.75rem; color: var(--muted); background: var(--bg-2); }
+.pf-foto label.btn { cursor: pointer; }

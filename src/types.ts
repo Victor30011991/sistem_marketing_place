@@ -25,6 +25,10 @@ export interface Product {
   ingredientes?: string;
   /** informação nutricional por 100 g (opcional; só para o rótulo) */
   nutricao?: InfoNutricional | null;
+  /** foto pequena para o cardápio (data URL, ~120 px) */
+  foto?: string;
+  /** promoção: preço na unidade do produto, até quando (AAAA-MM-DD, vazio = sem fim) e o selo */
+  promo?: { preco: number; ate: string; selo: string } | null;
 }
 
 /** Valores por 100 g; a porção é calculada na hora de imprimir. */
@@ -129,6 +133,8 @@ export interface Vitrine {
   ocultos: string[];
   /** esconde sozinho o produto com estoque controlado que chegou a zero */
   ocultarSemEstoque: boolean;
+  /** mostra "Mais vendidos" e "Chegou agora" no topo do cardápio (padrão: sim) */
+  destaques?: boolean;
   /** botões do cartão, na ordem em que aparecem (sem isto: Cardápio, Instagram, Facebook e WhatsApp) */
   botoes?: BotaoCartao[];
 }
