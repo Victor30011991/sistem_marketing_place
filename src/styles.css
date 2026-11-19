@@ -699,3 +699,20 @@ ol.pdv-pag li strong { float: right; }
   .table.pdv2-tabela tr td.pdv2-c-sub { min-width: 0; }
   .table.pdv2-tabela tr { grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 6px 8px; }
 }
+
+/* ------------------------------------------------------------ nuvem */
+.savebox-status { align-items: flex-start; line-height: 1.3; }
+.savebox-status i { flex: 0 0 auto; margin-top: 4px; }
+.savebox-status.bad i { background: #e2735f; }
+.savebox-msg { font-size: 0.8rem; opacity: 0.85; }
+.savebox-sair { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 0.8rem; opacity: 0.8; cursor: pointer; text-align: left; overflow: hidden; }
+.savebox-sair span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.savebox-sair:hover { opacity: 1; text-decoration: underline; }
+.savebox-sair:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+@media (max-width: 860px) {
+  .savebox-status span { max-width: 52vw; }
+}
+.vit-manual summary { cursor: pointer; font-weight: 650; min-height: 44px; display: flex; align-items: center; }
+@media (max-width: 860px) {
+  .savebox-email { display: none; }
+}

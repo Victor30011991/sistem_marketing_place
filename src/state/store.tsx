@@ -40,7 +40,8 @@ type Action =
   | { t: 'produtos'; produtos: Product[] }
   | { t: 'loja'; patch: Partial<StoreInfo> }
   | { t: 'config'; fn: (s: Settings) => Settings }
-  | { t: 'salvo' };
+  | { t: 'salvo' }
+  | { t: 'nuvem'; lista: ListState; loja: StoreInfo; config: Settings };
 
 const initial = (): AppState => ({
   lista: { nome: 'Minha lista de preços', produtos: [], categorias: [] },
@@ -150,6 +151,9 @@ function reducer(s: AppState, a: Action): AppState {
       return touch({ config: a.fn(s.config) });
     case 'salvo':
       return { ...s, sujo: false };
+    case 'nuvem':
+      // dados que chegaram da nuvem: já estão guardados lá, então não contam como "não salvo"
+      return { ...s, lista: a.lista, loja: a.loja, config: a.config, sujo: false, intacto: false };
   }
 }
 
@@ -209,6 +213,7 @@ export function useApp() {
       loja: (patch: Partial<StoreInfo>) => dispatch({ t: 'loja', patch }),
       config: (fn: (s: Settings) => Settings) => dispatch({ t: 'config', fn }),
       salvo: () => dispatch({ t: 'salvo' }),
+      nuvem: (e: { lista: ListState; loja: StoreInfo; config: Settings }) => dispatch({ t: 'nuvem', ...e }),
     }),
     [dispatch],
   );

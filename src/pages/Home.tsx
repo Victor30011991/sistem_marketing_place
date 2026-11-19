@@ -3,6 +3,7 @@ import { useApp } from '../state/store';
 import { useFeedback, useDocumentTitle } from '../ui/feedback';
 import { logoSrc } from '../ui/logo';
 import Entrada from './Entrada';
+import { useNuvem } from '../nuvem/NuvemProvider';
 
 export default function Home() {
   useDocumentTitle('Início');
@@ -10,9 +11,25 @@ export default function Home() {
   const { confirm } = useFeedback();
   const nav = useNavigate();
   const total = state.lista.produtos.length;
+  const naNuvem = useNuvem().fase === 'conectado';
 
   async function novaLista() {
-    if (state.sujo && total > 0) {
+    if (naNuvem && total > 0) {
+      const ok = await confirm({
+        titulo: 'Apagar a lista da nuvem?',
+        mensagem: (
+          <>
+            <p>
+              Vocês estão na nuvem: começar uma lista nova <strong>apaga os {total} produtos</strong> para todos os aparelhos, e o cardápio do cliente fica vazio.
+            </p>
+            <p className="muted">Se quiser guardar uma cópia, salve em Excel antes. Dados da loja, custos, taxas e vendas continuam.</p>
+          </>
+        ),
+        confirmar: 'Apagar e começar nova',
+        perigo: true,
+      });
+      if (!ok) return;
+    } else if (state.sujo && total > 0) {
       const ok = await confirm({
         titulo: 'Começar uma lista nova?',
         mensagem: (

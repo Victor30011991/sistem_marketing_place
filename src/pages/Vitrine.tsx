@@ -17,6 +17,7 @@ import {
 import type { BotaoCartao, Product, TipoBotao, Vitrine as VitrineCfg } from '../types';
 import { botoesPadrao, linkBotao, novoBotao, TIPOS_BOTAO } from '../core/vitrine';
 import { Icon } from '../ui/icons';
+import { useNuvem } from '../nuvem/NuvemProvider';
 
 const MOTIVO: Record<MotivoFora, string> = {
   oculto: 'oculto por você',
@@ -47,6 +48,7 @@ export default function Vitrine() {
   };
   const [tipoNovo, setTipoNovo] = useState<TipoBotao>('maps');
 
+  const naNuvem = useNuvem().fase === 'conectado';
   const resultado = useMemo(() => montarCardapio(lista, loja, loja.logo), [lista, loja]);
 
   // ---------- prévia: a própria página do cliente, dentro de um quadro ----------
@@ -290,21 +292,32 @@ export default function Vitrine() {
 
           <section className="card">
             <h2>Publicar e divulgar</h2>
-            <Notice tone="warn">
-              O cardápio <strong>não atualiza sozinho</strong>: sempre que mudar preço ou ocultar um item, baixe o arquivo de novo e envie ao GitHub. Nunca envie o Excel nem o backup .txt: eles têm os seus custos.
-            </Notice>
-            <ol className="vit-passos">
-              <li>
-                Baixe o arquivo do cardápio: <Button icon="download" onClick={baixar} disabled={resultado.total === 0}>Baixar cardapio.json</Button>
-              </li>
-              <li>
-                No GitHub, abra o repositório, depois as pastas <code>public</code> e <code>cardapio</code>.
-              </li>
-              <li>
-                Clique em <strong>Add file → Upload files</strong>, arraste o <code>cardapio.json</code> e confirme em <strong>Commit changes</strong>.
-              </li>
-              <li>Espere cerca de 1 minuto (a aba Actions fica verde). Depois é só usar os links abaixo.</li>
-            </ol>
+            {naNuvem ? (
+              <Notice tone="ok">
+                O cardápio <strong>se atualiza sozinho</strong>: mudou preço, estoque ou ocultou um item, em poucos segundos o cliente já vê. Só vão para lá nome, categoria e preço; os custos ficam protegidos.
+              </Notice>
+            ) : (
+              <>
+                <Notice tone="warn">
+                  Para o cardápio se atualizar sozinho, clique em <strong>Entrar na nuvem</strong> (no menu) com o e-mail da loja. Sem a nuvem, é preciso baixar o arquivo e enviar ao GitHub a cada mudança. Nunca envie o Excel nem o backup .txt: eles têm os seus custos.
+                </Notice>
+                <details className="vit-manual">
+                  <summary>Publicar sem a nuvem (arquivo manual)</summary>
+                  <ol className="vit-passos">
+                    <li>
+                      Baixe o arquivo do cardápio: <Button icon="download" onClick={baixar} disabled={resultado.total === 0}>Baixar cardapio.json</Button>
+                    </li>
+                    <li>
+                      No GitHub, abra o repositório, depois as pastas <code>public</code> e <code>cardapio</code>.
+                    </li>
+                    <li>
+                      Clique em <strong>Add file → Upload files</strong>, arraste o <code>cardapio.json</code> e confirme em <strong>Commit changes</strong>.
+                    </li>
+                    <li>Espere cerca de 1 minuto (a aba Actions fica verde).</li>
+                  </ol>
+                </details>
+              </>
+            )}
             <h3 className="vit-sub">Links para colocar nas suas plataformas</h3>
             <ul className="vit-links">
               {links.map((l) => (

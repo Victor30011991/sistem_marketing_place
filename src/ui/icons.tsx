@@ -29,6 +29,8 @@ const PATHS: Record<string, string> = {
   scale: 'M4 20h16M6 20l2-9h8l2 9M12 11V5M8 5h8M9 15h6',
   barcode: 'M4 5v14M7 5v14M10 5v14M14 5v14M17 5v14M20 5v14',
   sparkle: 'M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z',
+  cloud: 'M7 18h10.5a4 4 0 00.6-7.95A6 6 0 006.3 9.1 4.5 4.5 0 007 18z',
+  logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
 };
 
 export function Icon({ name, size = 18 }: { name: keyof typeof PATHS | string; size?: number }) {

@@ -7,13 +7,16 @@ import './styles.css';
 import App from './App';
 import { AppProvider } from './state/store';
 import { FeedbackProvider } from './ui/feedback';
+import { NuvemProvider } from './nuvem/NuvemProvider';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
       <AppProvider>
         <FeedbackProvider>
-          <App />
+          <NuvemProvider>
+            <App />
+          </NuvemProvider>
         </FeedbackProvider>
       </AppProvider>
     </HashRouter>
