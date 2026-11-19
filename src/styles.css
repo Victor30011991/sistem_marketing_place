@@ -620,3 +620,82 @@ ol.pdv-pag li strong { float: right; }
   .vit-botoes li { grid-template-columns: auto minmax(0, 1fr); }
   .vit-botao-acoes { grid-column: 1 / -1; justify-content: flex-end; }
 }
+
+/* ---------- PDV (versão 2) ---------- */
+.pdv2 { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; align-items: start; }
+.pdv2-esq { display: grid; gap: 16px; min-width: 0; }
+.pdv2-barra { display: grid; gap: 12px; }
+.pdv2-busca { display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 1.5px solid var(--line); border-radius: var(--r-control); background: var(--card); }
+.pdv2-busca:focus-within { border-color: var(--primary); }
+.pdv2-busca svg { color: var(--muted); flex: 0 0 auto; }
+.pdv2-busca input { border: 0; background: none; min-height: 48px; flex: 1; min-width: 0; font-size: 1.02rem; outline: none; box-shadow: none; }
+.pdv2-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.pdv2-achados { max-height: 420px; }
+.pdv2-tabela td { vertical-align: middle; }
+.pdv2-tabela td.strong { min-width: 170px; }
+.pdv2-estoque { display: flex; align-items: center; gap: 6px; font-weight: 400; color: var(--muted); }
+.pdv2-estoque.falta { color: var(--danger); font-weight: 600; }
+.pdv2-alerta { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--danger); color: #fff; font-size: 0.7rem; font-weight: 700; }
+.pdv-qtd-in { display: inline-flex; align-items: center; gap: 4px; }
+.pdv-qtd-in input { width: 74px; min-height: 36px; text-align: right; padding: 0 8px; }
+.pdv-qtd-in small { color: var(--muted); }
+.pdv2-desc { width: 70px; min-height: 36px; text-align: right; padding: 0 8px; }
+.pdv2-desc.on { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+.pdv2-riscado { display: block; font-weight: 400; font-size: 0.82rem; }
+.pdv2-cliente { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.pdv2-cliente span { font-weight: 600; }
+.pdv2-cliente input { flex: 1; min-width: 0; }
+.pdv2-h { font-size: 1.05rem; }
+.pdv2-pausadas { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.pdv2-pausadas li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line-2); }
+.pdv2-caixa { position: sticky; top: 16px; display: grid; gap: 14px; }
+.pdv2-totais { margin: 0; display: grid; gap: 6px; }
+.pdv2-totais > div { display: flex; justify-content: space-between; gap: 12px; }
+.pdv2-totais dt { color: var(--muted); }
+.pdv2-totais dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pdv2-total { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 2px; }
+.pdv2-total dt { color: var(--primary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.9rem; align-self: center; }
+.pdv2-total dd { font-size: 1.6rem; font-family: var(--font-head); }
+.pdv2-pagofalta { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.pdv2-pagofalta > div { display: grid; gap: 2px; padding: 10px 12px; }
+.pdv2-pagofalta > div + div { border-left: 1px solid var(--line); }
+.pdv2-pagofalta span { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.pdv2-pagofalta strong { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.pdv2-pagofalta .falta strong { color: var(--danger); }
+.pdv2-pagofalta .troco { background: var(--ok-bg); }
+.pdv2-pagofalta .troco strong, .pdv2-pagofalta .troco span { color: var(--ok); }
+.pdv2-formas { display: grid; gap: 10px; }
+.pdv2-rotulo { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.pdv2-botoes-pag { display: flex; flex-wrap: wrap; gap: 6px; }
+.pdv2-forma { min-height: 38px; padding: 0 12px; border-radius: var(--r-control); border: 1.5px solid var(--accent); background: var(--accent-soft); color: var(--ink); font: inherit; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+.pdv2-forma:hover:not(:disabled) { border-color: var(--primary); }
+.pdv2-forma:disabled { opacity: 0.5; cursor: not-allowed; }
+.pdv2-pagos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pdv2-pagos li { display: grid; grid-template-columns: minmax(0, 1fr) 130px auto; gap: 8px; align-items: center; }
+.pdv2-aviso { margin: 0; color: var(--danger); font-weight: 600; font-size: 0.9rem; }
+.pdv2-descvenda summary { font-weight: 600; font-size: 0.92rem; margin: 0; }
+.pdv2-descvenda .row-gap { margin-top: 8px; }
+@media (max-width: 1100px) { .pdv2 { grid-template-columns: minmax(0, 1fr); } .pdv2-caixa { position: static; } }
+.pdv2-tabela td.pdv2-item { min-width: 150px; }
+@media (max-width: 640px) {
+  .pdv2-tabela thead { display: none; }
+  .pdv2-tabela, .pdv2-tabela tbody { display: block; }
+  .pdv2-tabela tr { display: grid; grid-template-columns: auto auto 1fr auto; grid-template-areas: "item item item item" "qtd desc sub del"; gap: 6px 10px; align-items: center; padding: 10px 4px; border-bottom: 1px solid var(--line-2); }
+  .pdv2-tabela td { display: block; padding: 0; border: 0; }
+  .pdv2-tabela td.pdv2-item { grid-area: item; min-width: 0; }
+  .pdv2-tabela td.pdv2-c-qtd { grid-area: qtd; text-align: left; }
+  .pdv2-tabela td.pdv2-c-desc { grid-area: desc; text-align: left; }
+  .pdv2-tabela td.pdv2-c-sub { grid-area: sub; }
+  .pdv2-tabela td.c-actions { grid-area: del; width: auto; }
+  .pdv2-acoes .btn { flex: 1 1 auto; }
+}
+@media (max-width: 640px) {
+  .pdv2-tabela { min-width: 0 !important; width: 100%; }
+  .pdv2-tabela .pdv-qtd-in input { width: 64px; }
+  .pdv2-tabela .pdv2-desc { width: 58px; }
+}
+@media (max-width: 640px) {
+  .table.pdv2-tabela tr td.c-actions { width: auto; min-width: 0; padding: 0; }
+  .table.pdv2-tabela tr td.pdv2-c-sub { min-width: 0; }
+  .table.pdv2-tabela tr { grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 6px 8px; }
+}

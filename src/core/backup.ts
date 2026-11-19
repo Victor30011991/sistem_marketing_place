@@ -1,4 +1,4 @@
-import type { FixedCost, InstallmentFee, ListaCompras, ListState, Lote, LoteItem, Product, Settings, StoreInfo, VariableCost, Venda, VendaItem } from '../types';
+import type { FixedCost, InstallmentFee, ListaCompras, ListState, Lote, LoteItem, Product, Settings, StoreInfo, VariableCost, Venda, VendaItem, VendaPausada } from '../types';
 import { defaultSettings, defaultStore } from './defaults';
 import { newId, newKey } from './normalize';
 import { paymentOptions } from './pricing';
@@ -129,7 +129,7 @@ function lerVenda(raw: unknown): Venda | null {
   if (!isObj(raw) || !Array.isArray(raw.itens) || typeof raw.quando !== 'string') return null;
   const itens: VendaItem[] = raw.itens.flatMap((i) =>
     isObj(i) && typeof i.produtoId === 'string' && num(i.qtd) != null && num(i.total) != null
-      ? [{ produtoId: i.produtoId, nome: str(i.nome), qtd: i.qtd as number, unidade: str(i.unidade) || 'un', total: i.total as number, custo: num(i.custo) }]
+      ? [{ produtoId: i.produtoId, nome: str(i.nome), qtd: i.qtd as number, unidade: str(i.unidade) || 'un', total: i.total as number, custo: num(i.custo), ...(cent(i.desconto) > 0 ? { desconto: cent(i.desconto) } : {}) }]
       : [],
   );
   if (itens.length === 0) return null;
@@ -144,8 +144,24 @@ function lerVenda(raw: unknown): Venda | null {
     taxa: cent(raw.taxa),
     cliente: str(raw.cliente),
   };
+  if (Array.isArray(raw.pagamentos)) {
+    const pags = raw.pagamentos.flatMap((pg) => (isObj(pg) && typeof pg.forma === 'string' ? [{ forma: pg.forma, label: str(pg.label) || pg.forma, valor: cent(pg.valor), taxa: cent(pg.taxa) }] : []));
+    if (pags.length) v.pagamentos = pags;
+  }
+  if (cent(raw.troco) > 0) v.troco = cent(raw.troco);
   if (typeof raw.cancelada === 'string') v.cancelada = raw.cancelada;
   return v;
+}
+
+function lerPausada(raw: unknown): VendaPausada | null {
+  if (!isObj(raw) || !Array.isArray(raw.linhas)) return null;
+  const linhas = raw.linhas.flatMap((l) =>
+    isObj(l) && typeof l.produtoId === 'string' && num(l.qtd) != null && (l.qtd as number) > 0
+      ? [{ produtoId: l.produtoId, qtd: l.qtd as number, unidade: str(l.unidade) || 'un', ...(num(l.total) != null ? { total: l.total as number } : {}), ...(str(l.desconto) ? { desconto: str(l.desconto) } : {}) }]
+      : [],
+  );
+  if (!linhas.length) return null;
+  return { id: str(raw.id) || newKey(), quando: str(raw.quando), cliente: str(raw.cliente), linhas };
 }
 
 function lerCompras(raw: unknown): ListaCompras | null {
@@ -195,6 +211,10 @@ function lerConfig(raw: unknown): Settings {
     return x ? [x] : [];
   });
   if (isObj(raw.balanca)) cfg.balanca = balancaDe(raw.balanca);
+  if (Array.isArray(raw.vendasPausadas)) cfg.vendasPausadas = raw.vendasPausadas.flatMap((x) => {
+    const y = lerPausada(x);
+    return y ? [y] : [];
+  });
   const compras = lerCompras(raw.compras);
   if (compras) cfg.compras = compras;
   // forma de pagamento que não existe mais (ex.: parcela removida) volta para o crédito à vista

@@ -128,3 +128,79 @@ describe('vendas e lista de compras no backup', () => {
   });
 });
 
+
+describe('PDV novo: desconto por item e pagamento dividido', () => {
+  it('desconto do item em % ou em R$, limitado ao valor do item', async () => {
+    const { descontoDoTexto, comDesconto } = await import('../src/core/vendas');
+    expect(descontoDoTexto('10%', 1313)).toBe(131);
+    expect(descontoDoTexto('2,50', 1313)).toBe(250);
+    expect(descontoDoTexto('R$ 1,00', 1313)).toBe(100);
+    expect(descontoDoTexto('-5%', 1000)).toBe(50);
+    expect(descontoDoTexto('99', 1313)).toBe(1313);
+    expect(descontoDoTexto('abc', 1313)).toBe(0);
+    expect(descontoDoTexto('', 1313)).toBe(0);
+    const it = comDesconto(itemVenda(acafrao, 250)!, 131);
+    expect(it).toMatchObject({ total: 1182, desconto: 131 });
+  });
+
+  it('dividir em Pix + débito: falta, taxa de cada parte e nada de troco', async () => {
+    const { fecharPdv } = await import('../src/core/vendas');
+    const s = defaultSettings();
+    s.taxas.debito = 2;
+    const its = [itemVenda(acafrao, 1000)!]; // R$ 52,50
+    const meio = fecharPdv(its, { tipo: 'valor', valor: null }, [{ forma: 'pix', valor: 3000 }], s);
+    expect(meio).toMatchObject({ total: 5250, pago: 3000, falta: 2250, troco: 0 });
+    const f = fecharPdv(its, { tipo: 'valor', valor: null }, [{ forma: 'pix', valor: 3000 }, { forma: 'debito', valor: 2250 }], s);
+    expect(f).toMatchObject({ falta: 0, troco: 0, excesso: 0, taxa: 45, liquido: 5205 });
+    expect(f.pagamentos.map((p) => [p.label, p.valor, p.taxa])).toEqual([['Pix', 3000, 0], ['Cartão de débito', 2250, 45]]);
+  });
+
+  it('dinheiro a mais vira troco e sai do valor em dinheiro; Pix a mais não dá troco', async () => {
+    const { fecharPdv } = await import('../src/core/vendas');
+    const s = defaultSettings();
+    const its = [itemVenda(acafrao, 1000)!];
+    const f = fecharPdv(its, { tipo: 'valor', valor: null }, [{ forma: 'dinheiro', valor: 10000 }], s);
+    expect(f).toMatchObject({ total: 5250, pago: 10000, troco: 4750, excesso: 0 });
+    expect(f.pagamentos).toEqual([{ forma: 'dinheiro', label: 'Dinheiro', valor: 5250, taxa: 0 }]);
+    const g = fecharPdv(its, { tipo: 'valor', valor: null }, [{ forma: 'pix', valor: 6000 }], s);
+    expect(g).toMatchObject({ troco: 0, excesso: 750 });
+  });
+
+  it('descontos dos itens e da venda entram no total e no resumo do dia', async () => {
+    const { fecharPdv, comDesconto } = await import('../src/core/vendas');
+    const its = [comDesconto(itemVenda(acafrao, 1000)!, 250)]; // 52,50 − 2,50
+    const f = fecharPdv(its, { tipo: 'valor', valor: 500 }, [{ forma: 'pix', valor: 4500 }], defaultSettings());
+    expect(f).toMatchObject({ bruto: 5250, descontoItens: 250, subtotal: 5000, desconto: 500, total: 4500, falta: 0 });
+    const v = venda([], { itens: its, desconto: 500, total: 4500, pagamentos: f.pagamentos });
+    const r = resumoVendas([v]);
+    expect(r).toMatchObject({ bruto: 5250, descontos: 750, total: 4500 });
+  });
+
+  it('resumo do dia separa as formas de uma venda dividida', async () => {
+    const v = venda([itemVenda(acafrao, 1000)], {
+      total: 5250,
+      pagamentos: [
+        { forma: 'pix', label: 'Pix', valor: 3000, taxa: 0 },
+        { forma: 'debito', label: 'Cartão de débito', valor: 2250, taxa: 45 },
+      ],
+    });
+    const r = resumoVendas([v]);
+    expect(r.porPagamento).toEqual([
+      { label: 'Pix', vendas: 1, total: 3000 },
+      { label: 'Cartão de débito', vendas: 1, total: 2250 },
+    ]);
+  });
+
+  it('pagamentos, troco, desconto do item e vendas pausadas sobrevivem ao backup', async () => {
+    const { comDesconto } = await import('../src/core/vendas');
+    const cfg = defaultSettings();
+    cfg.vendas = [venda([comDesconto(itemVenda(acafrao, 250)!, 100)], { troco: 750, pagamentos: [{ forma: 'dinheiro', label: 'Dinheiro', valor: 1213, taxa: 0 }] })];
+    cfg.vendasPausadas = [{ id: 'p1', quando: '2026-11-18T15:00:00', cliente: 'Samara', linhas: [{ produtoId: 'a', qtd: 250, unidade: 'g', desconto: '10%' }] }];
+    const r = lerBackup(criarBackup({ nome: 'L', produtos: [acafrao], categorias: [] }, defaultStore(), cfg));
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.config.vendas).toEqual(cfg.vendas);
+      expect(r.config.vendasPausadas).toEqual(cfg.vendasPausadas);
+    }
+  });
+});
