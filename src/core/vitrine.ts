@@ -1,6 +1,7 @@
 import type { BotaoCartao, EntregaCardapio, HorarioDia, ListState, Product, StoreInfo, TipoBotao, Vitrine, Venda, Lote } from '../types';
 import { norm } from './normalize';
 import { MODELOS_IDEIA } from './postaai';
+import { entradaDe } from './entrada';
 import { comPromo } from './promo';
 import { newId } from './normalize';
 import { counterBasis } from './units';
@@ -69,6 +70,7 @@ export function vitrineDe(loja: Pick<StoreInfo, 'vitrine'> | null | undefined): 
     ...(horariosDe(v.horarios) ? { horarios: horariosDe(v.horarios) } : {}),
     ...(pesosDe(v.pesos) ? { pesos: pesosDe(v.pesos) } : {}),
     ...(v.mixes === false ? { mixes: false } : {}),
+    ...(entradaDe(v.entrada) ? { entrada: entradaDe(v.entrada) } : {}),
   };
 }
 

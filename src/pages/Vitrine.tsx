@@ -25,6 +25,7 @@ import { Icon } from '../ui/icons';
 import { useNuvem } from '../nuvem/NuvemProvider';
 import { cfgOrcamento, contatosLoja, dadosPix } from '../core/orcamentos';
 import { logoSrc } from '../ui/logo';
+import { EntradaEditor } from '../components/EntradaEditor';
 
 const MOTIVO: Record<MotivoFora, string> = {
   oculto: 'oculto por você',
@@ -148,7 +149,7 @@ export default function Vitrine() {
     <div className="page">
       <PageHeader
         titulo="Página da loja"
-        subtitulo="O cartão de visita e o cardápio que o seu cliente abre pelo link do Instagram, Facebook ou WhatsApp. Só nome, categoria e preço vão para o site: custos, margens e estoque ficam só com você."
+        subtitulo="O cardápio e a página de entrada que o seu cliente abre pelo link do Instagram, Facebook ou WhatsApp. Só nome, categoria e preço vão para o site: custos, margens e estoque ficam só com você."
       />
 
       <div className="vit-grid">
@@ -502,6 +503,8 @@ export default function Vitrine() {
           <p className="muted small">Esta é a página real do cliente, atualizada enquanto você edita.</p>
         </aside>
       </div>
+
+      <EntradaEditor cardapio={resultado.arquivo} />
     </div>
   );
 }

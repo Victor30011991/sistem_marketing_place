@@ -2,6 +2,7 @@ import type { FixedCost, InstallmentFee, ListaCompras, ListState, Lote, LoteItem
 import { defaultSettings, defaultStore } from './defaults';
 import { etiquetasDe, nutricaoDe } from './etiquetas';
 import { estilosDe, fontesDe } from './estilosArte';
+import { imagensDe } from './entrada';
 import { cfgOrcamento, orcamentosDe } from './orcamentos';
 import { clientesDe } from './clientes';
 import { caixasDe } from './caixa';
@@ -259,6 +260,8 @@ function lerConfig(raw: unknown): Settings {
   }
   const fontes = fontesDe(raw.fontes);
   if (fontes?.length) cfg.fontes = fontes;
+  const imagens = imagensDe(raw.imagens);
+  if (imagens?.length) cfg.imagens = imagens;
   const compras = lerCompras(raw.compras);
   if (compras) cfg.compras = compras;
   // forma de pagamento que não existe mais (ex.: parcela removida) volta para o crédito à vista

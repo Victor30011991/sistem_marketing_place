@@ -96,6 +96,9 @@ function aplicarNoBanco(ops: Op[]) {
 export async function publicarCardapio(json: string) {
   localStorage.setItem('falso.cardapio', json);
 }
+export async function publicarEntrada(json: string) {
+  localStorage.setItem('falso.entrada', json);
+}
 
 // pedidos: guardados em falso.pedidos (id -> dados), como a coleção pública
 const lerPedidos = (): Record<string, unknown> => JSON.parse(localStorage.getItem('falso.pedidos') ?? '{}');
