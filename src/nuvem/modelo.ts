@@ -16,7 +16,7 @@ import { diaLocal } from '../core/vendas';
 export const LOJA_ID = 'temperei';
 
 /** Listas do sistema que ficam um documento por item na nuvem (o nome é o mesmo campo em Settings). */
-export const COLECOES = ['lotes', 'orcamentos', 'clientes', 'caixas', 'contas'] as const;
+export const COLECOES = ['lotes', 'orcamentos', 'clientes', 'caixas', 'contas', 'fontes'] as const;
 export type Colecao = (typeof COLECOES)[number];
 export interface ItemColecao {
   id: string;
@@ -29,6 +29,7 @@ const ORDEM: Record<Colecao, (a: any, b: any) => number> = {
   clientes: (a: { nome: string }, b: { nome: string }) => a.nome.localeCompare(b.nome, 'pt-BR'),
   caixas: (a: { dia: string }, b: { dia: string }) => b.dia.localeCompare(a.dia),
   contas: (a: { vencimento: string }, b: { vencimento: string }) => a.vencimento.localeCompare(b.vencimento),
+  fontes: (a: { nome: string }, b: { nome: string }) => a.nome.localeCompare(b.nome, 'pt-BR'),
 };
 const colecoesVazias = () => Object.fromEntries(COLECOES.map((c) => [c, new Map()])) as Record<Colecao, Map<string, ItemColecao>>;
 export const RAIZ = ['lojas', LOJA_ID];

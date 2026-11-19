@@ -505,8 +505,67 @@ export interface Conta {
   cancelada?: boolean;
 }
 
+/** Posta Aí: estilos de arte para o Instagram. Posições e tamanhos são frações (0–1) da arte. */
+export type CorArte = 'primaria' | 'destaque' | 'creme' | 'escuro' | 'branco';
+export type FamiliaArte = string; // 'manuscrita' | 'script' | 'elegante' | 'gorda' | 'forte' | 'simples' | 'f:<id da letra salva>'
+export type CampoArte = 'titulo' | 'subtitulo' | 'chamada' | 'preco' | 'livre';
+export interface CamadaArte {
+  id: string;
+  tipo: 'foto' | 'texto' | 'forma' | 'logo' | 'enfeite' | 'lista';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  cor?: CorArte;
+  opacidade?: number;
+  /** graus */
+  girar?: number;
+  // texto
+  campo?: CampoArte;
+  texto?: string;
+  familia?: FamiliaArte;
+  /** altura da letra como fração da largura da arte */
+  tamanho?: number;
+  alinhar?: 'esquerda' | 'centro' | 'direita';
+  maiusculas?: boolean;
+  sombra?: boolean;
+  // foto
+  mascara?: 'retangulo' | 'pote' | 'circulo' | 'arco' | 'arredondado';
+  /** 0–0,7: escurece a foto para o texto aparecer */
+  escurecer?: number;
+  // forma
+  raio?: number;
+  // enfeite
+  enfeite?: string;
+  /** lista: cor das faixas */
+  faixa?: CorArte;
+}
+export interface EstiloArte {
+  id: string;
+  nome: string;
+  fundo: CorArte;
+  camadas: CamadaArte[];
+}
+export interface FonteSalva {
+  id: string;
+  nome: string;
+  /** data:font/... base64 */
+  dados: string;
+}
+export interface ConfigPostaAi {
+  estilos?: EstiloArte[];
+  /** ideia → data em que foi postada */
+  postados?: Record<string, string>;
+  /** cidade para as hashtags e legendas */
+  cidade?: string;
+}
+
 export interface Settings {
   balanca?: ConfigBalanca;
+  /** Posta Aí: estilos salvos, ideias já postadas */
+  postaAi?: ConfigPostaAi;
+  /** letras adicionadas para as artes (na nuvem fica uma por documento) */
+  fontes?: FonteSalva[];
   /** contas a receber (fiado) e a pagar (na nuvem ficam uma por documento) */
   contas?: Conta[];
   /** dias para pagar o fiado (padrão 30) */

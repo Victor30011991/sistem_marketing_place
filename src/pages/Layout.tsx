@@ -45,6 +45,7 @@ const GRUPOS: { titulo: string; itens: ItemNav[] }[] = [
     itens: [
       { to: '/loja', label: 'Minha loja', icon: 'store' },
       { to: '/pagina', label: 'Página da loja', icon: 'menu' },
+      { to: '/posta-ai', label: 'Posta Aí', icon: 'sparkle' },
       { to: '/precificacao', label: 'Precificação', icon: 'calc' },
     ],
   },
