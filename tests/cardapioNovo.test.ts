@@ -75,15 +75,18 @@ describe('cardápio novo: página do cliente', () => {
   it('mensagem com retirada, taxa fixa e pagamento; pedido na nuvem com o resumo em observações', () => {
     const itens = [{ i: 'p', n: 'Páprica', g: 100, total: 470 }];
     const ret = L.montarMensagem({ loja: 'T', abertura: 'Oi', fechamento: '', itens, nome: 'Maria', telefone: '86 9', endereco: 'Rua X', modo: 'retirada', pagamento: 'pix' });
-    expect(ret).toContain('Retirada');
+    expect(ret).toContain('🏪 Retirada na loja');
+    expect(ret).toContain('*Total: R$ 4,70*');
+    expect(ret).toContain('📱 86 9');
     expect(ret).not.toContain('Rua X');
-    expect(ret).toContain('*Pagamento:* Pix');
+    expect(ret).toContain('💳 Pix');
     const ent = L.montarMensagem({ loja: 'T', abertura: 'Oi', fechamento: '', itens, nome: 'Maria', endereco: 'Rua X', modo: 'entrega', taxa: 500, pagamento: 'dinheiro', troco: '50' });
-    expect(ent).toMatch(/Entrega\s+R\$ 5,00/);
-    expect(ent).toMatch(/Total\s+R\$ 9,70/);
+    expect(ent).toContain('🛵 Entrega: R$ 5,00');
+    expect(ent).toContain('*Total: R$ 9,70*');
     expect(ent).toContain('troco para 50');
     const antigo = L.montarMensagem({ loja: 'T', abertura: 'Oi', fechamento: '', itens, nome: 'M', endereco: 'E' });
-    expect(antigo).toMatch(/Entrega\s+a combinar/);
+    expect(antigo).toContain('Entrega: a combinar');
+    expect(L.montarMensagem({ loja: 'T', abertura: '', fechamento: '', itens, nome: 'M', telefone: '86994953216', endereco: 'E' })).toContain('📱 (86) 99495-3216');
     const nv = L.pedidoNuvem({ itens, nome: 'Maria', telefone: '86', endereco: 'Rua', obs: 'sem pressa', modo: 'retirada', pagamento: 'cartao' });
     expect(nv.fields.endereco.stringValue).toBe('Retirada na loja');
     expect(nv.fields.obs.stringValue).toBe('Retirada na loja · Pagamento: Cartão na entrega\nsem pressa');

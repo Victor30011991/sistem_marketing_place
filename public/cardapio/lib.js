@@ -2,8 +2,6 @@
 (function (root) {
   'use strict';
 
-  var LARGURA = 30;
-
   /** 12345 -> "R$ 123,45" */
   function brl(cents) {
     var neg = cents < 0;
@@ -44,16 +42,6 @@
     return t;
   }
 
-  function lin(esq, dir) {
-    var sp = LARGURA - esq.length - dir.length;
-    if (sp < 1) sp = 1;
-    return esq + new Array(sp + 1).join(' ') + dir;
-  }
-
-  function corta(t) {
-    return t.length > LARGURA ? t.slice(0, LARGURA - 1) + '…' : t;
-  }
-
   var ROTULO_ORIGEM = { instagram: 'Instagram', facebook: 'Facebook', whatsapp: 'WhatsApp' };
 
   function normalizarOrigem(o) {
@@ -72,35 +60,44 @@
     return p.join(' · ');
   }
 
+  /** "86994953216" -> "(86) 99495-3216"; outros formatos ficam como vieram. */
+  function fmtTelefone(t) {
+    var d = String(t || '').replace(/\D/g, '');
+    if (d.length === 13 && d.indexOf('55') === 0) d = d.slice(2);
+    if (d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+    if (d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return String(t || '').trim();
+  }
+
   /**
-   * Mensagem do pedido: abertura, nota em bloco de código (fonte fixa no WhatsApp), dados do cliente e fechamento.
+   * Mensagem do pedido para o WhatsApp: abertura, um item por linha (nome inteiro, peso e valor),
+   * totais, dados do cliente com ícones e fechamento.
    * dados: { loja, abertura, fechamento, itens: [{ n, g, total }], nome, telefone?, endereco, obs, origem,
    *          modo?: 'entrega' | 'retirada', taxa?: centavos (0 = a combinar), pagamento?: 'pix' | 'cartao' | 'dinheiro', troco? }
    */
   function montarMensagem(d) {
     var abertura = String(d.abertura || '').replace(/\{loja\}/g, d.loja || '');
-    var linhas = [];
-    for (var i = 0; i < d.itens.length; i++) {
+    var n = d.itens.length;
+    var linhas = ['🛒 *Pedido · ' + n + (n === 1 ? ' item' : ' itens') + '*', ''];
+    for (var i = 0; i < n; i++) {
       var it = d.itens[i];
-      linhas.push(corta(it.n));
-      linhas.push(lin('  ' + fmtGramas(it.g), brl(it.total)));
+      linhas.push('▪️ ' + String(it.n).trim() + ' · ' + fmtGramas(it.g) + ' · *' + brl(it.total) + '*');
     }
     var sub = subtotal(d.itens);
-    linhas.push(new Array(LARGURA + 1).join('-'));
-    linhas.push(lin('Subtotal', brl(sub)));
-    if (d.modo === 'retirada') linhas.push(lin('Retirada', 'na loja'));
-    else if (d.taxa > 0) { linhas.push(lin('Entrega', brl(d.taxa))); linhas.push(lin('Total', brl(sub + d.taxa))); }
-    else linhas.push(lin('Entrega', 'a combinar'));
+    linhas.push('');
+    linhas.push('Subtotal: ' + brl(sub));
+    if (d.modo === 'retirada') { linhas.push('🏪 Retirada na loja'); linhas.push('💰 *Total: ' + brl(sub) + '*'); }
+    else if (d.taxa > 0) { linhas.push('🛵 Entrega: ' + brl(d.taxa)); linhas.push('💰 *Total: ' + brl(sub + d.taxa) + '*'); }
+    else { linhas.push('🛵 Entrega: a combinar'); linhas.push('💰 *Total: ' + brl(sub) + ' + entrega*'); }
 
-    var partes = [abertura, '', '```', linhas.join('\n'), '```', ''];
-    partes.push('*Nome:* ' + String(d.nome || '').trim());
-    if (String(d.telefone || '').trim()) partes.push('*WhatsApp:* ' + String(d.telefone).trim());
-    if (d.modo === 'retirada') partes.push('*Retirada:* na loja');
-    else partes.push('*Endereço:* ' + String(d.endereco || '').trim());
-    if (PAGAMENTOS[d.pagamento]) partes.push('*Pagamento:* ' + PAGAMENTOS[d.pagamento] + (d.pagamento === 'dinheiro' && String(d.troco || '').trim() ? ' (troco para ' + String(d.troco).trim() + ')' : ''));
-    if (String(d.obs || '').trim()) partes.push('*Observações:* ' + String(d.obs).trim());
+    var partes = [abertura, '', linhas.join('\n'), ''];
+    partes.push('👤 *' + String(d.nome || '').trim() + '*');
+    if (String(d.telefone || '').trim()) partes.push('📱 ' + fmtTelefone(d.telefone));
+    if (d.modo !== 'retirada') partes.push('📍 ' + String(d.endereco || '').trim());
+    if (PAGAMENTOS[d.pagamento]) partes.push('💳 ' + PAGAMENTOS[d.pagamento] + (d.pagamento === 'dinheiro' && String(d.troco || '').trim() ? ' (troco para ' + String(d.troco).trim() + ')' : ''));
+    if (String(d.obs || '').trim()) partes.push('📝 ' + String(d.obs).trim());
     var o = normalizarOrigem(d.origem);
-    if (o) partes.push('*Cheguei pelo:* ' + ROTULO_ORIGEM[o]);
+    if (o) partes.push('📲 Cheguei pelo ' + ROTULO_ORIGEM[o]);
     if (String(d.fechamento || '').trim()) {
       partes.push('');
       partes.push(String(d.fechamento).trim());
@@ -191,6 +188,7 @@
   var lib = {
     brl: brl,
     fmtGramas: fmtGramas,
+    fmtTelefone: fmtTelefone,
     precoItem: precoItem,
     parseGramas: parseGramas,
     subtotal: subtotal,
