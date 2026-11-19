@@ -315,7 +315,7 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
     const pesoMix = Math.max(v.minGramas, 50);
     for (const m of MODELOS_IDEIA) {
       if ((m.tipo !== 'mix' && m.tipo !== 'receita') || !m.precisa || m.precisa.length < 2) continue;
-      const ids = m.precisa.map((k) => nomes.find((x) => k.split('|').some((a) => x.n.includes(a)))?.id);
+      const ids = m.precisa.map((k) => nomes.find((x) => k.split('|').some((a) => x.n.startsWith(a)))?.id);
       if (ids.some((x) => !x)) continue;
       const unicos = [...new Set(ids as string[])];
       if (unicos.length < 2) continue;

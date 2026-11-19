@@ -157,7 +157,7 @@ describe('página do cliente: lib.js', () => {
     expect(L.precoItem(150, 5250)).toBe(788); // 787,5 sobe, igual ao sistema
   });
 
-  it('monta a mensagem com a nota em bloco de código', () => {
+  it('monta a mensagem do pedido com um item por linha', () => {
     const txt = L.montarMensagem({
       loja: 'Temperei',
       abertura: 'Olá, {loja}! Pedido:',
@@ -172,22 +172,23 @@ describe('página do cliente: lib.js', () => {
       origem: 'instagram',
     });
     expect(txt.startsWith('Olá, Temperei! Pedido:')).toBe(true);
-    expect(txt).toContain('```\nAçafrão em Pó Puro');
-    expect(txt).toContain('Subtotal');
-    expect(txt).toContain('R$ 24,15');
-    expect(txt).toContain('a combinar');
-    expect(txt).toContain('*Nome:* Samara');
-    expect(txt).toContain('*Endereço:* Quadra M2, casa 07');
-    expect(txt).toContain('*Cheguei pelo:* Instagram');
-    expect(txt).not.toContain('Observações');
+    expect(txt).toContain('🛒 *Pedido · 2 itens*');
+    expect(txt).toContain('▪️ Açafrão em Pó Puro · 100 g · *R$ 5,25*');
+    expect(txt).toContain('Subtotal: R$ 24,15');
+    expect(txt).toContain('Entrega: a combinar');
+    expect(txt).toContain('*Total: R$ 24,15 + entrega*');
+    expect(txt).toContain('👤 *Samara*');
+    expect(txt).toContain('📍 Quadra M2, casa 07');
+    expect(txt).toContain('Cheguei pelo Instagram');
+    expect(txt).not.toContain('📝');
+    expect(txt).not.toContain('```');
     expect(txt.trim().endsWith('Obrigado!')).toBe(true);
-    for (const l of txt.split('```')[1].split('\n')) expect(l.length).toBeLessThanOrEqual(30);
   });
 
   it('origem desconhecida é ignorada e o link do WhatsApp é seguro', () => {
     const txt = L.montarMensagem({ loja: 'X', abertura: 'a', fechamento: '', itens: [{ n: 'A', g: 100, total: 100 }], nome: 'N', endereco: 'E', obs: 'sem sal', origem: '<script>' });
     expect(txt).not.toContain('Cheguei');
-    expect(txt).toContain('*Observações:* sem sal');
+    expect(txt).toContain('📝 sem sal');
     const url = L.urlWhatsapp('+55 (86) 99999-1234', 'olá & tudo\nbem');
     expect(url).toBe('https://wa.me/5586999991234?text=ol%C3%A1%20%26%20tudo%0Abem');
   });
