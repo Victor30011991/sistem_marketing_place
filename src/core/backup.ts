@@ -1,6 +1,7 @@
 import type { FixedCost, InstallmentFee, ListaCompras, ListState, Lote, LoteItem, Product, Settings, StoreInfo, VariableCost, Venda, VendaItem, VendaPausada } from '../types';
 import { defaultSettings, defaultStore } from './defaults';
 import { etiquetasDe, nutricaoDe } from './etiquetas';
+import { estilosDe, fontesDe } from './estilosArte';
 import { cfgOrcamento, orcamentosDe } from './orcamentos';
 import { clientesDe } from './clientes';
 import { caixasDe } from './caixa';
@@ -246,6 +247,18 @@ function lerConfig(raw: unknown): Settings {
     const y = lerPausada(x);
     return y ? [y] : [];
   });
+  if (isObj(raw.postaAi)) {
+    const pa = raw.postaAi;
+    const estilos = estilosDe(pa.estilos);
+    const postados = isObj(pa.postados) ? Object.fromEntries(Object.entries(pa.postados).filter(([, v]) => typeof v === 'string')) as Record<string, string> : undefined;
+    cfg.postaAi = {
+      ...(estilos?.length ? { estilos } : {}),
+      ...(postados && Object.keys(postados).length ? { postados } : {}),
+      ...(typeof pa.cidade === 'string' && pa.cidade.trim() ? { cidade: pa.cidade.slice(0, 60) } : {}),
+    };
+  }
+  const fontes = fontesDe(raw.fontes);
+  if (fontes?.length) cfg.fontes = fontes;
   const compras = lerCompras(raw.compras);
   if (compras) cfg.compras = compras;
   // forma de pagamento que não existe mais (ex.: parcela removida) volta para o crédito à vista

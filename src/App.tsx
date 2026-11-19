@@ -19,6 +19,7 @@ const Relatorios = lazy(() => import('./pages/Relatorios'));
 const Clientes = lazy(() => import('./pages/Clientes'));
 const Pedidos = lazy(() => import('./pages/Pedidos'));
 const Contas = lazy(() => import('./pages/Contas'));
+const PostaAi = lazy(() => import('./pages/PostaAi'));
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="clientes" element={<Clientes />} />
         <Route path="pedidos" element={<Pedidos />} />
         <Route path="contas" element={<Contas />} />
+        <Route path="posta-ai" element={<PostaAi />} />
         <Route path="categorias" element={<Categorias />} />
         <Route path="precificacao" element={<Precificacao />} />
         <Route path="orcamento" element={<Orcamento />} />
