@@ -48,7 +48,7 @@ export const TIPOS_IDEIA: Record<TipoIdeia, string> = {
 };
 export const FORMATOS_IDEIA: Record<FormatoIdeia, string> = { post: 'Post', carrossel: 'Carrossel', story: 'Story', reel: 'Reel' };
 
-interface Modelo {
+export interface Modelo {
   id: string;
   tipo: TipoIdeia;
   formato: FormatoIdeia;

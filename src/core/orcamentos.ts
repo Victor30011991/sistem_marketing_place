@@ -192,6 +192,14 @@ export function chavePix(tipo: ConfigOrcamento['pixTipo'], chave: string): strin
   }
 }
 
+/** Chave, nome e cidade prontos para o cardápio montar o Pix com o valor do pedido. */
+export function dadosPix(cfg: ConfigOrcamento): { chave: string; nome: string; cidade: string } | null {
+  const chave = chavePix(cfg.pixTipo, cfg.pixChave);
+  const nome = ascii(cfg.pixNome).slice(0, 25);
+  const cidade = ascii(cfg.pixCidade).slice(0, 15);
+  return chave && nome && cidade ? { chave, nome, cidade } : null;
+}
+
 /** Pix copia e cola com valor. null = chave, nome ou cidade faltando/inválidos. */
 export function pixCopiaECola(cfg: ConfigOrcamento, valorCentavos: number, txid: string): string | null {
   const chave = chavePix(cfg.pixTipo, cfg.pixChave);
