@@ -207,7 +207,7 @@ img { display: block; }
 .barra-bt { pointer-events: auto; display: flex; align-items: center; gap: 10px; width: 100%; max-width: 536px; margin: 0 auto; min-height: 56px; padding: 0 18px; border: none; border-radius: 18px; background: var(--ink); color: var(--f); font-weight: 700; font-size: 1rem; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
 .barra-bt .qtd { min-width: 26px; height: 26px; padding: 0 7px; border-radius: 999px; background: var(--p); color: var(--on-p); display: grid; place-items: center; font-size: .82rem; }
 .grow { flex: 1; text-align: left; }
-.aviso-flutuante { position: fixed; left: 50%; bottom: 92px; transform: translate(-50%, 20px); opacity: 0; z-index: 20; padding: 10px 16px; border-radius: 12px; background: var(--ink); color: #fff; font-size: .88rem; font-weight: 600; transition: opacity .2s, transform .2s; pointer-events: none; max-width: calc(100% - 32px); text-align: center; }
+.aviso-flutuante { position: fixed; left: 50%; bottom: 120px; transform: translate(-50%, 20px); opacity: 0; z-index: 20; padding: 10px 16px; border-radius: 12px; background: var(--ink); color: #fff; font-size: .88rem; font-weight: 600; transition: opacity .2s, transform .2s; pointer-events: none; max-width: calc(100% - 32px); text-align: center; }
 .aviso-flutuante.on { opacity: 1; transform: translate(-50%, 0); }
 @media (prefers-reduced-motion: reduce) { .aviso-flutuante { transition: none; } html { scroll-behavior: auto; } }
 
@@ -247,3 +247,45 @@ img { display: block; }
 @keyframes entraEsq { from { transform: translateX(40px); opacity: 0; } }
 @keyframes entraDir { from { transform: translateX(-40px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .entra-esq, .entra-dir { animation: none; } }
+
+/* ---------- jeito de app: banner, categorias redondas, cartões com + e barra de navegação ---------- */
+.secao-cab { font: 700 1.3rem/1.2 var(--serif); }
+.banner { padding: 16px 0 4px; }
+.banner-trilho { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; gap: 0; }
+.banner-trilho::-webkit-scrollbar { display: none; }
+.banner-slide { flex: 0 0 100%; scroll-snap-align: start; padding: 0 16px; }
+.banner-slide { position: relative; }
+.banner-slide > * { position: relative; }
+.banner-slide::before { content: ''; position: absolute; inset: 0 16px; border-radius: 24px; background: radial-gradient(80% 110% at 88% 50%, color-mix(in srgb, var(--tom) 75%, #fff) 0%, transparent 60%), linear-gradient(100deg, color-mix(in srgb, var(--tom) 62%, #1a0f0a) 0%, color-mix(in srgb, var(--tom) 88%, #1a0f0a) 55%, var(--tom) 100%); box-shadow: 0 10px 24px color-mix(in srgb, var(--tom) 35%, transparent); }
+.banner-slide { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: center; min-height: 176px; }
+.banner-tx { padding: 18px 0 18px 20px; color: #fff; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.banner-tx em { font-style: normal; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; background: rgba(0, 0, 0, .22); padding: 3px 9px; border-radius: 999px; }
+.banner-tx strong { font: 800 1.45rem/1.08 var(--serif); text-shadow: 0 1px 6px rgba(0, 0, 0, .25); }
+.banner-tx span { font-size: .85rem; opacity: .95; }
+.banner-bt { margin-top: 8px; display: inline-flex; align-items: center; gap: 4px; min-height: 38px; padding: 0 16px; border: none; border-radius: 999px; background: #fff; color: var(--ink); font: 800 .85rem var(--sans); text-decoration: none; }
+.banner-img { width: 150px; height: 150px; object-fit: cover; border-radius: 50%; margin-left: -18px; filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .3)); }
+.banner-pontos { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
+.banner-pontos i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: width .2s; }
+.banner-pontos i.on { width: 20px; border-radius: 4px; background: var(--p); }
+.roda { display: flex; gap: 14px; overflow-x: auto; padding: 4px 16px 6px; scrollbar-width: none; }
+.roda::-webkit-scrollbar { display: none; }
+.roda-it { flex: none; width: 76px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; text-align: center; }
+.roda-it img { width: 72px; height: 72px; border-radius: 50%; background: var(--card); box-shadow: 0 4px 12px rgba(43, 29, 23, .12); }
+.roda-it span { font-size: .78rem; font-weight: 700; line-height: 1.2; }
+.cartao { flex: none; width: 152px; scroll-snap-align: start; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--card); display: flex; flex-direction: column; box-shadow: 0 2px 8px rgba(43, 29, 23, .05); }
+.cartao-link { text-decoration: none; display: flex; flex-direction: column; }
+.cartao-foto { position: relative; height: 120px; background: var(--f); }
+.cartao-foto .img { width: 100%; height: 100%; object-fit: cover; }
+.cartao-nome { padding: 8px 10px 0; font-size: .88rem; line-height: 1.25; min-height: 2.5em; }
+.cartao-pe { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; padding: 4px 8px 10px 10px; margin-top: auto; }
+.cartao-pe .preco small { width: auto; }
+.mais.mini { width: 34px; height: 34px; flex: none; }
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding: 0 10px calc(8px + env(safe-area-inset-bottom, 0px)); pointer-events: none; }
+.nav-in { pointer-events: auto; max-width: 540px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1.1fr 1fr 1fr; align-items: end; background: var(--card); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 10px 30px rgba(43, 29, 23, .18); padding: 6px 4px 8px; }
+.nav-it { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 52px; justify-content: center; border: none; background: none; color: var(--muted); font: 600 .7rem var(--sans); text-decoration: none; }
+.nav-it.on { color: var(--p); }
+.nav-meio { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: -26px; }
+.nav-meio small { font-size: .7rem; font-weight: 800; color: var(--ink); }
+.nav-carrinho { position: relative; width: 60px; height: 60px; border-radius: 50%; border: 4px solid var(--bg); background: var(--p); color: var(--on-p); display: grid; place-items: center; box-shadow: 0 8px 18px color-mix(in srgb, var(--p) 45%, transparent); }
+.nav-qtd { position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--ink); color: #fff; font-size: .72rem; display: grid; place-items: center; border: 2px solid var(--bg); }
+.cat-corpo { padding-bottom: 130px; }
