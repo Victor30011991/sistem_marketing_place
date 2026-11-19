@@ -53,10 +53,10 @@ export default function Home() {
     <div className="page home">
       <section className="hero">
         <div className="hero-text">
-          <span className="eyebrow">Sistema de precificação</span>
-          <h1>Sua lista de preços, do custo ao PDF.</h1>
+          <span className="eyebrow">Sistema da loja</span>
+          <h1>Do custo ao balcão, tudo num lugar.</h1>
           <p>
-            Cadastre produtos, calcule o preço certo com margem, custos e taxas, e gere uma lista pronta para imprimir ou mandar no WhatsApp. Tudo funciona aqui no navegador, sem cadastro e sem mensalidade.
+            Preços com margem certa, estoque, vendas no PDV, pedidos do cardápio, orçamentos e relatórios. Funciona no computador e no celular, com os dados na nuvem para vocês dois.
           </p>
         </div>
         <div className="hero-logo">
@@ -77,29 +77,29 @@ export default function Home() {
         <div>
           <h2>Como seus dados são guardados</h2>
           <p className="muted">
-            O seu arquivo Excel é a base de dados. <strong>Nada fica guardado no navegador</strong>: se você fechar ou atualizar a página sem salvar, as alterações se perdem (o sistema avisa antes). Use também o <strong>Backup (.txt)</strong> para guardar uma cópia de tudo.
+            Com <strong>Entrar na nuvem</strong> (no menu), tudo fica salvo sozinho e aparece nos aparelhos dos dois. Sem a nuvem, o arquivo Excel é a base: salve antes de fechar (o sistema avisa). O <strong>Backup (.txt)</strong> guarda uma cópia de tudo, por segurança.
           </p>
         </div>
         <ol className="steps">
           <li>
             <span>1</span>
             <div>
-              <strong>Monte a lista</strong>
-              <small>Cadastre, importe e ajuste os preços.</small>
+              <strong>Entre na nuvem</strong>
+              <small>Com o e-mail da loja: salva sozinho, nos dois aparelhos.</small>
             </div>
           </li>
           <li>
             <span>2</span>
             <div>
-              <strong>Salve em Excel</strong>
-              <small>Guarde o arquivo onde quiser: computador, e-mail, nuvem.</small>
+              <strong>Use no dia a dia</strong>
+              <small>Venda no PDV, separe os pedidos, mande orçamentos.</small>
             </div>
           </li>
           <li>
             <span>3</span>
             <div>
-              <strong>Volte quando quiser</strong>
-              <small>Escolha “Abrir meu arquivo salvo” e siga em frente.</small>
+              <strong>Guarde uma cópia</strong>
+              <small>De vez em quando, baixe o Backup (.txt) ou o Excel.</small>
             </div>
           </li>
         </ol>

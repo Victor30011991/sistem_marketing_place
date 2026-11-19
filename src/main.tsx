@@ -25,3 +25,10 @@ createRoot(document.getElementById('root')!).render(
     </HashRouter>
   </StrictMode>,
 );
+
+// vira aplicativo instalável e abre sem internet (só no site publicado)
+if (import.meta.env.PROD && 'serviceWorker' in navigator && !import.meta.env.VITE_NUVEM_FALSA) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => undefined);
+  });
+}

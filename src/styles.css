@@ -856,3 +856,25 @@ ol.pdv-pag li strong { float: right; }
 .hist time { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) { .hist li { grid-template-columns: minmax(0, 1fr) auto; } .hist time { grid-column: 1 / -1; } }
 .conta-card.vencida { border-color: color-mix(in srgb, var(--danger) 50%, var(--line)); }
+
+/* ------------------------------------------------------------ menu em grupos + barra de baixo (celular) */
+.nav-grupo { display: flex; flex-direction: column; gap: 2px; }
+.nav-grupo + .nav-grupo { margin-top: 10px; }
+.nav-titulo { padding: 4px 14px 2px; font-size: 0.74rem; font-weight: 700; opacity: 0.6; letter-spacing: 0.04em; }
+.barra-baixo, .menu-fundo { display: none; }
+@media (max-width: 860px) {
+  .shell { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .nav { display: none; }
+  .nav.aberto { display: flex; position: fixed; left: 0; right: 0; bottom: calc(64px + env(safe-area-inset-bottom)); max-height: 72vh; overflow-y: auto; flex-direction: column; gap: 0; padding: 14px 12px 18px; background: var(--primary-dark); color: var(--on-dark); border-radius: 18px 18px 0 0; box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25); z-index: 41; order: initial; }
+  .nav.aberto .nav-grupo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 6px; }
+  .nav.aberto .nav-titulo { grid-column: 1 / -1; padding-top: 8px; }
+  .nav.aberto .nav-item { white-space: normal; min-height: 44px; padding: 0 10px; }
+  .menu-fundo { display: block; position: fixed; inset: 0; background: rgba(20, 10, 6, 0.4); z-index: 39; }
+  .barra-baixo { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 42; background: var(--primary-dark); color: var(--on-dark); padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.2); }
+  .barra-item { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 56px; border: 0; background: none; color: inherit; font: inherit; font-size: 0.72rem; font-weight: 600; text-decoration: none; opacity: 0.8; border-radius: 12px; cursor: pointer; }
+  .barra-item.active { opacity: 1; background: rgba(255, 255, 255, 0.14); }
+  .barra-item:focus-visible { outline: 2px solid var(--paper); outline-offset: -2px; }
+  .barra-item .nav-count { position: absolute; top: 4px; right: calc(50% - 22px); margin: 0; padding: 0 6px; font-size: 0.68rem; }
+  .toasts { bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
+@media print { .barra-baixo, .menu-fundo { display: none !important; } }
