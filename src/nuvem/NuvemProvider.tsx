@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useApp } from '../state/store';
 import { montarCardapio } from '../core/vitrine';
+import { cfgOrcamento, dadosPix } from '../core/orcamentos';
 import { registrosDe } from '../core/historico';
 import { criarBackup } from '../core/backup';
 import { compactar } from '../core/compactar';
@@ -249,7 +250,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (fase !== 'conectado') return;
     const t = setTimeout(() => {
-      const { arquivo } = montarCardapio(state.lista, state.loja, state.loja.logo, new Date(), { vendas: state.config.vendas, lotes: state.config.lotes });
+      const { arquivo } = montarCardapio(state.lista, state.loja, state.loja.logo, new Date(), { vendas: state.config.vendas, lotes: state.config.lotes, pix: dadosPix(cfgOrcamento(state.config.orcamentoCfg)) });
       const chave = JSON.stringify({ ...arquivo, gerado: '' });
       if (chave === ultimoCardapio.current) return;
       ultimoCardapio.current = chave;
@@ -259,7 +260,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
       });
     }, 2500);
     return () => clearTimeout(t);
-  }, [state.lista, state.loja, state.config.vendas, state.config.lotes, fase, falhar]);
+  }, [state.lista, state.loja, state.config.vendas, state.config.lotes, state.config.orcamentoCfg, fase, falhar]);
 
   const entrar = useCallback(() => {
     setErro('');

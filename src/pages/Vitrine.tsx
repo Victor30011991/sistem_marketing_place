@@ -5,6 +5,11 @@ import { Button, Field, Notice, PageHeader, downloadBlob } from '../ui/ui';
 import {
   ORIGENS,
   VITRINE_PADRAO,
+  DIAS,
+  ENTREGA_PADRAO,
+  HORARIOS_PADRAO,
+  PAGAMENTOS_PADRAO,
+  PESOS_PADRAO,
   linkCardapio,
   montarCardapio,
   normalizarFacebook,
@@ -14,11 +19,11 @@ import {
   type MotivoFora,
   type Origem,
 } from '../core/vitrine';
-import type { BotaoCartao, Product, TipoBotao, Vitrine as VitrineCfg } from '../types';
+import type { BotaoCartao, HorarioDia, Product, TipoBotao, Vitrine as VitrineCfg } from '../types';
 import { botoesPadrao, linkBotao, novoBotao, TIPOS_BOTAO } from '../core/vitrine';
 import { Icon } from '../ui/icons';
 import { useNuvem } from '../nuvem/NuvemProvider';
-import { contatosLoja } from '../core/orcamentos';
+import { cfgOrcamento, contatosLoja, dadosPix } from '../core/orcamentos';
 import { logoSrc } from '../ui/logo';
 
 const MOTIVO: Record<MotivoFora, string> = {
@@ -35,6 +40,10 @@ export default function Vitrine() {
   const { lista, loja } = state;
   const v = vitrineDe(loja);
   const set = (patch: Partial<VitrineCfg>) => act.loja({ vitrine: { ...v, ...patch } });
+  const entrega = v.entrega ?? ENTREGA_PADRAO;
+  const pagamentos = v.pagamentos ?? PAGAMENTOS_PADRAO;
+  const pesos = v.pesos ?? PESOS_PADRAO;
+  const temPix = !!dadosPix(cfgOrcamento(state.config.orcamentoCfg));
   const [gerandoLista, setGerandoLista] = useState(false);
   async function baixarLista() {
     setGerandoLista(true);
@@ -68,7 +77,7 @@ export default function Vitrine() {
   const [tipoNovo, setTipoNovo] = useState<TipoBotao>('maps');
 
   const naNuvem = useNuvem().fase === 'conectado';
-  const resultado = useMemo(() => montarCardapio(lista, loja, loja.logo, new Date(), { vendas: state.config.vendas, lotes: state.config.lotes }), [lista, loja, state.config.vendas, state.config.lotes]);
+  const resultado = useMemo(() => montarCardapio(lista, loja, loja.logo, new Date(), { vendas: state.config.vendas, lotes: state.config.lotes, pix: dadosPix(cfgOrcamento(state.config.orcamentoCfg)) }), [lista, loja, state.config.vendas, state.config.lotes, state.config.orcamentoCfg]);
 
   // ---------- prévia: a própria página do cliente, dentro de um quadro ----------
   const frame = useRef<HTMLIFrameElement>(null);
@@ -251,8 +260,119 @@ export default function Vitrine() {
               </Button>
             </div>
             <p className="muted small">
-              A lista do pedido vai em bloco de código (letra de máquina), com produto, gramas e valor. O endereço é pedido ao cliente e a taxa de entrega aparece como “a combinar”.
+              A lista do pedido vai em bloco de código (letra de máquina), com produto, gramas e valor, junto do jeito de receber e de pagar que o cliente escolheu.
             </p>
+          </section>
+
+          <section className="card">
+            <h2>Entrega, pagamento e horário</h2>
+            <fieldset className="vt-grupo">
+              <legend>Como o cliente recebe</legend>
+              <label className="check">
+                <input type="checkbox" checked={entrega.retirada} onChange={(e) => set({ entrega: { ...entrega, retirada: e.target.checked } })} /> Retirada na loja
+              </label>
+              <label className="check">
+                <input type="checkbox" checked={entrega.ativa} onChange={(e) => set({ entrega: { ...entrega, ativa: e.target.checked } })} /> Entrega
+              </label>
+              {entrega.ativa && (
+                <div className="vt-linha">
+                  <label className="check">
+                    <input type="radio" name="vt-taxa" checked={entrega.taxa === 'combinar'} onChange={() => set({ entrega: { ...entrega, taxa: 'combinar' } })} /> Taxa a combinar pelo WhatsApp
+                  </label>
+                  <label className="check">
+                    <input type="radio" name="vt-taxa" checked={entrega.taxa === 'fixa'} onChange={() => set({ entrega: { ...entrega, taxa: 'fixa' } })} /> Taxa fixa
+                  </label>
+                  {entrega.taxa === 'fixa' && (
+                    <Field label="Valor da taxa">
+                      {(id) => (
+                        <input
+                          id={id}
+                          inputMode="decimal"
+                          defaultValue={entrega.valor ? (entrega.valor / 100).toFixed(2).replace('.', ',') : ''}
+                          placeholder="Ex.: 5,00"
+                          onBlur={(e) => {
+                            const n = Math.round(Number(e.target.value.replace(/\./g, '').replace(',', '.')) * 100);
+                            set({ entrega: { ...entrega, valor: Number.isFinite(n) && n > 0 ? n : 0 } });
+                          }}
+                        />
+                      )}
+                    </Field>
+                  )}
+                </div>
+              )}
+              {!entrega.ativa && !entrega.retirada && <Notice tone="warn">Marque pelo menos uma opção. Sem nenhuma, o cardápio mostra entrega.</Notice>}
+            </fieldset>
+
+            <fieldset className="vt-grupo">
+              <legend>Formas de pagamento que aparecem</legend>
+              {(
+                [
+                  ['pix', 'Pix'],
+                  ['cartao', 'Cartão (na entrega ou na retirada)'],
+                  ['dinheiro', 'Dinheiro (com campo de troco)'],
+                ] as const
+              ).map(([k, r]) => (
+                <label key={k} className="check">
+                  <input type="checkbox" checked={pagamentos[k]} onChange={(e) => set({ pagamentos: { ...pagamentos, [k]: e.target.checked } })} /> {r}
+                </label>
+              ))}
+              {pagamentos.pix && (
+                <p className="muted small">
+                  {temPix ? 'O cliente recebe o Pix copia e cola com o valor do pedido. ' : 'Para o cliente receber o Pix copia e cola, preencha a chave Pix em Orçamentos → Pix. '}
+                  Sem chave, o pedido avisa que vocês mandam a chave pelo WhatsApp.
+                </p>
+              )}
+            </fieldset>
+
+            <fieldset className="vt-grupo">
+              <legend>Horário de funcionamento</legend>
+              <label className="check">
+                <input type="checkbox" checked={!!v.horarios} onChange={(e) => set({ horarios: e.target.checked ? HORARIOS_PADRAO : undefined })} /> Mostrar “Aberto agora” / “Fechado” no cardápio
+              </label>
+              {v.horarios && (
+                <div className="vt-horarios">
+                  {v.horarios.map((d, i) => {
+                    const mudar = (patch: Partial<HorarioDia>) => set({ horarios: v.horarios!.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+                    return (
+                      <div key={DIAS[i]} className="vt-dia">
+                        <label className="check">
+                          <input type="checkbox" checked={d.aberto} onChange={(e) => mudar({ aberto: e.target.checked })} /> {DIAS[i]}
+                        </label>
+                        {d.aberto ? (
+                          <span className="vt-horas">
+                            <input type="time" aria-label={`${DIAS[i]}: abre`} value={d.abre} onChange={(e) => e.target.value && mudar({ abre: e.target.value })} />
+                            <span>às</span>
+                            <input type="time" aria-label={`${DIAS[i]}: fecha`} value={d.fecha} onChange={(e) => e.target.value && mudar({ fecha: e.target.value })} />
+                          </span>
+                        ) : (
+                          <span className="muted small">Fechado</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </fieldset>
+
+            <fieldset className="vt-grupo">
+              <legend>Botões de quantidade nos produtos</legend>
+              <div className="vt-linha">
+                {[50, 100, 250, 500, 1000].map((g) => (
+                  <label key={g} className="check">
+                    <input
+                      type="checkbox"
+                      checked={pesos.includes(g)}
+                      onChange={(e) => {
+                        const n = e.target.checked ? [...pesos, g] : pesos.filter((x) => x !== g);
+                        if (n.length) set({ pesos: n.sort((a, b) => a - b) });
+                      }}
+                    />{' '}
+                    {g >= 1000 ? `${g / 1000} kg` : `${g} g`}
+                  </label>
+                ))}
+              </div>
+              <p className="muted small">O cliente também pode digitar outra quantidade na página do produto.</p>
+            </fieldset>
           </section>
 
           <section className="card">
@@ -314,6 +434,10 @@ export default function Vitrine() {
             <label className="check">
               <input type="checkbox" checked={v.destaques !== false} onChange={(e) => set({ destaques: e.target.checked })} /> Mostrar no topo do cardápio: <strong>Ofertas</strong>, <strong>Mais vendidos</strong> (30 dias) e <strong>Chegou agora</strong> (lotes dos últimos 15 dias)
             </label>
+            <label className="check">
+              <input type="checkbox" checked={v.mixes !== false} onChange={(e) => set({ mixes: e.target.checked })} /> Mostrar <strong>Mixes prontos</strong> (receitas em que a loja tem todos os temperos, com o botão “Levar o mix”)
+            </label>
+            {resultado.arquivo.mixes?.length ? <p className="muted small">Mixes agora: {resultado.arquivo.mixes.map((m) => m.n).join(', ')}.</p> : null}
             <p className="muted small">Fotos e promoções se colocam em cada produto (Produtos → editar → Cardápio e promoção).</p>
             {resultado.semFoto > 0 && <Notice tone="warn">{resultado.semFoto} foto(s) ficaram de fora do cardápio para ele continuar leve. Tire fotos de produtos que vendem menos.</Notice>}
             <div className="row-gap wrap">

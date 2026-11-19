@@ -181,6 +181,34 @@ export interface Vitrine {
   destaques?: boolean;
   /** botões do cartão, na ordem em que aparecem (sem isto: Cardápio, Instagram, Facebook e WhatsApp) */
   botoes?: BotaoCartao[];
+  /** entrega e retirada (sem isto: entrega com taxa a combinar e retirada na loja) */
+  entrega?: EntregaCardapio;
+  /** formas de pagamento que aparecem para o cliente (sem isto: todas) */
+  pagamentos?: { pix: boolean; cartao: boolean; dinheiro: boolean };
+  /** horário de cada dia, domingo = 0 (sem isto: não mostra aberto/fechado) */
+  horarios?: HorarioDia[];
+  /** atalhos de peso nos produtos, em gramas (sem isto: 50, 100, 250 e 500) */
+  pesos?: number[];
+  /** mostra os mixes prontos no cardápio (padrão: sim) */
+  mixes?: boolean;
+}
+
+export interface EntregaCardapio {
+  /** faz entrega */
+  ativa: boolean;
+  /** taxa a combinar pelo WhatsApp ou fixa */
+  taxa: 'combinar' | 'fixa';
+  /** valor da taxa fixa, em centavos */
+  valor: number;
+  /** cliente pode retirar na loja */
+  retirada: boolean;
+}
+
+export interface HorarioDia {
+  aberto: boolean;
+  /** "08:00" */
+  abre: string;
+  fecha: string;
 }
 
 export type TipoBotao = 'cardapio' | 'whatsapp' | 'instagram' | 'facebook' | 'maps' | 'ifood' | 'site' | 'telefone';

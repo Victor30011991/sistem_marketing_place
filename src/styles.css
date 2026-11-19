@@ -1003,3 +1003,12 @@ input[type='color'] { width: 44px; min-width: 44px; height: 40px; padding: 2px; 
 .pa-sugs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .pa-sug { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); min-width: 0; }
 .pa-sug-texto { margin: 0; white-space: pre-wrap; font-size: 0.86rem; line-height: 1.45; flex: 1; overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------ página da loja: entrega e horário */
+.vt-grupo { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px 14px; margin: 0 0 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.vt-grupo legend { font-weight: 700; padding: 0 6px; }
+.vt-linha { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: end; }
+.vt-horarios { display: flex; flex-direction: column; gap: 6px; }
+.vt-dia { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; align-items: center; min-height: 44px; }
+.vt-horas { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vt-horas input { width: 140px; }

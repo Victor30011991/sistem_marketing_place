@@ -1,4 +1,6 @@
-import type { BotaoCartao, ListState, Product, StoreInfo, TipoBotao, Vitrine, Venda, Lote } from '../types';
+import type { BotaoCartao, EntregaCardapio, HorarioDia, ListState, Product, StoreInfo, TipoBotao, Vitrine, Venda, Lote } from '../types';
+import { norm } from './normalize';
+import { MODELOS_IDEIA } from './postaai';
 import { comPromo } from './promo';
 import { newId } from './normalize';
 import { counterBasis } from './units';
@@ -15,6 +17,32 @@ export const VITRINE_PADRAO: Vitrine = {
   ocultos: [],
   ocultarSemEstoque: true,
 };
+
+export const ENTREGA_PADRAO: EntregaCardapio = { ativa: true, taxa: 'combinar', valor: 0, retirada: true };
+export const PAGAMENTOS_PADRAO = { pix: true, cartao: true, dinheiro: true };
+export const PESOS_PADRAO = [50, 100, 250, 500];
+export const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+export const HORARIOS_PADRAO: HorarioDia[] = DIAS.map((_, i) => ({ aberto: i !== 0, abre: '08:00', fecha: i === 6 ? '13:00' : '18:00' }));
+
+const hora = (v: unknown, d: string) => (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : d);
+function entregaDe(v: unknown): EntregaCardapio | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const e = v as Record<string, unknown>;
+  const valor = typeof e.valor === 'number' && Number.isFinite(e.valor) && e.valor > 0 ? Math.min(Math.round(e.valor), 100000) : 0;
+  return { ativa: e.ativa !== false, taxa: e.taxa === 'fixa' ? 'fixa' : 'combinar', valor, retirada: e.retirada !== false };
+}
+function horariosDe(v: unknown): HorarioDia[] | undefined {
+  if (!Array.isArray(v) || v.length !== 7) return undefined;
+  return v.map((d, i) => {
+    const o = (d && typeof d === 'object' ? d : {}) as Record<string, unknown>;
+    return { aberto: o.aberto !== false, abre: hora(o.abre, HORARIOS_PADRAO[i].abre), fecha: hora(o.fecha, HORARIOS_PADRAO[i].fecha) };
+  });
+}
+function pesosDe(v: unknown): number[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const p = [...new Set(v.filter((x): x is number => typeof x === 'number' && Number.isFinite(x) && x > 0 && x <= 100000).map(Math.round))].sort((a, b) => a - b).slice(0, 6);
+  return p.length ? p : undefined;
+}
 
 const str = (v: unknown, d: string): string => (typeof v === 'string' ? v : d);
 
@@ -34,6 +62,13 @@ export function vitrineDe(loja: Pick<StoreInfo, 'vitrine'> | null | undefined): 
     ocultarSemEstoque: v.ocultarSemEstoque !== false,
     ...(v.destaques === false ? { destaques: false } : {}),
     ...(Array.isArray(v.botoes) ? { botoes: lerBotoes(v.botoes) } : {}),
+    ...(entregaDe(v.entrega) ? { entrega: entregaDe(v.entrega) } : {}),
+    ...(v.pagamentos && typeof v.pagamentos === 'object'
+      ? { pagamentos: { pix: (v.pagamentos as Record<string, unknown>).pix !== false, cartao: (v.pagamentos as Record<string, unknown>).cartao !== false, dinheiro: (v.pagamentos as Record<string, unknown>).dinheiro !== false } }
+      : {}),
+    ...(horariosDe(v.horarios) ? { horarios: horariosDe(v.horarios) } : {}),
+    ...(pesosDe(v.pesos) ? { pesos: pesosDe(v.pesos) } : {}),
+    ...(v.mixes === false ? { mixes: false } : {}),
   };
 }
 
@@ -103,12 +138,35 @@ export interface ItemCardapio {
   s?: string;
   /** foto pequena (data URL) */
   f?: string;
+  /** modo de usar / combina com */
+  u?: string;
+  /** ingredientes */
+  ig?: string;
+  /** glúten: c = contém, n = não contém */
+  gl?: 'c' | 'n';
+  /** alérgicos */
+  al?: string;
+  /** está entre os mais vendidos */
+  mv?: 1;
+  /** quem levou também levou (ids) */
+  j?: string[];
+}
+
+export interface MixCardapio {
+  n: string;
+  d: string;
+  /** ids dos produtos */
+  i: string[];
+  /** gramas de cada um */
+  g: number;
 }
 
 /** Dados extras para os destaques do cardápio (opcionais). */
 export interface ExtrasCardapio {
   vendas?: Venda[];
   lotes?: Lote[];
+  /** dados do Pix (do orçamento) para o cliente pagar pelo cardápio */
+  pix?: { chave: string; nome: string; cidade: string } | null;
 }
 
 /** Fotos no cardápio público até este tamanho somado (o documento da nuvem aceita 1 MB). */
@@ -130,8 +188,17 @@ export interface CardapioArquivo {
     fechamento: string;
     /** botões do cartão, na ordem: t = tipo, r = texto, u = link */
     botoes: { t: TipoBotao; r: string; u: string }[];
+    entrega?: EntregaCardapio;
+    pag?: { pix: boolean; cartao: boolean; dinheiro: boolean };
+    /** domingo = 0: [abre, fecha] ou null quando fechado */
+    horarios?: ([string, string] | null)[];
+    pesos?: number[];
+    /** chave já formatada, nome e cidade (o cliente monta o copia e cola com o valor) */
+    pix?: { k: string; n: string; c: string };
+    endereco?: string;
   };
   categorias: { nome: string; itens: ItemCardapio[] }[];
+  mixes?: MixCardapio[];
 }
 
 export type MotivoFora = 'oculto' | 'sem-estoque' | 'sem-preco' | 'nao-peso';
@@ -189,6 +256,10 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
       const antes = precoPorQuilo(produto);
       if (antes && antes > pk) Object.assign(item, { pa: antes, s: produto.promo?.selo.trim() || 'Promoção' });
     }
+    if (p.modoUso?.trim()) item.u = p.modoUso.trim().slice(0, 300);
+    if (p.ingredientes?.trim()) item.ig = p.ingredientes.trim().slice(0, 300);
+    if (p.gluten) item.gl = p.gluten === 'contem' ? 'c' : 'n';
+    if (p.alergenicos?.trim()) item.al = p.alergenicos.trim().slice(0, 200);
     if (produto.foto) {
       if (fotos + produto.foto.length <= LIMITE_FOTOS) {
         item.f = produto.foto;
@@ -212,6 +283,7 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
     const vendido = new Map<string, number>();
     for (const vd of extras.vendas ?? []) if (!vd.cancelada && dia(vd.quando, -30)) for (const it of vd.itens) vendido.set(it.produtoId, (vendido.get(it.produtoId) ?? 0) + it.total);
     const mais = [...vendido.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => porId.get(id)).filter((x): x is ItemCardapio => !!x).slice(0, 6);
+    for (const m of mais) m.mv = 1;
     const chegou = new Set<string>();
     for (const l of extras.lotes ?? []) if (l.aplicadoEm && dia(l.aplicadoEm, -15)) for (const it of l.itens) if (it.produtoId) chegou.add(it.produtoId);
     const novos = [...chegou].map((id) => porId.get(id)).filter((x): x is ItemCardapio => !!x).slice(0, 8);
@@ -222,7 +294,38 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
     ].filter((c) => c.itens.length && !porCat.has(c.nome));
     categorias.unshift(...topo);
   }
+  // quem levou também levou: produtos que mais saíram juntos nos últimos 120 dias
+  const juntos = new Map<string, Map<string, number>>();
+  const limite = new Date(quando);
+  limite.setDate(limite.getDate() - 120);
+  for (const vd of extras.vendas ?? []) {
+    if (vd.cancelada || new Date(vd.quando) < limite) continue;
+    const ids = [...new Set(vd.itens.map((x) => x.produtoId).filter((id): id is string => !!id && porId.has(id)))];
+    for (const a of ids) for (const b of ids) if (a !== b) {
+      if (!juntos.has(a)) juntos.set(a, new Map());
+      juntos.get(a)!.set(b, (juntos.get(a)!.get(b) ?? 0) + 1);
+    }
+  }
+  for (const [id, m] of juntos) porId.get(id)!.j = [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([x]) => x);
+
+  // mixes prontos: receitas da biblioteca do Posta Aí em que a loja tem todos os temperos
+  const mixes: MixCardapio[] = [];
+  if (v.mixes !== false) {
+    const nomes = lista.produtos.filter((p) => porId.has(p.id)).map((p) => ({ id: p.id, n: norm(p.nome) }));
+    const pesoMix = Math.max(v.minGramas, 50);
+    for (const m of MODELOS_IDEIA) {
+      if ((m.tipo !== 'mix' && m.tipo !== 'receita') || !m.precisa || m.precisa.length < 2) continue;
+      const ids = m.precisa.map((k) => nomes.find((x) => k.split('|').some((a) => x.n.includes(a)))?.id);
+      if (ids.some((x) => !x)) continue;
+      const unicos = [...new Set(ids as string[])];
+      if (unicos.length < 2) continue;
+      mixes.push({ n: m.titulo, d: m.subtitulo, i: unicos, g: pesoMix });
+      if (mixes.length >= 4) break;
+    }
+  }
+
   const cores = loja.cores ?? LOGO_COLORS;
+  const hs = v.horarios;
   return {
     arquivo: {
       v: 1,
@@ -242,8 +345,15 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
           .filter((b) => b.ativo)
           .map((b) => ({ t: b.tipo, r: b.rotulo.trim() || TIPOS_BOTAO.find((x) => x.tipo === b.tipo)!.rotulo, u: linkBotao(b, v, loja) }))
           .filter((b) => b.u),
+        entrega: v.entrega ?? ENTREGA_PADRAO,
+        pag: v.pagamentos ?? PAGAMENTOS_PADRAO,
+        ...(hs ? { horarios: hs.map((d) => (d.aberto ? ([d.abre, d.fecha] as [string, string]) : null)) } : {}),
+        pesos: v.pesos ?? PESOS_PADRAO,
+        ...(extras.pix ? { pix: { k: extras.pix.chave, n: extras.pix.nome, c: extras.pix.cidade } } : {}),
+        ...(loja.endereco?.trim() ? { endereco: loja.endereco.trim().slice(0, 200) } : {}),
       },
       categorias,
+      ...(mixes.length ? { mixes } : {}),
     },
     fora,
     total: porId.size,
