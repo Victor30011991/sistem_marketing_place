@@ -181,7 +181,7 @@ export interface CardapioArquivo {
     nome: string;
     slogan: string;
     logo: string | null;
-    cores: { p: string; d: string; f: string };
+    cores: { p: string; d: string; f: string; k?: string };
     whatsapp: string;
     instagram: string;
     facebook: string;
@@ -336,7 +336,7 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
         nome: loja.nomeFantasia || 'Loja',
         slogan: v.slogan.trim() || loja.informacoes.trim(),
         logo,
-        cores: { p: cores.primaria, d: cores.destaque, f: cores.fundo },
+        cores: { p: cores.primaria, d: cores.destaque, f: cores.fundo, ...(v.entrada?.escuro ? { k: v.entrada.escuro } : {}) },
         whatsapp: normalizarWhatsapp(v.whatsapp) || normalizarWhatsapp(loja.telefone),
         instagram: normalizarInstagram(v.instagram),
         facebook: normalizarFacebook(v.facebook),
