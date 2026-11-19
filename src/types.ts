@@ -21,6 +21,67 @@ export interface Product {
   conteudoUnidade?: string | null;
   /** código do produto na balança (PLU), de 1 a 999999 */
   plu?: number | null;
+  /** texto de ingredientes para o rótulo */
+  ingredientes?: string;
+  /** informação nutricional por 100 g (opcional; só para o rótulo) */
+  nutricao?: InfoNutricional | null;
+}
+
+/** Valores por 100 g; a porção é calculada na hora de imprimir. */
+export interface InfoNutricional {
+  /** porção em gramas */
+  porcao: number;
+  kcal: number;
+  carboidratos: number;
+  acucares: number;
+  proteinas: number;
+  gorduras: number;
+  saturadas: number;
+  fibras: number;
+  /** miligramas */
+  sodio: number;
+}
+
+export type TipoPeca =
+  | 'logo'
+  | 'loja'
+  | 'nome'
+  | 'precoKg'
+  | 'preco100g'
+  | 'precoPacote'
+  | 'peso'
+  | 'codigo'
+  | 'validade'
+  | 'lote'
+  | 'ingredientes'
+  | 'nutricao'
+  | 'texto';
+
+/** Uma peça da etiqueta. Posição e tamanho em milímetros, a partir do canto de cima à esquerda. */
+export interface PecaEtiqueta {
+  id: string;
+  tipo: TipoPeca;
+  ativo: boolean;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** tamanho da letra em pontos */
+  fonte: number;
+  negrito: boolean;
+  alinhar: 'esq' | 'centro' | 'dir';
+  /** só para o texto livre */
+  texto?: string;
+}
+
+export interface ModeloEtiqueta {
+  id: string;
+  nome: string;
+  /** milímetros */
+  largura: number;
+  altura: number;
+  moldura: 'nenhuma' | 'simples' | 'dupla' | 'arredondada';
+  pecas: PecaEtiqueta[];
 }
 
 export interface ListState {
@@ -239,6 +300,8 @@ export interface ConfigBalanca {
 
 export interface Settings {
   balanca?: ConfigBalanca;
+  /** modelos de etiqueta da impressora térmica */
+  etiquetas?: ModeloEtiqueta[];
   /** vendas pausadas no PDV, para retomar depois */
   vendasPausadas?: VendaPausada[];
   /** vendas registradas no PDV (opcional) */

@@ -16,6 +16,7 @@ const NAV = [
   { to: '/lotes', label: 'Lotes de compra', icon: 'truck' },
   { to: '/compras', label: 'Lista de compras', icon: 'list' },
   { to: '/balanca', label: 'Balança', icon: 'scale' },
+  { to: '/etiquetas', label: 'Etiquetas', icon: 'label' },
   { to: '/categorias', label: 'Categorias', icon: 'tag' },
   { to: '/precificacao', label: 'Precificação', icon: 'calc' },
   { to: '/orcamento', label: 'Orçamento', icon: 'file' },

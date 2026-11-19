@@ -13,6 +13,7 @@ import Lotes from './pages/Lotes';
 import Pdv from './pages/Pdv';
 import Compras from './pages/Compras';
 import Balanca from './pages/Balanca';
+import Etiquetas from './pages/Etiquetas';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="vendas" element={<Pdv />} />
         <Route path="compras" element={<Compras />} />
         <Route path="balanca" element={<Balanca />} />
+        <Route path="etiquetas" element={<Etiquetas />} />
         <Route path="categorias" element={<Categorias />} />
         <Route path="precificacao" element={<Precificacao />} />
         <Route path="orcamento" element={<Orcamento />} />
