@@ -17,12 +17,19 @@ import {
   persistentMultipleTabManager,
   query,
   setDoc,
+  getDoc,
+  deleteDoc,
+  getDocs,
+  orderBy,
+  limit,
+  updateDoc,
   where,
   writeBatch,
   type DocumentData,
 } from 'firebase/firestore';
-import type { Lote, OrcamentoSalvo, Product, StoreInfo, Venda } from '../types';
-import { DEL, INC, LOJA_ID, emLotes, type Op, type Raiz } from './modelo';
+import type { Pedido, Product, Registro, StoreInfo, Venda } from '../types';
+import { pedidoDe } from '../core/clientes';
+import { COLECOES, DEL, INC, LOJA_ID, emLotes, type Colecao, type ItemColecao, type Op, type Raiz } from './modelo';
 
 const app = initializeApp({
   apiKey: 'AIzaSyBIe_OH9xytji9DKWT_5-Pd-p8PyNk0lUE',
@@ -63,10 +70,9 @@ export type Parte =
   | { parte: 'loja'; valor: StoreInfo | null }
   | { parte: 'produtos'; valor: Map<string, Product> }
   | { parte: 'dias'; valor: Map<string, Record<string, Venda>> }
-  | { parte: 'lotes'; valor: Map<string, Lote> }
-  | { parte: 'orcamentos'; valor: Map<string, OrcamentoSalvo> };
+  | { parte: Colecao; valor: Map<string, ItemColecao> };
 
-/** Ouve as seis partes da loja em tempo real. `servidor` diz se a resposta veio da internet (e não só da cópia do aparelho). */
+/** Ouve as partes da loja em tempo real. `servidor` diz se a resposta veio da internet (e não só da cópia do aparelho). */
 export function ouvir(inicioVendas: string, cb: (p: Parte, servidor: boolean) => void, erro: (e: Error) => void): () => void {
   const raiz = doc(db, 'lojas', LOJA_ID);
   const opt = { includeMetadataChanges: true };
@@ -81,8 +87,7 @@ export function ouvir(inicioVendas: string, cb: (p: Parte, servidor: boolean) =>
       (s) => cb({ parte: 'dias', valor: new Map(s.docs.filter((d) => d.data().v && Object.keys(d.data().v).length).map((d) => [d.id, d.data().v as Record<string, Venda>])) }, !s.metadata.fromCache),
       erro,
     ),
-    onSnapshot(collection(raiz, 'lotes'), opt, (s) => cb({ parte: 'lotes', valor: mapa(s.docs, (d, id) => ({ ...(d as Lote), id })) }, !s.metadata.fromCache), erro),
-    onSnapshot(collection(raiz, 'orcamentos'), opt, (s) => cb({ parte: 'orcamentos', valor: mapa(s.docs, (d, id) => ({ ...(d as OrcamentoSalvo), id })) }, !s.metadata.fromCache), erro),
+    ...COLECOES.map((c) => onSnapshot(collection(raiz, c), opt, (s) => cb({ parte: c, valor: mapa(s.docs, (d, id) => ({ ...d, id })) }, !s.metadata.fromCache), erro)),
   ];
   return () => subs.forEach((u) => u());
 }
@@ -116,6 +121,57 @@ export async function gravar(ops: Op[]): Promise<void> {
   }
   await Promise.all(envios);
 }
+
+/** Pedidos feitos no cardápio desde a data (ISO), ao vivo. */
+export function ouvirPedidos(desde: string, cb: (lista: Pedido[]) => void, erro: (e: Error) => void): () => void {
+  return onSnapshot(
+    query(collection(db, 'pedidos'), where('criado', '>=', desde)),
+    (s) => cb(s.docs.flatMap((d) => {
+      const p = pedidoDe(d.id, d.data());
+      return p ? [p] : [];
+    })),
+    erro,
+  );
+}
+
+export const mudarPedido = (id: string, patch: Partial<Pick<Pedido, 'situacao' | 'vendaPausada'>>) => updateDoc(doc(db, 'pedidos', id), patch);
+
+/** Grava o histórico de alterações (quem mudou o quê). */
+export async function registrar(regs: Registro[]): Promise<void> {
+  const b = writeBatch(db);
+  for (const r of regs.slice(0, 450)) b.set(doc(db, 'lojas', LOJA_ID, 'historico', r.id), r);
+  await b.commit();
+}
+
+/** Últimas alterações, da mais nova para a mais antiga. */
+export async function lerHistorico(max = 300): Promise<Registro[]> {
+  const s = await getDocs(query(collection(db, 'lojas', LOJA_ID, 'historico'), orderBy('quando', 'desc'), limit(max)));
+  return s.docs.map((d) => d.data() as Registro);
+}
+
+export interface CopiaInfo {
+  id: string;
+  quando: string;
+  produtos: number;
+  tamanho: number;
+}
+
+/** Cópia automática do backup (compactada), guardada na própria nuvem. */
+export async function salvarCopia(c: CopiaInfo & { gz: string }): Promise<void> {
+  await setDoc(doc(db, 'lojas', LOJA_ID, 'copias', c.id), c);
+}
+export async function listarCopias(): Promise<CopiaInfo[]> {
+  const s = await getDocs(query(collection(db, 'lojas', LOJA_ID, 'copias'), orderBy('quando', 'desc')));
+  return s.docs.map((d) => {
+    const { gz: _g, ...info } = d.data() as CopiaInfo & { gz: string };
+    return info;
+  });
+}
+export async function lerCopia(id: string): Promise<string | null> {
+  const s = await getDoc(doc(db, 'lojas', LOJA_ID, 'copias', id));
+  return s.exists() ? ((s.data() as { gz: string }).gz ?? null) : null;
+}
+export const apagarCopia = (id: string) => deleteDoc(doc(db, 'lojas', LOJA_ID, 'copias', id));
 
 /** Publica o cardápio que o cliente vê (só nome, categoria e preço; nunca custos). */
 export function publicarCardapio(json: string): Promise<void> {

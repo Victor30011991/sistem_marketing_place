@@ -9,7 +9,7 @@
 
   var dados = null;
   var carrinho = {}; // chave "categoria|nome" -> gramas
-  var form = { nome: '', endereco: '', obs: '' };
+  var form = { nome: '', telefone: '', endereco: '', obs: '' };
   var ui = { aba: 0, busca: '', aberto: null, erro: '', tentou: false };
 
   // ---------- guarda só nesta aba do navegador (some ao fechar) ----------
@@ -77,15 +77,21 @@
   // ---------- dados ----------
   function todosItens() {
     var out = [];
-    dados.categorias.forEach(function (cat) { cat.itens.forEach(function (it) { out.push({ chave: cat.nome + '|' + it.n, cat: cat.nome, n: it.n, pk: it.pk }); }); });
+    var vistos = {};
+    dados.categorias.forEach(function (cat) { cat.itens.forEach(function (it) {
+      var x = item(cat.nome, it);
+      if (!vistos[x.chave]) { vistos[x.chave] = 1; out.push(x); }
+    }); });
     return out;
   }
+  // a mesma chave para o produto em qualquer categoria (ele pode aparecer também em "Ofertas" ou "Mais vendidos")
+  function item(cat, it) { return { chave: it.i ? 'i:' + it.i : cat + '|' + it.n, cat: cat, i: it.i, n: it.n, pk: it.pk, pa: it.pa, s: it.s, f: /^data:image\/(jpeg|png|webp);base64,/.test(it.f || '') ? it.f : null }; }
   function itensDoPedido() {
     var mapa = {};
     todosItens().forEach(function (i) { mapa[i.chave] = i; });
     var out = [];
     Object.keys(carrinho).forEach(function (k) {
-      if (mapa[k]) out.push({ chave: k, n: mapa[k].n, g: carrinho[k], total: L.precoItem(carrinho[k], mapa[k].pk) });
+      if (mapa[k]) out.push({ chave: k, i: mapa[k].i, n: mapa[k].n, g: carrinho[k], total: L.precoItem(carrinho[k], mapa[k].pk) });
       else delete carrinho[k]; // item que saiu do cardápio depois de uma versão antiga
     });
     return out;
@@ -152,8 +158,10 @@
     li.appendChild(h('button', { class: 'item-topo', type: 'button', 'aria-expanded': aberto ? 'true' : 'false', onclick: function () {
       ui.aberto = aberto ? null : it.chave; ui.erro = ''; desenhar(true);
     } },
-      h('span', { class: 'item-nome' }, it.n, g ? h('small', { text: L.fmtGramas(g) + ' no pedido' }) : null),
-      h('span', { class: 'item-preco' }, por100, h('small', { text: L.brl(it.pk) + ' / kg' }))));
+      it.f ? h('img', { class: 'item-foto', src: it.f, alt: '', loading: 'lazy' }) : null,
+      h('span', { class: 'item-nome' }, it.n, it.s ? h('em', { class: 'selo', text: it.s }) : null, g ? h('small', { text: L.fmtGramas(g) + ' no pedido' }) : null),
+      h('span', { class: 'item-preco' + (it.pa ? ' promo' : '') }, por100,
+        it.pa ? h('small', null, h('s', { text: L.brl(Math.round(it.pa / 10)) }), ' · ' + L.brl(it.pk) + ' / kg') : h('small', { text: L.brl(it.pk) + ' / kg' }))));
     if (aberto) li.appendChild(painelItem(it));
     return li;
   }
@@ -221,7 +229,7 @@
     } else {
       var cat = dados.categorias[ui.aba];
       if (!cat) ul.appendChild(h('li', { class: 'vazio', text: 'O cardápio está sem produtos no momento.' }));
-      else cat.itens.forEach(function (it) { ul.appendChild(linhaItem({ chave: cat.nome + '|' + it.n, cat: cat.nome, n: it.n, pk: it.pk })); });
+      else cat.itens.forEach(function (it) { ul.appendChild(linhaItem(item(cat.nome, it))); });
     }
     var f = ul.querySelector('input[type=text]'); if (f && ui.focar) { f.focus(); }
   }
@@ -263,12 +271,15 @@
     var nome = h('input', { id: 'f-nome', type: 'text', autocomplete: 'name', value: form.nome, class: ui.tentou && !form.nome.trim() ? 'invalido' : null });
     var end = h('textarea', { id: 'f-end', autocomplete: 'street-address', class: ui.tentou && !form.endereco.trim() ? 'invalido' : null }); end.value = form.endereco;
     var obs = h('textarea', { id: 'f-obs' }); obs.value = form.obs;
+    var tel = h('input', { id: 'f-tel', type: 'tel', inputmode: 'tel', autocomplete: 'tel', value: form.telefone || '' });
+    tel.addEventListener('input', function () { form.telefone = tel.value; guardar(); });
     function limpaErro() { if (ui.erro) { ui.erro = ''; erroEl.textContent = ''; } }
     nome.addEventListener('input', function () { form.nome = nome.value; guardar(); limpaErro(); });
     end.addEventListener('input', function () { form.endereco = end.value; guardar(); limpaErro(); });
     obs.addEventListener('input', function () { form.obs = obs.value; guardar(); });
     box.appendChild(h('div', { class: 'form' },
       h('label', { for: 'f-nome' }, 'Seu nome', nome),
+      h('label', { for: 'f-tel' }, 'Seu WhatsApp (opcional)', h('small', { text: 'Para avisarmos quando o pedido estiver pronto.' }), tel),
       h('label', { for: 'f-end' }, 'Endereço de entrega', h('small', { text: 'Rua, número, bairro e ponto de referência.' }), end),
       h('label', { for: 'f-obs' }, 'Observações (opcional)', obs)));
 
@@ -278,6 +289,7 @@
     return raiz;
   }
 
+  var NUVEM_PEDIDOS = 'https://firestore.googleapis.com/v1/projects/temperei/databases/(default)/documents/pedidos?key=AIzaSyBIe_OH9xytji9DKWT_5-Pd-p8PyNk0lUE';
   function finalizar() {
     var its = itensDoPedido();
     ui.tentou = true;
@@ -286,6 +298,11 @@
     if (!dados.loja.whatsapp) { ui.erro = 'O WhatsApp da loja ainda não foi configurado.'; desenhar(true); return; }
     var texto = L.montarMensagem({ loja: dados.loja.nome, abertura: dados.loja.abertura, fechamento: dados.loja.fechamento,
       itens: its, nome: form.nome, endereco: form.endereco, obs: form.obs, origem: ORIGEM });
+    // o pedido também cai na tela "Pedidos" da loja (se a nuvem estiver ligada); não segura o WhatsApp se falhar
+    if (!PREVIEW) try {
+      fetch(NUVEM_PEDIDOS, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(L.pedidoNuvem({ itens: its, nome: form.nome, telefone: form.telefone, endereco: form.endereco, obs: form.obs, origem: ORIGEM })) }).catch(function () {});
+    } catch (e) { /* navegador antigo: segue só pelo WhatsApp */ }
     var a = h('a', { href: L.urlWhatsapp(dados.loja.whatsapp, texto), target: '_blank', rel: 'noopener noreferrer' });
     document.body.appendChild(a); a.click(); a.remove();
   }

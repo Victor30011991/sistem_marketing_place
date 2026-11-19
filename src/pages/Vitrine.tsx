@@ -18,6 +18,8 @@ import type { BotaoCartao, Product, TipoBotao, Vitrine as VitrineCfg } from '../
 import { botoesPadrao, linkBotao, novoBotao, TIPOS_BOTAO } from '../core/vitrine';
 import { Icon } from '../ui/icons';
 import { useNuvem } from '../nuvem/NuvemProvider';
+import { contatosLoja } from '../core/orcamentos';
+import { logoSrc } from '../ui/logo';
 
 const MOTIVO: Record<MotivoFora, string> = {
   oculto: 'oculto por você',
@@ -33,6 +35,23 @@ export default function Vitrine() {
   const { lista, loja } = state;
   const v = vitrineDe(loja);
   const set = (patch: Partial<VitrineCfg>) => act.loja({ vitrine: { ...v, ...patch } });
+  const [gerandoLista, setGerandoLista] = useState(false);
+  async function baixarLista() {
+    setGerandoLista(true);
+    try {
+      const { listaEmImagens } = await import('../export/listaImagem');
+      const ct = contatosLoja(loja);
+      const blobs = await listaEmImagens(resultado.arquivo, logoSrc(loja), [ct.whats && `Pedidos: ${ct.whats}`, ct.insta].filter(Boolean).join('  ·  ') || loja.nomeFantasia);
+      const files = blobs.map((b, i) => new File([b], `tabela-precos-${i + 1}.png`, { type: 'image/png' }));
+      if (navigator.canShare?.({ files })) await navigator.share({ files });
+      else files.forEach((f) => downloadBlob(f, f.name, f.type));
+      toast(files.length > 1 ? `${files.length} imagens geradas.` : 'Imagem gerada.');
+    } catch (e) {
+      if ((e as Error)?.name !== 'AbortError') toast('Não foi possível gerar a imagem.', 'erro');
+    } finally {
+      setGerandoLista(false);
+    }
+  }
 
   // ---------- botões do cartão ----------
   const padrao = useMemo(botoesPadrao, []);
@@ -49,7 +68,7 @@ export default function Vitrine() {
   const [tipoNovo, setTipoNovo] = useState<TipoBotao>('maps');
 
   const naNuvem = useNuvem().fase === 'conectado';
-  const resultado = useMemo(() => montarCardapio(lista, loja, loja.logo), [lista, loja]);
+  const resultado = useMemo(() => montarCardapio(lista, loja, loja.logo, new Date(), { vendas: state.config.vendas, lotes: state.config.lotes }), [lista, loja, state.config.vendas, state.config.lotes]);
 
   // ---------- prévia: a própria página do cliente, dentro de um quadro ----------
   const frame = useRef<HTMLIFrameElement>(null);
@@ -290,6 +309,20 @@ export default function Vitrine() {
             </div>
           </section>
 
+          <section className="card">
+            <h2>Destaques e divulgação</h2>
+            <label className="check">
+              <input type="checkbox" checked={v.destaques !== false} onChange={(e) => set({ destaques: e.target.checked })} /> Mostrar no topo do cardápio: <strong>Ofertas</strong>, <strong>Mais vendidos</strong> (30 dias) e <strong>Chegou agora</strong> (lotes dos últimos 15 dias)
+            </label>
+            <p className="muted small">Fotos e promoções se colocam em cada produto (Produtos → editar → Cardápio e promoção).</p>
+            {resultado.semFoto > 0 && <Notice tone="warn">{resultado.semFoto} foto(s) ficaram de fora do cardápio para ele continuar leve. Tire fotos de produtos que vendem menos.</Notice>}
+            <div className="row-gap wrap">
+              <Button icon="download" onClick={baixarLista} disabled={resultado.total === 0 || gerandoLista}>
+                {gerandoLista ? 'Gerando…' : 'Lista de preços em imagem'}
+              </Button>
+              <span className="muted small">Para o status do WhatsApp e o feed do Instagram. Quando não cabe numa, sai em várias.</span>
+            </div>
+          </section>
           <section className="card">
             <h2>Publicar e divulgar</h2>
             {naNuvem ? (

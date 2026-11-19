@@ -336,6 +336,7 @@ export default function Lotes() {
                     <th>Un.</th>
                     <th className="num">Valor</th>
                     <th className="num">Desc.</th>
+                    <th>Validade</th>
                     <th className="num">Custo real / kg</th>
                     <th className="c-actions">
                       <span className="sr-only">Ações</span>
@@ -400,6 +401,9 @@ export default function Lotes() {
                           <td className="num">
                             <MoneyInput ariaLabel={`Desconto de ${it.nome || `item ${i + 1}`}`} value={it.desconto || null} onChange={(v) => mudarItem(it.id, { desconto: v ?? 0 })} />
                           </td>
+                          <td>
+                            <input type="date" className="lote-validade" aria-label={`Validade de ${it.nome || `item ${i + 1}`}`} value={it.validade ?? ''} onChange={(e) => mudarItem(it.id, { validade: e.target.value || undefined })} />
+                          </td>
                           <td className="num strong">{c.custoKg != null ? formatBRL(c.custoKg) : c.custoUnidade != null ? `${formatBRL(c.custoUnidade)} / ${it.unidade}` : '—'}</td>
                           <td className="c-actions">
                             <button type="button" className="icon-btn danger" aria-label={`Remover ${it.nome || `item ${i + 1}`}`} onClick={() => removerItem(it.id)}>
@@ -412,6 +416,13 @@ export default function Lotes() {
                   })}
                 </tbody>
               </table>
+            </div>
+            <div className="lote-validade-todos">
+              <label className="row-gap">
+                <span className="small">Mesma validade para todos os itens:</span>
+                <input type="date" aria-label="Validade para todos os itens" onChange={(e) => e.target.value && mudar({ itens: lote.itens.map((i) => ({ ...i, validade: e.target.value })) })} />
+              </label>
+              <span className="muted small">Opcional. Com a validade, o sistema avisa 30 dias antes de vencer.</span>
             </div>
             <datalist id="lote-categorias">
               {categoriasLista.map((c) => (

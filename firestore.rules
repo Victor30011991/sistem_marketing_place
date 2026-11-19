@@ -15,6 +15,21 @@ service cloud.firestore {
       allow write: if equipe();
     }
 
+    // pedidos do cardápio: qualquer cliente cria (só com os campos certos e tamanhos limitados); só a equipe lê e muda
+    match /pedidos/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['criado', 'nome', 'telefone', 'endereco', 'obs', 'itens', 'total', 'origem', 'situacao'])
+        && request.resource.data.situacao == 'novo'
+        && request.resource.data.criado is string && request.resource.data.criado.size() <= 40
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 80
+        && request.resource.data.telefone is string && request.resource.data.telefone.size() <= 30
+        && request.resource.data.endereco is string && request.resource.data.endereco.size() <= 300
+        && request.resource.data.obs is string && request.resource.data.obs.size() <= 500
+        && request.resource.data.origem is string && request.resource.data.origem.size() <= 20
+        && request.resource.data.itens is list && request.resource.data.itens.size() > 0 && request.resource.data.itens.size() <= 80
+        && request.resource.data.total is int && request.resource.data.total >= 0;
+      allow read, update, delete: if equipe();
+    }
+
     // tudo da loja (produtos, custos, vendas, lotes): só a equipe
     match /lojas/{loja} {
       allow read, write: if equipe();

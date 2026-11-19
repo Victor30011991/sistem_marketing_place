@@ -25,6 +25,10 @@ export interface Product {
   ingredientes?: string;
   /** informação nutricional por 100 g (opcional; só para o rótulo) */
   nutricao?: InfoNutricional | null;
+  /** foto pequena para o cardápio (data URL, ~120 px) */
+  foto?: string;
+  /** promoção: preço na unidade do produto, até quando (AAAA-MM-DD, vazio = sem fim) e o selo */
+  promo?: { preco: number; ate: string; selo: string } | null;
 }
 
 /** Valores por 100 g; a porção é calculada na hora de imprimir. */
@@ -129,6 +133,8 @@ export interface Vitrine {
   ocultos: string[];
   /** esconde sozinho o produto com estoque controlado que chegou a zero */
   ocultarSemEstoque: boolean;
+  /** mostra "Mais vendidos" e "Chegou agora" no topo do cardápio (padrão: sim) */
+  destaques?: boolean;
   /** botões do cartão, na ordem em que aparecem (sem isto: Cardápio, Instagram, Facebook e WhatsApp) */
   botoes?: BotaoCartao[];
 }
@@ -187,6 +193,8 @@ export interface LoteItem {
   valor: number;
   /** desconto do próprio item, em centavos */
   desconto: number;
+  /** validade da mercadoria deste item, AAAA-MM-DD (opcional) */
+  validade?: string;
 }
 
 /** Uma compra de mercadoria (uma nota). Frete, juros e extras são repartidos entre os itens. */
@@ -254,6 +262,7 @@ export interface VendaPausada {
   id: string;
   quando: string;
   cliente: string;
+  clienteId?: string;
   linhas: { produtoId: string; qtd: number; unidade: string; total?: number; desconto?: string }[];
 }
 
@@ -272,6 +281,10 @@ export interface Venda {
   /** taxa da maquininha em centavos */
   taxa: number;
   cliente: string;
+  /** cliente cadastrado (opcional) */
+  clienteId?: string;
+  /** quem registrou a venda */
+  por?: string;
   /** formas de pagamento usadas (vendas antigas não têm: valem `pagamento` e `total`) */
   pagamentos?: PagamentoVenda[];
   /** troco devolvido em dinheiro, em centavos */
@@ -328,6 +341,7 @@ export interface OrcamentoSalvo {
   validade: string;
   obs: string;
   situacao: SituacaoOrcamento;
+  clienteId?: string;
 }
 
 export interface ConfigOrcamento {
@@ -346,8 +360,121 @@ export interface ConfigOrcamento {
   cupom: 58 | 80;
 }
 
+/** Cliente cadastrado (o histórico vem das vendas e orçamentos ligados a ele). */
+export interface Cliente {
+  id: string;
+  nome: string;
+  /** WhatsApp/telefone como foi digitado */
+  telefone: string;
+  endereco: string;
+  obs: string;
+  /** ISO */
+  criado: string;
+}
+
+export type SituacaoPedido = 'novo' | 'separando' | 'pronto' | 'entregue' | 'cancelado';
+
+/** Pedido feito pelo cliente no cardápio (fica na nuvem, fora do Excel). */
+export interface Pedido {
+  id: string;
+  /** ISO */
+  criado: string;
+  nome: string;
+  telefone: string;
+  endereco: string;
+  obs: string;
+  /** i = id do produto (cardápios antigos não têm), n = nome, g = gramas, t = valor em centavos */
+  itens: { i?: string; n: string; g: number; t: number }[];
+  total: number;
+  origem: string;
+  situacao: SituacaoPedido;
+  /** venda pausada criada a partir do pedido */
+  vendaPausada?: string;
+}
+
+export interface MovimentoCaixa {
+  id: string;
+  /** ISO */
+  quando: string;
+  tipo: 'sangria' | 'reforco';
+  valor: number;
+  motivo: string;
+  por: string;
+}
+
+/** Caixa de um dia: troco inicial, sangrias e reforços, e a conferência no fechamento. */
+export interface Caixa {
+  id: string;
+  /** AAAA-MM-DD */
+  dia: string;
+  abertoEm: string;
+  abertoPor: string;
+  trocoInicial: number;
+  movimentos: MovimentoCaixa[];
+  fechadoEm?: string;
+  fechadoPor?: string;
+  /** dinheiro previsto na gaveta no fechamento */
+  previsto?: number;
+  /** dinheiro contado no fechamento */
+  contado?: number;
+  obs?: string;
+}
+
+/** Uma alteração registrada (quem mudou o quê). */
+export interface Registro {
+  id: string;
+  quando: string;
+  por: string;
+  acao: string;
+  detalhe: string;
+}
+
+export interface PagamentoConta {
+  id: string;
+  /** ISO */
+  quando: string;
+  valor: number;
+  /** dinheiro, pix, cartão… */
+  forma: string;
+  por: string;
+}
+
+/** Conta a receber (fiado) ou a pagar (fornecedor, aluguel…). */
+export interface Conta {
+  id: string;
+  tipo: 'receber' | 'pagar';
+  descricao: string;
+  /** centavos */
+  valor: number;
+  /** AAAA-MM-DD */
+  vencimento: string;
+  criado: string;
+  /** receber: de quem */
+  clienteId?: string;
+  /** receber: venda que gerou o fiado */
+  vendaId?: string;
+  /** pagar: para quem (fornecedor, imobiliária…) */
+  favorecido?: string;
+  /** pagar: gera a do mês seguinte quando esta for paga */
+  mensal?: boolean;
+  pagamentos: PagamentoConta[];
+  cancelada?: boolean;
+}
+
 export interface Settings {
   balanca?: ConfigBalanca;
+  /** contas a receber (fiado) e a pagar (na nuvem ficam uma por documento) */
+  contas?: Conta[];
+  /** dias para pagar o fiado (padrão 30) */
+  prazoFiado?: number;
+  /** ISO da última cópia automática guardada na nuvem */
+  ultimaCopia?: string;
+  /** ISO do último backup .txt baixado */
+  ultimoDownload?: string;
+  /** caixas por dia (na nuvem ficam um por documento) */
+  caixas?: Caixa[];
+  /** clientes cadastrados (na nuvem ficam um por documento) */
+  clientes?: Cliente[];
   /** orçamentos salvos (na nuvem ficam um por documento) */
   orcamentos?: OrcamentoSalvo[];
   orcamentoCfg?: ConfigOrcamento;

@@ -1,4 +1,5 @@
-import type { BotaoCartao, ListState, Product, StoreInfo, TipoBotao, Vitrine } from '../types';
+import type { BotaoCartao, ListState, Product, StoreInfo, TipoBotao, Vitrine, Venda, Lote } from '../types';
+import { comPromo } from './promo';
 import { newId } from './normalize';
 import { counterBasis } from './units';
 import { LOGO_COLORS } from './defaults';
@@ -31,6 +32,7 @@ export function vitrineDe(loja: Pick<StoreInfo, 'vitrine'> | null | undefined): 
     minGramas: min,
     ocultos: Array.isArray(v.ocultos) ? v.ocultos.filter((x): x is string => typeof x === 'string') : [],
     ocultarSemEstoque: v.ocultarSemEstoque !== false,
+    ...(v.destaques === false ? { destaques: false } : {}),
     ...(Array.isArray(v.botoes) ? { botoes: lerBotoes(v.botoes) } : {}),
   };
 }
@@ -90,10 +92,27 @@ export function linkCardapio(baseDoSistema: string, origem?: Origem): string {
 }
 
 export interface ItemCardapio {
+  /** id do produto (para o pedido chegar certo no sistema) */
+  i: string;
   n: string;
-  /** preço por quilo, em centavos */
+  /** preço por quilo, em centavos (o de hoje: com a promoção, se houver) */
   pk: number;
+  /** preço por quilo antes da promoção */
+  pa?: number;
+  /** selo da promoção, ex.: "Oferta da semana" */
+  s?: string;
+  /** foto pequena (data URL) */
+  f?: string;
 }
+
+/** Dados extras para os destaques do cardápio (opcionais). */
+export interface ExtrasCardapio {
+  vendas?: Venda[];
+  lotes?: Lote[];
+}
+
+/** Fotos no cardápio público até este tamanho somado (o documento da nuvem aceita 1 MB). */
+export const LIMITE_FOTOS = 600_000;
 
 export interface CardapioArquivo {
   v: 1;
@@ -122,6 +141,8 @@ export interface ResultadoCardapio {
   /** produtos que ficaram de fora e por quê (os ocultos por você não contam como problema) */
   fora: { produto: Product; motivo: MotivoFora }[];
   total: number;
+  /** produtos com foto que ficaram sem ela no cardápio (passou do limite de tamanho) */
+  semFoto: number;
 }
 
 /** Preço por quilo em centavos de um produto vendido por peso; null = não dá para vender por grama. */
@@ -133,12 +154,17 @@ export function precoPorQuilo(p: Product): number | null {
 }
 
 /** Monta o arquivo que vai para o site. Só nome, categoria e preço: custos, margens e estoque nunca entram. */
-export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string | null, quando: Date = new Date()): ResultadoCardapio {
+export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string | null, quando: Date = new Date(), extras: ExtrasCardapio = {}): ResultadoCardapio {
   const v = vitrineDe(loja);
   const ocultos = new Set(v.ocultos);
   const fora: ResultadoCardapio['fora'] = [];
   const porCat = new Map<string, ItemCardapio[]>();
-  for (const p of lista.produtos) {
+  const hoje = `${quando.getFullYear()}-${String(quando.getMonth() + 1).padStart(2, '0')}-${String(quando.getDate()).padStart(2, '0')}`;
+  let fotos = 0;
+  let semFoto = 0;
+  const porId = new Map<string, ItemCardapio>();
+  for (const produto of lista.produtos) {
+    const p = comPromo(produto, hoje);
     if (ocultos.has(p.id)) {
       fora.push({ produto: p, motivo: 'oculto' });
       continue;
@@ -158,11 +184,44 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
     }
     const cat = p.categoria.trim() || 'Outros';
     if (!porCat.has(cat)) porCat.set(cat, []);
-    porCat.get(cat)!.push({ n: p.nome.trim(), pk });
+    const item: ItemCardapio = { i: p.id, n: p.nome.trim(), pk };
+    if (p.venda !== produto.venda) {
+      const antes = precoPorQuilo(produto);
+      if (antes && antes > pk) Object.assign(item, { pa: antes, s: produto.promo?.selo.trim() || 'Promoção' });
+    }
+    if (produto.foto) {
+      if (fotos + produto.foto.length <= LIMITE_FOTOS) {
+        item.f = produto.foto;
+        fotos += produto.foto.length;
+      } else semFoto++;
+    }
+    porCat.get(cat)!.push(item);
+    porId.set(p.id, item);
   }
   const ordem = [...lista.categorias.filter((c) => porCat.has(c)), ...[...porCat.keys()].filter((c) => !lista.categorias.includes(c) && c !== 'Outros'), ...(porCat.has('Outros') ? ['Outros'] : [])];
   const unicas = [...new Set(ordem)];
   const categorias = unicas.map((nome) => ({ nome, itens: porCat.get(nome)!.sort((a, b) => a.n.localeCompare(b.n, 'pt-BR')) }));
+  // destaques no topo: ofertas, mais vendidos (30 dias) e o que chegou nos últimos 15 dias
+  if (v.destaques !== false) {
+    const dia = (iso: string, d: number) => {
+      const x = new Date(quando);
+      x.setDate(x.getDate() + d);
+      return x.toISOString().slice(0, 10) <= iso.slice(0, 10);
+    };
+    const ofertas = [...porId.values()].filter((i) => i.pa);
+    const vendido = new Map<string, number>();
+    for (const vd of extras.vendas ?? []) if (!vd.cancelada && dia(vd.quando, -30)) for (const it of vd.itens) vendido.set(it.produtoId, (vendido.get(it.produtoId) ?? 0) + it.total);
+    const mais = [...vendido.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => porId.get(id)).filter((x): x is ItemCardapio => !!x).slice(0, 6);
+    const chegou = new Set<string>();
+    for (const l of extras.lotes ?? []) if (l.aplicadoEm && dia(l.aplicadoEm, -15)) for (const it of l.itens) if (it.produtoId) chegou.add(it.produtoId);
+    const novos = [...chegou].map((id) => porId.get(id)).filter((x): x is ItemCardapio => !!x).slice(0, 8);
+    const topo = [
+      { nome: 'Ofertas', itens: ofertas },
+      { nome: 'Mais vendidos', itens: mais },
+      { nome: 'Chegou agora', itens: novos },
+    ].filter((c) => c.itens.length && !porCat.has(c.nome));
+    categorias.unshift(...topo);
+  }
   const cores = loja.cores ?? LOGO_COLORS;
   return {
     arquivo: {
@@ -187,7 +246,8 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
       categorias,
     },
     fora,
-    total: categorias.reduce((n, c) => n + c.itens.length, 0),
+    total: porId.size,
+    semFoto,
   };
 }
 

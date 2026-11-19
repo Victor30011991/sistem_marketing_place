@@ -25,6 +25,8 @@ import {
   vencido,
 } from '../core/orcamentos';
 import { normalizarWhatsapp } from '../core/vitrine';
+import { ligarCliente } from '../core/clientes';
+import { comPromo } from '../core/promo';
 import { logoDataUrl, logoSrc } from '../ui/logo';
 import { imprimirBobina } from '../ui/imprimir';
 import { CupomOrcamento } from '../components/CupomOrcamento';
@@ -110,7 +112,7 @@ export default function Orcamento() {
   const linhas = r.itens
     .map((it) => {
       const p = produtos.find((x) => x.id === it.produtoId);
-      return p ? { it, p, sub: lineTotal(p, it.qtd, it.unidade) } : null;
+      return p ? { it, p: comPromo(p), sub: lineTotal(comPromo(p), it.qtd, it.unidade) } : null;
     })
     .filter((x): x is NonNullable<typeof x> => x != null);
   const validas = linhas.filter((l) => l.sub != null);
@@ -150,8 +152,11 @@ export default function Orcamento() {
     }
     const o = { ...montar(numeroAtual), situacao: enviar && r.situacao === 'rascunho' ? ('enviado' as const) : r.situacao };
     act.config((c) => {
+      // liga ao cadastro de clientes (cria se tiver WhatsApp)
+      const lig = o.cliente.nome ? ligarCliente(c.clientes ?? [], o.cliente) : { lista: c.clientes ?? [], id: null };
+      const oo = lig.id ? { ...o, clienteId: lig.id } : o;
       const lista = c.orcamentos ?? [];
-      return { ...c, orcamentos: lista.some((x) => x.id === o.id) ? lista.map((x) => (x.id === o.id ? o : x)) : [o, ...lista] };
+      return { ...c, clientes: lig.lista, orcamentos: lista.some((x) => x.id === o.id) ? lista.map((x) => (x.id === o.id ? oo : x)) : [oo, ...lista] };
     });
     atualizar((x) => ({ ...x, id: o.id, numero: o.numero, criado: o.criado, situacao: o.situacao }));
     return o;
@@ -358,7 +363,30 @@ export default function Orcamento() {
                 </h2>
               </div>
               <div className="form-grid">
-                <Field label="Nome do cliente">{(id) => <input id={id} autoComplete="off" value={r.cliente.nome} onChange={(e) => setCli('nome', e.target.value)} />}</Field>
+                <Field label="Nome do cliente">
+                  {(id) => (
+                    <>
+                      <input
+                        id={id}
+                        autoComplete="off"
+                        list="orc-clientes"
+                        value={r.cliente.nome}
+                        onChange={(e) => {
+                          const nome = e.target.value;
+                          const c = (config.clientes ?? []).find((x) => x.nome === nome);
+                          atualizar((o) => ({ ...o, cliente: c ? { nome, telefone: o.cliente.telefone || c.telefone, endereco: o.cliente.endereco || c.endereco } : { ...o.cliente, nome } }));
+                        }}
+                      />
+                      <datalist id="orc-clientes">
+                        {(config.clientes ?? []).map((c) => (
+                          <option key={c.id} value={c.nome}>
+                            {c.telefone}
+                          </option>
+                        ))}
+                      </datalist>
+                    </>
+                  )}
+                </Field>
                 <Field label="WhatsApp do cliente" hint="Para abrir a conversa direto.">
                   {(id) => <input id={id} type="tel" inputMode="tel" autoComplete="off" value={r.cliente.telefone} onChange={(e) => setCli('telefone', e.target.value)} placeholder="(86) 99999-0000" />}
                 </Field>

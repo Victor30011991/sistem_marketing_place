@@ -1,14 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useApp } from '../state/store';
 import { montarCardapio } from '../core/vitrine';
+import { registrosDe } from '../core/historico';
+import { criarBackup } from '../core/backup';
+import { compactar } from '../core/compactar';
 import { Button, Modal } from '../ui/ui';
-import { dividir, igual, inicioJanela, juntar, nuvemVazia, planejarEscritas, type Nuvem } from './modelo';
+import { COLECOES, dividir, igual, inicioJanela, juntar, nuvemVazia, planejarEscritas, type Nuvem } from './modelo';
 import type { Parte } from './servico';
 
 type Servico = typeof import('./servico');
 
 /** Quem pode entrar. A mesma lista está nas regras do Firestore (é lá que vale de verdade). */
 export const EQUIPE = ['j.victor.baros.live@gmail.com', 'samara778@gmail.com'];
+/** Nome curto de quem está usando, para gravar em vendas, caixa e histórico. */
+export const NOMES: Record<string, string> = { 'j.victor.baros.live@gmail.com': 'Victor', 'samara778@gmail.com': 'Samara' };
+export const nomeDe = (email: string) => NOMES[email] ?? (email ? email.split('@')[0] : '');
 const MARCA = 'temperei.nuvem';
 
 export type Fase = 'desligado' | 'carregando' | 'sincronizando' | 'escolher' | 'conectado' | 'negado' | 'erro';
@@ -20,6 +26,8 @@ interface NuvemCtx {
   /** gravações esperando a confirmação da internet */
   enviando: boolean;
   erro: string;
+  /** ligação com o Firebase (null até alguém entrar) */
+  servico: Servico | null;
   entrar: () => void;
   sair: () => void;
   tentarDeNovo: () => void;
@@ -43,9 +51,9 @@ const marcar = (v: boolean) => {
   }
 };
 
-type Recebido = Record<Parte['parte'], boolean>;
+type Recebido = Record<string, boolean>;
 const plural = (n: number) => `${n} produto${n === 1 ? '' : 's'}`;
-const nadaRecebido = (): Recebido => ({ raiz: false, loja: false, produtos: false, dias: false, lotes: false, orcamentos: false });
+const nadaRecebido = (): Recebido => Object.fromEntries(['raiz', 'loja', 'produtos', 'dias', ...COLECOES].map((k) => [k, false]));
 
 export function NuvemProvider({ children }: { children: ReactNode }) {
   const { state, act } = useApp();
@@ -56,6 +64,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
 
   const svc = useRef<Servico | null>(null);
+  const [servico, setServico] = useState<Servico | null>(null);
   const base = useRef<Nuvem>(nuvemVazia());
   const recebido = useRef<Recebido>(nadaRecebido());
   const raizDoServidor = useRef(false);
@@ -65,6 +74,8 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
   const faseRef = useRef(fase);
+  const emailRef = useRef('');
+  emailRef.current = email;
 
   const ir = useCallback((f: Fase) => {
     faseRef.current = f;
@@ -91,6 +102,8 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
     const atual = dividir(stateRef.current);
     const ops = planejarEscritas(base.current, atual);
     if (!ops.length) return;
+    const regs = registrosDe(base.current, atual, nomeDe(emailRef.current));
+    if (regs.length) s.registrar(regs).catch(() => undefined);
     base.current = atual;
     setPendentes((n) => n + 1);
     s.gravar(ops)
@@ -114,7 +127,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
     (p: Parte, servidor: boolean) => {
       // antes de trocar a tela pelo que chegou, manda o que ainda estava esperando para subir
       if (faseRef.current === 'conectado') enviar();
-      base.current = { ...base.current, [p.parte]: p.valor };
+      base.current = (COLECOES as readonly string[]).includes(p.parte) ? { ...base.current, col: { ...base.current.col, [p.parte]: p.valor } } : { ...base.current, [p.parte]: p.valor };
       recebido.current[p.parte] = true;
       if (p.parte === 'raiz' && servidor) raizDoServidor.current = true;
 
@@ -150,6 +163,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
     if (pararLogin.current) return svc.current!;
     // VITE_NUVEM_FALSA só existe nos testes automáticos; no site, sempre o Firebase de verdade
     const s = (svc.current ??= import.meta.env.VITE_NUVEM_FALSA ? ((await import('./servicoFalso')) as unknown as Servico) : await import('./servico'));
+    setServico(s);
     if (pararLogin.current) return s;
     pararLogin.current = s.aoMudarUsuario((u) => {
       pararOuvir.current?.();
@@ -207,11 +221,35 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
     };
   }, [enviar]);
 
+  // uma vez por semana, guarda uma cópia compactada de tudo na própria nuvem (as 8 mais novas)
+  useEffect(() => {
+    if (fase !== 'conectado') return;
+    const t = setTimeout(async () => {
+      const s = svc.current;
+      const st = stateRef.current;
+      const ultima = st.config.ultimaCopia ? Date.parse(st.config.ultimaCopia) : 0;
+      if (!s || !st.lista.produtos.length || Date.now() - ultima < 7 * 86400000) return;
+      try {
+        const texto = criarBackup(st.lista, st.loja, st.config);
+        const gz = await compactar(texto);
+        if (!gz || gz.length > 900_000) return;
+        const quando = new Date().toISOString();
+        await s.salvarCopia({ id: quando.slice(0, 10), quando, produtos: st.lista.produtos.length, tamanho: gz.length, gz });
+        act.config((c) => ({ ...c, ultimaCopia: quando }));
+        const todas = await s.listarCopias();
+        await Promise.all(todas.slice(8).map((c) => s.apagarCopia(c.id)));
+      } catch {
+        /* tenta de novo na próxima abertura */
+      }
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [fase, act]);
+
   // o cardápio do cliente se atualiza sozinho (só nome, categoria e preço)
   useEffect(() => {
     if (fase !== 'conectado') return;
     const t = setTimeout(() => {
-      const { arquivo } = montarCardapio(state.lista, state.loja, state.loja.logo);
+      const { arquivo } = montarCardapio(state.lista, state.loja, state.loja.logo, new Date(), { vendas: state.config.vendas, lotes: state.config.lotes });
       const chave = JSON.stringify({ ...arquivo, gerado: '' });
       if (chave === ultimoCardapio.current) return;
       ultimoCardapio.current = chave;
@@ -221,7 +259,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
       });
     }, 2500);
     return () => clearTimeout(t);
-  }, [state.lista, state.loja, fase, falhar]);
+  }, [state.lista, state.loja, state.config.vendas, state.config.lotes, fase, falhar]);
 
   const entrar = useCallback(() => {
     setErro('');
@@ -258,8 +296,8 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
   };
 
   const value = useMemo<NuvemCtx>(
-    () => ({ fase, email, online, enviando: pendentes > 0, erro, entrar, sair, tentarDeNovo }),
-    [fase, email, online, pendentes, erro, entrar, sair, tentarDeNovo],
+    () => ({ fase, email, online, enviando: pendentes > 0, erro, servico, entrar, sair, tentarDeNovo }),
+    [fase, email, online, pendentes, erro, servico, entrar, sair, tentarDeNovo],
   );
 
   const nuvemTem = base.current.produtos.size;
@@ -291,6 +329,12 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
       </Modal>
     </Ctx.Provider>
   );
+}
+
+/** Nome de quem está usando (vazio fora da nuvem). */
+export function useQuem(): string {
+  const n = useNuvem();
+  return n.fase === 'conectado' ? nomeDe(n.email) : '';
 }
 
 export function useNuvem() {

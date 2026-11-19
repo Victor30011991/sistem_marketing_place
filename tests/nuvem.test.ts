@@ -45,7 +45,7 @@ describe('nuvem: orçamentos', () => {
     const o = { id: 'o1', numero: 3, criado: '2026-11-19T10:00:00', atualizado: '2026-11-19T10:00:00', cliente: { nome: 'Ana', telefone: '', endereco: '' }, itens: [], desconto: { tipo: 'valor' as const, valor: null }, parcelas: 1, validade: '', obs: '', situacao: 'enviado' as const };
     const e = { ...estado([]), config: { ...CONFIG, orcamentos: [o] } };
     const n = dividir(e);
-    expect(n.orcamentos.get('o1')).toEqual(o);
+    expect(n.col.orcamentos.get('o1')).toEqual(o);
     expect('orcamentos' in (n.raiz!.config as object)).toBe(false);
     expect(planejarEscritas(nuvemVazia(), n).some((op) => op.caminho.join('/') === 'lojas/temperei/orcamentos/o1')).toBe(true);
     expect(juntar(n, estado([])).config.orcamentos).toEqual([o]);

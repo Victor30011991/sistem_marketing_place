@@ -1,20 +1,24 @@
+import { lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './pages/Layout';
 import Home from './pages/Home';
-import Loja from './pages/Loja';
-import Produtos from './pages/Produtos';
-import Categorias from './pages/Categorias';
-import Precificacao from './pages/Precificacao';
-import Importar from './pages/Importar';
-import Exportar from './pages/Exportar';
-import Orcamento from './pages/Orcamento';
-import Vitrine from './pages/Vitrine';
-import Lotes from './pages/Lotes';
-import Pdv from './pages/Pdv';
-import Compras from './pages/Compras';
-import Balanca from './pages/Balanca';
-import Etiquetas from './pages/Etiquetas';
-import Relatorios from './pages/Relatorios';
+const Loja = lazy(() => import('./pages/Loja'));
+const Produtos = lazy(() => import('./pages/Produtos'));
+const Categorias = lazy(() => import('./pages/Categorias'));
+const Precificacao = lazy(() => import('./pages/Precificacao'));
+const Importar = lazy(() => import('./pages/Importar'));
+const Exportar = lazy(() => import('./pages/Exportar'));
+const Orcamento = lazy(() => import('./pages/Orcamento'));
+const Vitrine = lazy(() => import('./pages/Vitrine'));
+const Lotes = lazy(() => import('./pages/Lotes'));
+const Pdv = lazy(() => import('./pages/Pdv'));
+const Compras = lazy(() => import('./pages/Compras'));
+const Balanca = lazy(() => import('./pages/Balanca'));
+const Etiquetas = lazy(() => import('./pages/Etiquetas'));
+const Relatorios = lazy(() => import('./pages/Relatorios'));
+const Clientes = lazy(() => import('./pages/Clientes'));
+const Pedidos = lazy(() => import('./pages/Pedidos'));
+const Contas = lazy(() => import('./pages/Contas'));
 
 export default function App() {
   return (
@@ -30,6 +34,9 @@ export default function App() {
         <Route path="balanca" element={<Balanca />} />
         <Route path="etiquetas" element={<Etiquetas />} />
         <Route path="relatorios" element={<Relatorios />} />
+        <Route path="clientes" element={<Clientes />} />
+        <Route path="pedidos" element={<Pedidos />} />
+        <Route path="contas" element={<Contas />} />
         <Route path="categorias" element={<Categorias />} />
         <Route path="precificacao" element={<Precificacao />} />
         <Route path="orcamento" element={<Orcamento />} />

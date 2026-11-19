@@ -1,0 +1,21 @@
+{
+  "name": "Temperei · Sistema da loja",
+  "short_name": "Temperei",
+  "description": "Vendas, pedidos, estoque e preços da Temperei.",
+  "start_url": "./#/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7efe2",
+  "theme_color": "#6e2210",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icones/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Vendas (PDV)", "url": "./#/vendas" },
+    { "name": "Pedidos", "url": "./#/pedidos" }
+  ]
+}

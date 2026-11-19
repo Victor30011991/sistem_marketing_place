@@ -27,7 +27,7 @@ export function useSaveExcel() {
 
 /** Baixa um backup em texto (.txt) com tudo o que está no sistema agora. Não depende de Excel. */
 export function useSaveBackup() {
-  const { state } = useApp();
+  const { state, act } = useApp();
   const { toast } = useFeedback();
   return useCallback(() => {
     try {
@@ -36,9 +36,11 @@ export function useSaveBackup() {
       const data = agora.toISOString().slice(0, 10);
       const hora = agora.toTimeString().slice(0, 5).replace(':', 'h');
       downloadBlob(new Blob([texto], { type: 'text/plain;charset=utf-8' }), `backup-${slug(state.lista.nome)}-${data}-${hora}.txt`, 'text/plain');
+      act.config((c) => ({ ...c, ultimoDownload: agora.toISOString() }));
+      if (!state.sujo) act.salvo(); // guardar a data do backup não é uma alteração da lista
       toast('Backup em texto gerado. Guarde o arquivo em um lugar seguro.');
     } catch (e) {
       toast(`Não foi possível gerar o backup: ${e instanceof Error ? e.message : 'erro desconhecido'}`, 'erro');
     }
-  }, [state.lista, state.loja, state.config, toast]);
+  }, [state.lista, state.loja, state.config, toast, act]);
 }

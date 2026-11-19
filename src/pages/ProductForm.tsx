@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { fotoProduto } from '../ui/foto';
 import type { Product } from '../types';
 import { useApp } from '../state/store';
 import { Button, Field, MoneyInput, Modal, NumberInput, Notice } from '../ui/ui';
@@ -33,6 +34,7 @@ const OUTRA = '__outra__';
 export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo: boolean; onClose: () => void }) {
   const { state, act } = useApp();
   const [d, setD] = useState<Product>(inicial);
+  const [erroFoto, setErroFoto] = useState('');
   const [catSel, setCatSel] = useState<string>(inicial.categoria);
   const [novaCat, setNovaCat] = useState('');
   const [unSel, setUnSel] = useState<string>(BASE_UNITS.includes(inicial.unidade) ? inicial.unidade : OUTRA);
@@ -369,6 +371,52 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
             <small className="muted">Calculado sobre o preço de venda já arredondado. Só converte unidades compatíveis (kg↔g, L↔ml).</small>
           </fieldset>
         )}
+
+        <fieldset className="span-2 pf-extra">
+          <legend>Cardápio e promoção</legend>
+          <div className="pf-foto">
+            {d.foto ? <img src={d.foto} alt={`Foto de ${d.nome || 'produto'}`} /> : <span className="pf-foto-vazia" aria-hidden="true">sem foto</span>}
+            <div className="row-gap wrap">
+              <label className="btn btn-secondary">
+                {d.foto ? 'Trocar foto' : 'Pôr foto'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!f) return;
+                    try {
+                      set({ foto: await fotoProduto(f) });
+                    } catch {
+                      setErroFoto('Não consegui ler esta imagem. Tente outra (JPG ou PNG).');
+                    }
+                  }}
+                />
+              </label>
+              {d.foto && (
+                <Button variant="ghost" onClick={() => set({ foto: undefined })}>
+                  Tirar foto
+                </Button>
+              )}
+            </div>
+            {erroFoto && <span className="field-error">{erroFoto}</span>}
+          </div>
+          <label className="check">
+            <input type="checkbox" checked={!!d.promo} onChange={(e) => set({ promo: e.target.checked ? { preco: d.venda ? Math.round(d.venda * 0.9) : 0, ate: '', selo: 'Oferta' } : null })} /> Em promoção
+          </label>
+          {d.promo && (
+            <div className="form-grid">
+              <Field label={`Preço da promoção (por ${d.unidade || 'unidade'})`} erro={d.venda != null && d.promo.preco >= d.venda ? 'Precisa ser menor que o preço normal.' : null}>
+                {(id) => <MoneyInput id={id} value={d.promo!.preco || null} onChange={(v) => set({ promo: { ...d.promo!, preco: v ?? 0 } })} />}
+              </Field>
+              <Field label="Até quando" hint="Vazio = até você tirar.">{(id) => <input id={id} type="date" value={d.promo!.ate} onChange={(e) => set({ promo: { ...d.promo!, ate: e.target.value } })} />}</Field>
+              <Field label="Selo no cardápio" className="span-2">{(id) => <input id={id} value={d.promo!.selo} maxLength={24} onChange={(e) => set({ promo: { ...d.promo!, selo: e.target.value } })} placeholder="Ex.: Oferta da semana" />}</Field>
+              <p className="muted small span-2">Enquanto ativa, a promoção vale no cardápio, no PDV e nos orçamentos. Na balança, gere o arquivo de novo.</p>
+            </div>
+          )}
+        </fieldset>
 
         <Field label="Observações" className="span-2" hint="Anotações internas. Não aparecem no PDF.">
           {(id) => <textarea id={id} rows={2} value={d.observacoes} onChange={(e) => set({ observacoes: e.target.value })} />}

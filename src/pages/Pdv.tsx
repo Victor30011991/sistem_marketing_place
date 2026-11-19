@@ -1,4 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
+import { acharCliente, novoCliente } from '../core/clientes';
+import { contaFiado } from '../core/contas';
+import { CaixaBarra, CaixasAnteriores } from '../components/CaixaBarra';
+import { useQuem } from '../nuvem/NuvemProvider';
 import { Link } from 'react-router-dom';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
@@ -31,6 +35,7 @@ interface Rascunho {
   desconto: { tipo: 'valor' | 'pct'; valor: number | null };
   pagos: Pago[];
   cliente: string;
+  clienteId?: string;
 }
 const vazio = (): Rascunho => ({ linhas: [], desconto: { tipo: 'valor', valor: null }, pagos: [], cliente: '' });
 let rascunho: Rascunho | null = null;
@@ -64,6 +69,7 @@ function QtdLinha({ valor, unidade, rotulo, onChange }: { valor: number; unidade
 export default function Pdv() {
   useDocumentTitle('Vendas (PDV)');
   const { state, act } = useApp();
+  const quem = useQuem();
   const { toast, confirm } = useFeedback();
   const { lista, config } = state;
   const [r, setR] = useState<Rascunho>(() => rascunho ?? vazio());
@@ -171,7 +177,7 @@ export default function Pdv() {
   // ---------- pausar, retomar, cancelar ----------
   function pausar() {
     if (!r.linhas.length) return;
-    const p: VendaPausada = { id: newId(), quando: new Date().toISOString(), cliente: r.cliente.trim(), linhas: r.linhas.map(({ produtoId, qtd, unidade, total, desconto }) => ({ produtoId, qtd, unidade, ...(total != null ? { total } : {}), ...(desconto ? { desconto } : {}) })) };
+    const p: VendaPausada = { id: newId(), quando: new Date().toISOString(), cliente: r.cliente.trim(), ...(r.clienteId ? { clienteId: r.clienteId } : {}), linhas: r.linhas.map(({ produtoId, qtd, unidade, total, desconto }) => ({ produtoId, qtd, unidade, ...(total != null ? { total } : {}), ...(desconto ? { desconto } : {}) })) };
     act.config((s) => ({ ...s, vendasPausadas: [...(s.vendasPausadas ?? []), p] }));
     rascunho = null;
     setR(vazio());
@@ -181,7 +187,7 @@ export default function Pdv() {
     if (r.linhas.length && !(await confirm({ titulo: 'Trocar a venda atual?', mensagem: 'A venda que está aberta agora será pausada para você retomar depois.', confirmar: 'Pausar e retomar a outra' }))) return;
     if (r.linhas.length) pausar();
     act.config((s) => ({ ...s, vendasPausadas: (s.vendasPausadas ?? []).filter((x) => x.id !== p.id) }));
-    const n: Rascunho = { ...vazio(), cliente: p.cliente, linhas: p.linhas.map((l) => ({ key: newId(), ...l })) };
+    const n: Rascunho = { ...vazio(), cliente: p.cliente, ...(p.clienteId ? { clienteId: p.clienteId } : {}), linhas: p.linhas.map((l) => ({ key: newId(), ...l })) };
     rascunho = n;
     setR(n);
   }
@@ -198,6 +204,8 @@ export default function Pdv() {
     const pagamentos = r.pagos.length ? fech : fecharPdv(itens.map((x) => x.it), r.desconto, [{ forma: 'pix', valor: fech.total }], config);
     if (r.pagos.length && fech.falta > 0) return toast(`Ainda falta receber ${formatBRL(fech.falta)}.`, 'erro');
     if (r.pagos.length && fech.excesso > 0) return toast(`O pagamento passou ${formatBRL(fech.excesso)} da conta e não há dinheiro para dar troco. Ajuste os valores.`, 'erro');
+    const fiado = pagamentos.pagamentos.filter((p) => p.forma === 'fiado').reduce((a, p) => a + p.valor, 0);
+    if (fiado > 0 && !r.cliente.trim()) return toast('Para vender fiado, escreva o nome do cliente.', 'erro');
     const principal = [...pagamentos.pagamentos].sort((a, b) => b.valor - a.valor)[0] ?? { forma: 'pix', label: 'Pix' };
     const venda: Venda = {
       id: newId(),
@@ -209,9 +217,20 @@ export default function Pdv() {
       pagamentoLabel: pagamentos.pagamentos.map((p) => p.label).join(' + ') || principal.label,
       taxa: pagamentos.taxa,
       cliente: r.cliente.trim(),
+      ...(quem ? { por: quem } : {}),
+      ...((r.clienteId ?? acharCliente(config.clientes ?? [], { nome: r.cliente })?.id) ? { clienteId: r.clienteId ?? acharCliente(config.clientes ?? [], { nome: r.cliente })!.id } : {}),
       pagamentos: pagamentos.pagamentos,
       ...(pagamentos.troco > 0 ? { troco: pagamentos.troco } : {}),
     };
+    if (fiado > 0) {
+      // fiado: liga (ou cria) o cliente e abre a conta a receber
+      const clientes = config.clientes ?? [];
+      const existente = (r.clienteId && clientes.find((c) => c.id === r.clienteId)) || acharCliente(clientes, { nome: r.cliente });
+      const cli = existente || novoCliente({ nome: r.cliente });
+      venda.clienteId = cli.id;
+      const conta = contaFiado(fiado, venda.id, cli.id, config.prazoFiado ?? 30);
+      act.config((s) => ({ ...s, clientes: existente ? s.clientes ?? [] : [...(s.clientes ?? []), cli], contas: [...(s.contas ?? []), conta] }));
+    }
     act.registrarVenda(venda);
     rascunho = null;
     setR(vazio());
@@ -231,6 +250,8 @@ export default function Pdv() {
   return (
     <div className="page">
       <PageHeader titulo="Vendas (PDV)" subtitulo="Busque ou passe o código de barras, ajuste quantidades e descontos e receba em uma ou mais formas de pagamento. O estoque baixa sozinho." />
+
+      <CaixaBarra />
 
       {vendaveis.length === 0 && (
         <Notice tone="info">
@@ -397,7 +418,22 @@ export default function Pdv() {
             )}
             <label className="pdv2-cliente">
               <span>Cliente</span>
-              <input value={r.cliente} placeholder="Nome do cliente (opcional)" onChange={(e) => atualizar((x) => ({ ...x, cliente: e.target.value }))} />
+              <input
+                value={r.cliente}
+                list="pdv-clientes"
+                placeholder="Nome do cliente (opcional)"
+                onChange={(e) => {
+                  const nome = e.target.value;
+                  atualizar((x) => ({ ...x, cliente: nome, clienteId: acharCliente(config.clientes ?? [], { nome })?.id }));
+                }}
+              />
+              <datalist id="pdv-clientes">
+                {(config.clientes ?? []).map((c) => (
+                  <option key={c.id} value={c.nome}>
+                    {c.telefone}
+                  </option>
+                ))}
+              </datalist>
             </label>
           </section>
 
@@ -591,7 +627,10 @@ export default function Pdv() {
                 <tbody>
                   {doDia.map((v) => (
                     <tr key={v.id} className={v.cancelada ? 'pdv-cancelada' : ''}>
-                      <td className="nowrap">{new Date(v.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+                      <td className="nowrap">
+                        {new Date(v.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        {v.por && <small className="muted"> · {v.por}</small>}
+                      </td>
                       <td>
                         {v.cliente && <strong>{v.cliente}: </strong>}
                         {v.itens.map((i) => `${i.nome} (${qtdTexto(i.qtd, i.unidade)})`).join(', ')}
@@ -614,6 +653,7 @@ export default function Pdv() {
           </>
         )}
       </section>
+      <CaixasAnteriores />
     </div>
   );
 }

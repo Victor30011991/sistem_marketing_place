@@ -97,7 +97,7 @@ describe('vitrine: arquivo publicado', () => {
     expect(temperos['Açafrão']).toBe(5250); // kg
     expect(temperos['Pimenta em g']).toBe(8000); // R$ 0,08/g = R$ 80/kg
     expect(temperos['Pacote 250 g']).toBe(4000); // R$ 10 por 250 g = R$ 40/kg
-    expect(cats[1].itens).toEqual([{ n: 'Sem categoria', pk: 3000 }]);
+    expect(cats[1].itens.map(({ n, pk }) => ({ n, pk }))).toEqual([{ n: 'Sem categoria', pk: 3000 }]);
     const motivos = Object.fromEntries(r.fora.map((f) => [f.produto.id, f.motivo]));
     expect(motivos).toEqual({ b: 'oculto', d: 'sem-preco', e: 'nao-peso' });
     expect(r.total).toBe(4);

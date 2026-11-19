@@ -706,7 +706,7 @@ ol.pdv-pag li strong { float: right; }
 .savebox-status.bad i { background: #e2735f; }
 .savebox-msg { font-size: 0.8rem; opacity: 0.85; }
 .savebox-sair { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 0.8rem; opacity: 0.8; cursor: pointer; text-align: left; overflow: hidden; }
-.savebox-sair span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.savebox-sair .savebox-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .savebox-sair:hover { opacity: 1; text-decoration: underline; }
 .savebox-sair:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
 @media (max-width: 860px) {
@@ -822,3 +822,78 @@ ol.pdv-pag li strong { float: right; }
 .orc-cfg[open] > .form-grid, .orc-cfg[open] > .notice { margin-top: 14px; }
 .orc-sub { font-size: 1rem; margin: 20px 0 4px; }
 @media (max-width: 900px) { .orc { grid-template-columns: minmax(0, 1fr); } }
+
+/* ------------------------------------------------------------ pedidos e clientes */
+.tab-conta { font-style: normal; margin-left: 6px; display: inline-flex; min-width: 22px; height: 22px; padding: 0 6px; align-items: center; justify-content: center; border-radius: 11px; background: var(--primary); color: var(--on-primary); font-size: 0.78rem; font-weight: 700; }
+.nav-alerta { background: #f0b73a !important; color: #2b1d17 !important; }
+.ped-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.ped { gap: 10px; }
+.ped.novo { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft), var(--shadow); }
+.ped-topo { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.ped-topo h2 { margin: 0; font-size: 1.15rem; }
+.ped-total { font-family: var(--font-head); font-size: 1.4rem; white-space: nowrap; }
+.ped-end { margin: 0; font-size: 0.92rem; }
+.ped-itens { list-style: none; margin: 0; padding: 8px 0; border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 4px; }
+.ped-itens li { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+.ped-obs { margin: 0; font-style: italic; color: var(--muted); }
+.linha-clicavel { cursor: pointer; }
+.linha-clicavel:hover td { background: var(--bg-2); }
+.link-btn { border: 0; background: none; padding: 0; font: inherit; font-weight: 650; color: var(--ink); cursor: pointer; text-align: left; min-height: 32px; }
+.link-btn:hover { text-decoration: underline; }
+.link-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+.cli-det { display: flex; flex-direction: column; gap: 14px; }
+.cli-hist { max-height: 260px; overflow-y: auto; }
+
+/* ------------------------------------------------------------ caixa */
+.caixa-barra { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 14px 20px; }
+.caixa-barra.aberto { border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.caixa-info { display: flex; flex-direction: column; gap: 2px; }
+.caixa-info strong { display: inline-flex; align-items: center; gap: 6px; }
+.caixa-barra.aberto .caixa-info:first-child strong { color: var(--ok); }
+.caixa-valor { font-family: var(--font-head); font-size: 1.35rem; }
+.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hist li { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-2); align-items: baseline; }
+.hist time { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) { .hist li { grid-template-columns: minmax(0, 1fr) auto; } .hist time { grid-column: 1 / -1; } }
+.conta-card.vencida { border-color: color-mix(in srgb, var(--danger) 50%, var(--line)); }
+
+/* ------------------------------------------------------------ menu em grupos + barra de baixo (celular) */
+.nav-grupo { display: flex; flex-direction: column; gap: 2px; }
+.nav-grupo + .nav-grupo { margin-top: 10px; }
+.nav-titulo { padding: 4px 14px 2px; font-size: 0.74rem; font-weight: 700; opacity: 0.6; letter-spacing: 0.04em; }
+.barra-baixo, .menu-fundo { display: none; }
+@media (max-width: 860px) {
+  .shell { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .nav { display: none; }
+  .nav.aberto { display: flex; position: fixed; left: 0; right: 0; bottom: calc(64px + env(safe-area-inset-bottom)); max-height: 72vh; overflow-y: auto; flex-direction: column; gap: 0; padding: 14px 12px 18px; background: var(--primary-dark); color: var(--on-dark); border-radius: 18px 18px 0 0; box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25); z-index: 41; order: initial; }
+  .nav.aberto .nav-grupo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 6px; }
+  .nav.aberto .nav-titulo { grid-column: 1 / -1; padding-top: 8px; }
+  .nav.aberto .nav-item { white-space: normal; min-height: 44px; padding: 0 10px; }
+  .menu-fundo { display: block; position: fixed; inset: 0; background: rgba(20, 10, 6, 0.4); z-index: 39; }
+  .barra-baixo { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 42; background: var(--primary-dark); color: var(--on-dark); padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.2); }
+  .barra-item { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 56px; border: 0; background: none; color: inherit; font: inherit; font-size: 0.72rem; font-weight: 600; text-decoration: none; opacity: 0.8; border-radius: 12px; cursor: pointer; }
+  .barra-item.active { opacity: 1; background: rgba(255, 255, 255, 0.14); }
+  .barra-item:focus-visible { outline: 2px solid var(--paper); outline-offset: -2px; }
+  .barra-item .nav-count { position: absolute; top: 4px; right: calc(50% - 22px); margin: 0; padding: 0 6px; font-size: 0.68rem; }
+  .toasts { bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
+@media print { .barra-baixo, .menu-fundo { display: none !important; } }
+
+/* ------------------------------------------------------------ avisos do dia e validade */
+.avisos ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.avisos li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: var(--r-control); background: var(--bg-2); }
+.avisos li a { font-weight: 650; color: var(--primary); white-space: nowrap; min-height: 32px; display: inline-flex; align-items: center; }
+.aviso-bad { background: color-mix(in srgb, var(--danger) 9%, white) !important; color: var(--danger); }
+.aviso-warn { background: var(--warn-bg) !important; }
+.aviso-bad span, .aviso-warn span { color: var(--ink); }
+.lote-validade { min-width: 140px; }
+.lote-validade-todos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+@media (max-width: 600px) { .avisos li { grid-template-columns: auto minmax(0, 1fr); } .avisos li a { grid-column: 2; } }
+
+/* ------------------------------------------------------------ foto e promoção no produto */
+.pf-extra { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+.pf-extra legend { font-weight: 650; padding: 0 6px; }
+.pf-foto { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.pf-foto img, .pf-foto-vazia { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; border: 1px solid var(--line); }
+.pf-foto-vazia { display: grid; place-items: center; font-size: 0.75rem; color: var(--muted); background: var(--bg-2); }
+.pf-foto label.btn { cursor: pointer; }
