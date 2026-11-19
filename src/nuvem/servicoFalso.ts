@@ -3,7 +3,7 @@
  * Guarda os "documentos" no localStorage e avisa as outras abas, simulando dois aparelhos.
  * No build normal este arquivo nem entra no site.
  */
-import type { Lote, Product, StoreInfo, Venda } from '../types';
+import type { Lote, OrcamentoSalvo, Product, StoreInfo, Venda } from '../types';
 import { DEL, INC, type Op, type Raiz } from './modelo';
 import type { Parte } from './servico';
 
@@ -47,6 +47,7 @@ export function ouvir(inicio: string, cb: (p: Parte, servidor: boolean) => void)
     cb({ parte: 'produtos', valor: new Map(col('produtos').map(([id, v]) => [id, { ...(v as unknown as Product), id }])) }, true);
     cb({ parte: 'dias', valor: new Map(col('vendasDia').filter(([id, v]) => id >= inicio && v.v && Object.keys(v.v).length).map(([id, v]) => [id, v.v as Record<string, Venda>])) }, true);
     cb({ parte: 'lotes', valor: new Map(col('lotes').map(([id, v]) => [id, v as unknown as Lote])) }, true);
+    cb({ parte: 'orcamentos', valor: new Map(col('orcamentos').map(([id, v]) => [id, v as unknown as OrcamentoSalvo])) }, true);
   };
   ouvintes.add(emitir);
   setTimeout(emitir, 20);

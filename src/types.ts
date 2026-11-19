@@ -298,8 +298,59 @@ export interface ConfigBalanca {
   setor: number;
 }
 
+/** Um item do orçamento, com o preço guardado como estava na hora (o cliente recebeu esse valor). */
+export interface ItemOrcamento {
+  produtoId: string;
+  nome: string;
+  qtd: number;
+  unidade: string;
+  /** preço de venda na unidade do produto, em centavos */
+  preco: number;
+  unidadePreco: string;
+  /** valor do item, em centavos */
+  total: number;
+}
+
+export type SituacaoOrcamento = 'rascunho' | 'enviado' | 'aprovado' | 'perdido' | 'vendido';
+
+export interface OrcamentoSalvo {
+  id: string;
+  numero: number;
+  /** ISO */
+  criado: string;
+  atualizado: string;
+  cliente: { nome: string; telefone: string; endereco: string };
+  itens: ItemOrcamento[];
+  desconto: { tipo: 'valor' | 'pct'; valor: number | null };
+  /** 1 = sem parcelamento */
+  parcelas: number;
+  /** AAAA-MM-DD */
+  validade: string;
+  obs: string;
+  situacao: SituacaoOrcamento;
+}
+
+export interface ConfigOrcamento {
+  validadeDias: number;
+  /** formas de pagamento escritas para o cliente, ex.: "Pix, dinheiro ou cartão" */
+  formas: string;
+  pixTipo: 'cpf' | 'cnpj' | 'celular' | 'email' | 'aleatoria';
+  pixChave: string;
+  /** nome de quem recebe, como aparece no banco */
+  pixNome: string;
+  pixCidade: string;
+  /** mostra o aviso para oferecer parcelamento acima deste valor, em centavos (0 = nunca) */
+  parcelarAcima: number;
+  /** frase final, ex.: Responda "QUERO" para confirmar */
+  mensagem: string;
+  cupom: 58 | 80;
+}
+
 export interface Settings {
   balanca?: ConfigBalanca;
+  /** orçamentos salvos (na nuvem ficam um por documento) */
+  orcamentos?: OrcamentoSalvo[];
+  orcamentoCfg?: ConfigOrcamento;
   /** retirada mensal dos donos, em centavos (opcional; usada no resultado do mês) */
   proLabore?: number;
   /** modelos de etiqueta da impressora térmica */

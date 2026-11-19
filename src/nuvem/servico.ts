@@ -21,7 +21,7 @@ import {
   writeBatch,
   type DocumentData,
 } from 'firebase/firestore';
-import type { Lote, Product, StoreInfo, Venda } from '../types';
+import type { Lote, OrcamentoSalvo, Product, StoreInfo, Venda } from '../types';
 import { DEL, INC, LOJA_ID, emLotes, type Op, type Raiz } from './modelo';
 
 const app = initializeApp({
@@ -63,9 +63,10 @@ export type Parte =
   | { parte: 'loja'; valor: StoreInfo | null }
   | { parte: 'produtos'; valor: Map<string, Product> }
   | { parte: 'dias'; valor: Map<string, Record<string, Venda>> }
-  | { parte: 'lotes'; valor: Map<string, Lote> };
+  | { parte: 'lotes'; valor: Map<string, Lote> }
+  | { parte: 'orcamentos'; valor: Map<string, OrcamentoSalvo> };
 
-/** Ouve as cinco partes da loja em tempo real. `servidor` diz se a resposta veio da internet (e não só da cópia do aparelho). */
+/** Ouve as seis partes da loja em tempo real. `servidor` diz se a resposta veio da internet (e não só da cópia do aparelho). */
 export function ouvir(inicioVendas: string, cb: (p: Parte, servidor: boolean) => void, erro: (e: Error) => void): () => void {
   const raiz = doc(db, 'lojas', LOJA_ID);
   const opt = { includeMetadataChanges: true };
@@ -81,6 +82,7 @@ export function ouvir(inicioVendas: string, cb: (p: Parte, servidor: boolean) =>
       erro,
     ),
     onSnapshot(collection(raiz, 'lotes'), opt, (s) => cb({ parte: 'lotes', valor: mapa(s.docs, (d, id) => ({ ...(d as Lote), id })) }, !s.metadata.fromCache), erro),
+    onSnapshot(collection(raiz, 'orcamentos'), opt, (s) => cb({ parte: 'orcamentos', valor: mapa(s.docs, (d, id) => ({ ...(d as OrcamentoSalvo), id })) }, !s.metadata.fromCache), erro),
   ];
   return () => subs.forEach((u) => u());
 }

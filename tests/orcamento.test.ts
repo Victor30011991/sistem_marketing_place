@@ -38,6 +38,9 @@ describe('orçamento: cálculos', () => {
 
 describe('orçamento: PDF', () => {
   const data: OrcamentoPdfData = {
+    numero: 15, data: '19/11/2026', validade: 'domingo, 22/11', formas: 'Pix ou cartao',
+    pix: '00020101021126330014br.gov.bcb.pix0111123456789015204000053039865406800.005802BR5905Teste6005Cidade62070503***6304ABCD',
+    confirmar: 'https://wa.me/5586999990000?text=oi', mensagem: 'Responda QUERO para confirmar',
     cliente: { nome: 'Maria da Silva', telefone: '(11) 99999-0000', endereco: 'Rua das Flores, 10' },
     linhas: [{ nome: 'Acafrao Teste', qtd: '250 g', unitario: 'R$ 350,00 / kg', subtotal: 8750 }],
     subtotal: 8750, desconto: 750, descontoLabel: '', total: 8000,
@@ -47,7 +50,7 @@ describe('orçamento: PDF', () => {
     const buf = await buildOrcamentoPdf(data, defaultStore(), null);
     const t = Buffer.from(buf).toString('latin1');
     expect(t.startsWith('%PDF')).toBe(true);
-    for (const x of ['Maria da Silva', 'Acafrao Teste', '80,00', '2 parcelas de R$', 'Entrega na sexta', 'sem valor fiscal']) expect(t).toContain(x);
+    for (const x of ['Maria da Silva', 'Acafrao Teste', '80,00', 'de R$ 40,00 no cart', 'Entrega na sexta', 'sem valor fiscal', 'Pague com Pix', 'Confirme pelo WhatsApp', 'Responda QUERO', 'Voc', 'economiza R$ 7,50', '22/11']) expect(t).toContain(x);
   });
 });
 

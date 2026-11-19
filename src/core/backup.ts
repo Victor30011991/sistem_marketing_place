@@ -1,6 +1,7 @@
 import type { FixedCost, InstallmentFee, ListaCompras, ListState, Lote, LoteItem, Product, Settings, StoreInfo, VariableCost, Venda, VendaItem, VendaPausada } from '../types';
 import { defaultSettings, defaultStore } from './defaults';
 import { etiquetasDe, nutricaoDe } from './etiquetas';
+import { cfgOrcamento, orcamentosDe } from './orcamentos';
 import { newId, newKey } from './normalize';
 import { paymentOptions } from './pricing';
 import { vitrineDe } from './vitrine';
@@ -216,6 +217,9 @@ function lerConfig(raw: unknown): Settings {
   });
   if (isObj(raw.balanca)) cfg.balanca = balancaDe(raw.balanca);
   if (num(raw.proLabore) != null && (raw.proLabore as number) >= 0) cfg.proLabore = raw.proLabore as number;
+  const orcamentos = orcamentosDe(raw.orcamentos);
+  if (orcamentos?.length) cfg.orcamentos = orcamentos;
+  if (isObj(raw.orcamentoCfg)) cfg.orcamentoCfg = cfgOrcamento(raw.orcamentoCfg);
   const etiquetas = etiquetasDe(raw.etiquetas);
   if (etiquetas?.length) cfg.etiquetas = etiquetas;
   if (Array.isArray(raw.vendasPausadas)) cfg.vendasPausadas = raw.vendasPausadas.flatMap((x) => {
