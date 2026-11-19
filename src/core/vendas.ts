@@ -1,9 +1,9 @@
 import Decimal from 'decimal.js';
-import type { Product, Settings, Venda, VendaItem } from '../types';
+import type { PagamentoVenda, Product, Settings, Venda, VendaItem } from '../types';
 import { roundCents } from './money';
 import { contentOf, convertQty } from './units';
 import { norm } from './normalize';
-import { paymentById } from './pricing';
+import { paymentById, paymentOptions } from './pricing';
 
 const D = (n: number | Decimal) => new Decimal(n);
 
@@ -32,6 +32,102 @@ export function itemVenda(p: Product, qtd: number, unidade = unidadeDeVenda(p)):
   const total = roundCents(D(p.venda).times(q));
   const custo = p.custo != null ? roundCents(D(p.custo).times(q)) : null;
   return { produtoId: p.id, nome: p.nome, qtd, unidade, total, custo };
+}
+
+/**
+ * Desconto de um item digitado no balcão: "10%" (percentual) ou "2,50" (reais).
+ * Devolve o desconto em centavos, limitado ao valor do item. Texto vazio ou inválido = 0.
+ */
+export function descontoDoTexto(texto: string | undefined, totalItem: number): number {
+  const t = String(texto ?? '').trim().replace(/^-/, '');
+  if (!t) return 0;
+  const pct = t.endsWith('%');
+  const n = Number(t.replace('%', '').replace(/R\$\s*/i, '').replace(/\./g, '').replace(',', '.').trim());
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const d = pct ? roundCents(D(totalItem).times(Math.min(n, 100)).div(100)) : Math.round(n * 100);
+  return Math.min(d, totalItem);
+}
+
+/** Aplica o desconto do item: o total passa a ser o valor cobrado e o desconto fica registrado. */
+export function comDesconto(item: VendaItem, desconto: number): VendaItem {
+  if (!(desconto > 0)) return item;
+  const d = Math.min(desconto, item.total);
+  return { ...item, total: item.total - d, desconto: d };
+}
+
+/** Formas de pagamento do PDV: dinheiro separado do Pix (só o dinheiro dá troco). */
+export function formasPdv(s: Settings): { id: string; label: string; taxa: number }[] {
+  const outras = paymentOptions(s).filter((o) => o.id !== 'pix');
+  return [{ id: 'dinheiro', label: 'Dinheiro', taxa: 0 }, { id: 'pix', label: 'Pix', taxa: 0 }, ...outras];
+}
+
+export function formaPdv(s: Settings, id: string): { id: string; label: string; taxa: number } {
+  return formasPdv(s).find((f) => f.id === id) ?? { id, label: id, taxa: 0 };
+}
+
+export interface FechamentoPdv {
+  /** soma dos itens pelo preço de tabela, antes de qualquer desconto */
+  bruto: number;
+  /** descontos dados nos itens */
+  descontoItens: number;
+  /** soma dos itens já com o desconto de cada um */
+  subtotal: number;
+  /** desconto na venda inteira */
+  desconto: number;
+  total: number;
+  /** soma do que o cliente entregou */
+  pago: number;
+  /** quanto ainda falta pagar */
+  falta: number;
+  /** troco a devolver (só existe quando entra dinheiro a mais) */
+  troco: number;
+  /** pago a mais sem dinheiro para dar troco (ex.: Pix maior que a conta) */
+  excesso: number;
+  pagamentos: PagamentoVenda[];
+  taxa: number;
+  liquido: number;
+}
+
+/** Fecha a venda com uma ou mais formas de pagamento, calculando falta, troco e a taxa de cada forma. */
+export function fecharPdv(itens: VendaItem[], desconto: { tipo: 'valor' | 'pct'; valor: number | null }, pagos: { forma: string; valor: number }[], s: Settings): FechamentoPdv {
+  const subtotal = itens.reduce((a, i) => a + i.total, 0);
+  const descontoItens = itens.reduce((a, i) => a + (i.desconto ?? 0), 0);
+  let desc = 0;
+  if (desconto.valor && desconto.valor > 0) desc = desconto.tipo === 'pct' ? roundCents(D(subtotal).times(Math.min(desconto.valor, 100)).div(100)) : desconto.valor;
+  desc = Math.min(desc, subtotal);
+  const total = subtotal - desc;
+  const validos = pagos.filter((p) => p.valor > 0);
+  const pago = validos.reduce((a, p) => a + p.valor, 0);
+  const sobra = Math.max(0, pago - total);
+  const dinheiro = validos.filter((p) => p.forma === 'dinheiro').reduce((a, p) => a + p.valor, 0);
+  const troco = Math.min(sobra, dinheiro);
+  // o troco sai do dinheiro: a loja fica só com o que cobre a conta
+  let tirar = troco;
+  const pagamentos: PagamentoVenda[] = validos.map((p) => {
+    let valor = p.valor;
+    if (p.forma === 'dinheiro' && tirar > 0) {
+      const t = Math.min(tirar, valor);
+      valor -= t;
+      tirar -= t;
+    }
+    const f = formaPdv(s, p.forma);
+    return { forma: p.forma, label: f.label, valor, taxa: roundCents(D(valor).times(f.taxa).div(100)) };
+  }).filter((p) => p.valor > 0);
+  const taxa = pagamentos.reduce((a, p) => a + p.taxa, 0);
+  return {
+    bruto: subtotal + descontoItens,
+    descontoItens,
+    subtotal,
+    desconto: desc,
+    total,
+    pago,
+    falta: Math.max(0, total - pago),
+    troco,
+    excesso: sobra - troco,
+    pagamentos,
+    taxa,
+    liquido: total - taxa,
+  };
 }
 
 export interface FechamentoVenda {
@@ -96,19 +192,22 @@ export interface ResumoVendas {
 export function resumoVendas(vendas: Venda[]): ResumoVendas {
   const ok = vendas.filter((v) => !v.cancelada);
   const soma = (f: (v: Venda) => number) => ok.reduce((a, v) => a + f(v), 0);
-  const bruto = soma((v) => v.itens.reduce((a, i) => a + i.total, 0));
-  const descontos = soma((v) => v.desconto);
+  const bruto = soma((v) => v.itens.reduce((a, i) => a + i.total + (i.desconto ?? 0), 0));
+  const descontos = soma((v) => v.desconto + v.itens.reduce((a, i) => a + (i.desconto ?? 0), 0));
   const total = soma((v) => v.total);
   const taxas = soma((v) => v.taxa);
   const custo = soma((v) => v.itens.reduce((a, i) => a + (i.custo ?? 0), 0));
   const pag = new Map<string, { label: string; vendas: number; total: number }>();
   const prod = new Map<string, { nome: string; total: number }>();
   for (const v of ok) {
-    const k = v.pagamento.startsWith('parcelado:') ? v.pagamentoLabel : v.pagamento;
-    const x = pag.get(k) ?? { label: v.pagamentoLabel, vendas: 0, total: 0 };
-    x.vendas++;
-    x.total += v.total;
-    pag.set(k, x);
+    const partes = v.pagamentos?.length ? v.pagamentos.map((p) => ({ forma: p.forma, label: p.label, valor: p.valor })) : [{ forma: v.pagamento, label: v.pagamentoLabel, valor: v.total }];
+    for (const pt of partes) {
+      const k = pt.forma.startsWith('parcelado:') ? pt.label : pt.forma;
+      const x = pag.get(k) ?? { label: pt.label, vendas: 0, total: 0 };
+      x.vendas++;
+      x.total += pt.valor;
+      pag.set(k, x);
+    }
     for (const i of v.itens) {
       const y = prod.get(i.produtoId) ?? { nome: i.nome, total: 0 };
       y.total += i.total;

@@ -173,6 +173,27 @@ export interface VendaItem {
   total: number;
   /** custo do que saiu do estoque, em centavos (null = produto sem custo) */
   custo: number | null;
+  /** desconto dado só neste item, em centavos (já descontado do total) */
+  desconto?: number;
+}
+
+/** Uma parte do pagamento de uma venda (ex.: R$ 50 no Pix + R$ 30 no débito). */
+export interface PagamentoVenda {
+  /** dinheiro, pix, debito, credito_vista ou parcelado:… */
+  forma: string;
+  label: string;
+  /** valor que ficou com a loja nesta forma (o troco já foi tirado do dinheiro), em centavos */
+  valor: number;
+  /** taxa da maquininha desta parte, em centavos */
+  taxa: number;
+}
+
+/** Venda deixada de lado no PDV para atender outro cliente e retomar depois. */
+export interface VendaPausada {
+  id: string;
+  quando: string;
+  cliente: string;
+  linhas: { produtoId: string; qtd: number; unidade: string; total?: number; desconto?: string }[];
 }
 
 export interface Venda {
@@ -190,6 +211,10 @@ export interface Venda {
   /** taxa da maquininha em centavos */
   taxa: number;
   cliente: string;
+  /** formas de pagamento usadas (vendas antigas não têm: valem `pagamento` e `total`) */
+  pagamentos?: PagamentoVenda[];
+  /** troco devolvido em dinheiro, em centavos */
+  troco?: number;
   /** ISO; venda cancelada devolve o estoque e sai dos totais */
   cancelada?: string;
 }
@@ -214,6 +239,8 @@ export interface ConfigBalanca {
 
 export interface Settings {
   balanca?: ConfigBalanca;
+  /** vendas pausadas no PDV, para retomar depois */
+  vendasPausadas?: VendaPausada[];
   /** vendas registradas no PDV (opcional) */
   vendas?: Venda[];
   /** lista de compras em montagem (opcional) */
