@@ -55,6 +55,70 @@
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', fundo);
   }
 
+  /** Tigela de madeira em 3/4 com o tempero amontoado (desenho realista, sem foto). */
+  var cachePote = {};
+  function poteURL(tom, px, fundoFixo, tipo) {
+    var chave = tom + '|' + px + '|' + (fundoFixo || '') + '|' + (tipo || '');
+    if (cachePote[chave]) return cachePote[chave];
+    var c = document.createElement('canvas'); c.width = px; c.height = px;
+    var x = c.getContext('2d');
+    if (fundoFixo !== 'transparente') {
+      x.fillStyle = fundoFixo || '#efdfc6';
+      x.fillRect(0, 0, px, px);
+    }
+    function mh(a, b, t) { var p = parseInt(a.slice(1), 16), q = parseInt(b.slice(1), 16); return '#' + [16, 8, 0].map(function (s) { var u = (p >> s) & 255, v = (q >> s) & 255; return Math.round(u + (v - u) * t).toString(16).padStart(2, '0'); }).join(''); }
+    var seed = 7; function r() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    var cx = px / 2, topo = px * 0.50, rx = px * 0.40, ry = rx * 0.30, fundoY = px * 0.86;
+    // sombra no balcão
+    var sg = x.createRadialGradient(cx, fundoY, 0, cx, fundoY, rx * 1.15);
+    sg.addColorStop(0, 'rgba(40,25,15,.38)'); sg.addColorStop(1, 'rgba(40,25,15,0)');
+    x.fillStyle = sg; x.beginPath(); x.ellipse(cx, fundoY + px * .01, rx * 1.15, ry * 0.75, 0, 0, 6.28); x.fill();
+    // corpo da tigela (madeira)
+    function corpo() { x.beginPath(); x.moveTo(cx - rx, topo); x.bezierCurveTo(cx - rx, topo + (fundoY - topo) * 0.95, cx - rx * 0.45, fundoY, cx, fundoY); x.bezierCurveTo(cx + rx * 0.45, fundoY, cx + rx, topo + (fundoY - topo) * 0.95, cx + rx, topo); x.ellipse(cx, topo, rx, ry, 0, 0, Math.PI, false); x.closePath(); }
+    var madeira = x.createLinearGradient(cx - rx, 0, cx + rx, 0);
+    madeira.addColorStop(0, '#5a3418'); madeira.addColorStop(.28, '#9a6334'); madeira.addColorStop(.5, '#b47a44'); madeira.addColorStop(.75, '#8a5528'); madeira.addColorStop(1, '#4a2a12');
+    x.fillStyle = madeira; corpo(); x.fill();
+    // veios da madeira
+    x.save(); corpo(); x.clip();
+    for (var v = 0; v < 26; v++) {
+      var yy = topo + r() * (fundoY - topo); x.strokeStyle = 'rgba(60,30,10,' + (0.08 + r() * 0.12) + ')'; x.lineWidth = Math.max(.6, px / 300 + r() * px / 260);
+      x.beginPath(); x.moveTo(cx - rx, yy); x.bezierCurveTo(cx - rx * .3, yy + (r() - .5) * px * .06, cx + rx * .3, yy + (r() - .5) * px * .06, cx + rx, yy + (r() - .5) * px * .03); x.stroke();
+    }
+    var brilho = x.createLinearGradient(0, topo, 0, fundoY);
+    brilho.addColorStop(0, 'rgba(255,230,200,.18)'); brilho.addColorStop(.5, 'rgba(255,230,200,0)'); brilho.addColorStop(1, 'rgba(0,0,0,.25)');
+    x.fillStyle = brilho; x.fillRect(0, 0, px, px);
+    x.restore();
+    // borda (aro)
+    x.fillStyle = '#c48b52'; x.beginPath(); x.ellipse(cx, topo, rx, ry, 0, 0, 6.28); x.fill();
+    var irx = rx * 0.9, iry = ry * 0.82;
+    x.fillStyle = '#3d2210'; x.beginPath(); x.ellipse(cx, topo + ry * 0.04, irx, iry, 0, 0, 6.28); x.fill();
+    // montinho do tempero
+    var pico = topo - ry - px * (tipo === 'graos' ? 0.10 : 0.14);
+    function monte() { x.beginPath(); x.moveTo(cx - irx, topo + ry * .04); x.bezierCurveTo(cx - irx * .7, topo - ry * .9, cx - irx * .35, pico, cx, pico); x.bezierCurveTo(cx + irx * .35, pico, cx + irx * .7, topo - ry * .9, cx + irx, topo + ry * .04); x.ellipse(cx, topo + ry * .04, irx, iry, 0, 0, Math.PI, false); x.closePath(); }
+    var base = x.createRadialGradient(cx - irx * .35, pico + (topo - pico) * .3, px * .02, cx, topo, irx * 1.2);
+    base.addColorStop(0, mh(tom, '#ffffff', .28)); base.addColorStop(.55, tom); base.addColorStop(1, mh(tom, '#000000', .38));
+    x.fillStyle = base; monte(); x.fill();
+    x.save(); monte(); x.clip();
+    var pal = [tom, mh(tom, '#000000', .25), mh(tom, '#ffffff', .2), mh(tom, '#000000', .45), mh(tom, '#ffffff', .4)];
+    var n = Math.round(px * px / (tipo === 'graos' ? 14 : 6)), gr = Math.max(.7, px / (tipo === 'graos' ? 110 : 260));
+    for (var i = 0; i < n; i++) {
+      var gx = cx - irx + r() * irx * 2, gy = pico + r() * (topo + iry - pico);
+      x.globalAlpha = .55 + r() * .45; x.fillStyle = pal[Math.floor(r() * pal.length)];
+      if (tipo === 'graos') { x.beginPath(); x.ellipse(gx, gy, gr * (1 + r()), gr * .6, r() * 3, 0, 6.28); x.fill(); }
+      else x.fillRect(gx, gy, gr * (1 + r()), gr * (1 + r()));
+    }
+    x.globalAlpha = 1;
+    var sombraMonte = x.createLinearGradient(cx - irx, 0, cx + irx, 0);
+    sombraMonte.addColorStop(0, 'rgba(255,255,255,.10)'); sombraMonte.addColorStop(.6, 'rgba(0,0,0,0)'); sombraMonte.addColorStop(1, 'rgba(0,0,0,.28)');
+    x.fillStyle = sombraMonte; x.fillRect(0, 0, px, px);
+    x.restore();
+    // borda da frente por cima do montinho
+    x.strokeStyle = 'rgba(205,150,95,.9)'; x.lineWidth = Math.max(1, px / 70); x.beginPath(); x.ellipse(cx, topo, rx * .985, ry * .95, 0, 0.08, Math.PI - 0.08); x.stroke();
+    // grãos soltos no balcão
+    for (var k = 0; k < Math.round(px / 14); k++) { var a = r() * 6.28, d = rx * (1.02 + r() * .25); x.fillStyle = pal[Math.floor(r() * 3)]; x.beginPath(); x.arc(cx + Math.cos(a) * d, fundoY - px * .02 + Math.sin(a) * ry * .55, Math.max(.8, px / 220) * (1 + r()), 0, 6.28); x.fill(); }
+    return (cachePote[chave] = c.toDataURL('image/png'));
+  }
+
   // ---------- montinho de tempero (quando não há foto) ----------
   function monte(c, tom) {
     var w = c.clientWidth || 300, hh = c.clientHeight || 300;
@@ -134,7 +198,7 @@
       var foto = imgOk(c.f);
       var fig = h('figure', { class: 'monte' });
       if (foto) fig.appendChild(h('img', { src: foto, alt: c.n, loading: 'lazy' }));
-      else { var m = h('canvas', { 'aria-hidden': 'true' }); fig.appendChild(m); montes.push([m, tom]); }
+      else fig.appendChild(h('img', { class: 'pote', src: poteURL(tom, 640, 'transparente'), alt: '' }));
       app.appendChild(h('section', { class: 'cap', id: 'cap-' + i, 'data-cor': tom },
         h('div', { class: 'in cap-grid' },
           h('div', null,
@@ -175,8 +239,7 @@
     if (cards.length) {
       var trilho = h('div', { class: 'trilho' });
       cards.forEach(function (c, i) {
-        var ft = c.f ? h('img', { class: 'ft', src: c.f, alt: '', loading: 'lazy' }) : h('canvas', { class: 'ft', 'aria-hidden': 'true', style: 'background:' + cores.f });
-        if (!c.f) montes.push([ft, [cores.p, '#E3A21A', cores.d][i % 3]]);
+        var ft = h('img', { class: 'ft', src: c.f || poteURL([cores.p, '#E3A21A', cores.d][i % 3], 300, cores.f), alt: '', loading: 'lazy' });
         trilho.appendChild(h('a', { class: 'prod', href: c.href }, ft,
           h('div', null, h('small', { text: c.rotulo }), h('b', { text: c.n }),
             h('span', null, c.mix ? c.preco : c.preco + ' / 100 g', c.antes ? h('s', { text: c.antes }) : null))));

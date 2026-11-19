@@ -238,10 +238,76 @@
     return (cacheTigela[chave] = c.toDataURL('image/png'));
   }
 
+  /** Tigela de madeira em 3/4 com o tempero amontoado (desenho realista, sem foto). */
+  var cachePote = {};
+  function poteURL(tom, px, fundoFixo, tipo) {
+    var chave = tom + '|' + px + '|' + (fundoFixo || '') + '|' + (tipo || '');
+    if (cachePote[chave]) return cachePote[chave];
+    var c = document.createElement('canvas'); c.width = px; c.height = px;
+    var x = c.getContext('2d');
+    if (fundoFixo !== 'transparente') {
+      x.fillStyle = fundoFixo || getComputedStyle(document.documentElement).getPropertyValue('--f').trim() || '#efdfc6';
+      x.fillRect(0, 0, px, px);
+    }
+    function mh(a, b, t) { var p = parseInt(a.slice(1), 16), q = parseInt(b.slice(1), 16); return '#' + [16, 8, 0].map(function (s) { var u = (p >> s) & 255, v = (q >> s) & 255; return Math.round(u + (v - u) * t).toString(16).padStart(2, '0'); }).join(''); }
+    var seed = 7; function r() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    var cx = px / 2, topo = px * 0.50, rx = px * 0.40, ry = rx * 0.30, fundoY = px * 0.86;
+    // sombra no balcão
+    var sg = x.createRadialGradient(cx, fundoY, 0, cx, fundoY, rx * 1.15);
+    sg.addColorStop(0, 'rgba(40,25,15,.38)'); sg.addColorStop(1, 'rgba(40,25,15,0)');
+    x.fillStyle = sg; x.beginPath(); x.ellipse(cx, fundoY + px * .01, rx * 1.15, ry * 0.75, 0, 0, 6.28); x.fill();
+    // corpo da tigela (madeira)
+    function corpo() { x.beginPath(); x.moveTo(cx - rx, topo); x.bezierCurveTo(cx - rx, topo + (fundoY - topo) * 0.95, cx - rx * 0.45, fundoY, cx, fundoY); x.bezierCurveTo(cx + rx * 0.45, fundoY, cx + rx, topo + (fundoY - topo) * 0.95, cx + rx, topo); x.ellipse(cx, topo, rx, ry, 0, 0, Math.PI, false); x.closePath(); }
+    var madeira = x.createLinearGradient(cx - rx, 0, cx + rx, 0);
+    madeira.addColorStop(0, '#5a3418'); madeira.addColorStop(.28, '#9a6334'); madeira.addColorStop(.5, '#b47a44'); madeira.addColorStop(.75, '#8a5528'); madeira.addColorStop(1, '#4a2a12');
+    x.fillStyle = madeira; corpo(); x.fill();
+    // veios da madeira
+    x.save(); corpo(); x.clip();
+    for (var v = 0; v < 26; v++) {
+      var yy = topo + r() * (fundoY - topo); x.strokeStyle = 'rgba(60,30,10,' + (0.08 + r() * 0.12) + ')'; x.lineWidth = Math.max(.6, px / 300 + r() * px / 260);
+      x.beginPath(); x.moveTo(cx - rx, yy); x.bezierCurveTo(cx - rx * .3, yy + (r() - .5) * px * .06, cx + rx * .3, yy + (r() - .5) * px * .06, cx + rx, yy + (r() - .5) * px * .03); x.stroke();
+    }
+    var brilho = x.createLinearGradient(0, topo, 0, fundoY);
+    brilho.addColorStop(0, 'rgba(255,230,200,.18)'); brilho.addColorStop(.5, 'rgba(255,230,200,0)'); brilho.addColorStop(1, 'rgba(0,0,0,.25)');
+    x.fillStyle = brilho; x.fillRect(0, 0, px, px);
+    x.restore();
+    // borda (aro)
+    x.fillStyle = '#c48b52'; x.beginPath(); x.ellipse(cx, topo, rx, ry, 0, 0, 6.28); x.fill();
+    var irx = rx * 0.9, iry = ry * 0.82;
+    x.fillStyle = '#3d2210'; x.beginPath(); x.ellipse(cx, topo + ry * 0.04, irx, iry, 0, 0, 6.28); x.fill();
+    // montinho do tempero
+    var pico = topo - ry - px * (tipo === 'graos' ? 0.10 : 0.14);
+    function monte() { x.beginPath(); x.moveTo(cx - irx, topo + ry * .04); x.bezierCurveTo(cx - irx * .7, topo - ry * .9, cx - irx * .35, pico, cx, pico); x.bezierCurveTo(cx + irx * .35, pico, cx + irx * .7, topo - ry * .9, cx + irx, topo + ry * .04); x.ellipse(cx, topo + ry * .04, irx, iry, 0, 0, Math.PI, false); x.closePath(); }
+    var base = x.createRadialGradient(cx - irx * .35, pico + (topo - pico) * .3, px * .02, cx, topo, irx * 1.2);
+    base.addColorStop(0, mh(tom, '#ffffff', .28)); base.addColorStop(.55, tom); base.addColorStop(1, mh(tom, '#000000', .38));
+    x.fillStyle = base; monte(); x.fill();
+    x.save(); monte(); x.clip();
+    var pal = [tom, mh(tom, '#000000', .25), mh(tom, '#ffffff', .2), mh(tom, '#000000', .45), mh(tom, '#ffffff', .4)];
+    var n = Math.round(px * px / (tipo === 'graos' ? 14 : 6)), gr = Math.max(.7, px / (tipo === 'graos' ? 110 : 260));
+    for (var i = 0; i < n; i++) {
+      var gx = cx - irx + r() * irx * 2, gy = pico + r() * (topo + iry - pico);
+      x.globalAlpha = .55 + r() * .45; x.fillStyle = pal[Math.floor(r() * pal.length)];
+      if (tipo === 'graos') { x.beginPath(); x.ellipse(gx, gy, gr * (1 + r()), gr * .6, r() * 3, 0, 6.28); x.fill(); }
+      else x.fillRect(gx, gy, gr * (1 + r()), gr * (1 + r()));
+    }
+    x.globalAlpha = 1;
+    var sombraMonte = x.createLinearGradient(cx - irx, 0, cx + irx, 0);
+    sombraMonte.addColorStop(0, 'rgba(255,255,255,.10)'); sombraMonte.addColorStop(.6, 'rgba(0,0,0,0)'); sombraMonte.addColorStop(1, 'rgba(0,0,0,.28)');
+    x.fillStyle = sombraMonte; x.fillRect(0, 0, px, px);
+    x.restore();
+    // borda da frente por cima do montinho
+    x.strokeStyle = 'rgba(205,150,95,.9)'; x.lineWidth = Math.max(1, px / 70); x.beginPath(); x.ellipse(cx, topo, rx * .985, ry * .95, 0, 0.08, Math.PI - 0.08); x.stroke();
+    // grãos soltos no balcão
+    for (var k = 0; k < Math.round(px / 14); k++) { var a = r() * 6.28, d = rx * (1.02 + r() * .25); x.fillStyle = pal[Math.floor(r() * 3)]; x.beginPath(); x.arc(cx + Math.cos(a) * d, fundoY - px * .02 + Math.sin(a) * ry * .55, Math.max(.8, px / 220) * (1 + r()), 0, 6.28); x.fill(); }
+    return (cachePote[chave] = c.toDataURL('image/png'));
+  }
+
+  var GRAOS = /chia|linhaca|gergelim|granola|castanha|amendoim|semente|grao|graos|quinoa|aveia em flocos|mix de|nozes|uva passa|cravo|erva doce|anis|coentro em grao/;
+  function tipoDe(nome) { return GRAOS.test(semAcento(nome)) ? 'graos' : ''; }
   // ---------- peças ----------
   function foto(it, cls, grande) {
     if (it.f) return h('img', { class: cls, src: it.f, alt: '', loading: 'lazy' });
-    return h('img', { class: cls + ' monte', src: tigelaURL(tomDe(it.n), grande ? 420 : 160), alt: '' });
+    return h('img', { class: cls + ' monte', src: poteURL(tomDe(it.n), grande ? 480 : 200, null, tipoDe(it.n)), alt: '' });
   }
   function por100(pk) { return L.brl(Math.round(pk / 10)); }
   function precoBloco(it) {
@@ -320,15 +386,15 @@
     var ofertas = dados.categorias.filter(function (c) { return c.nome === 'Ofertas'; })[0];
     (ofertas ? ofertas.itens : []).slice(0, 3).forEach(function (it) {
       var x = mapa[item('Ofertas', it).chave] || item('Ofertas', it);
-      slides.push({ selo: x.s || 'Oferta', titulo: x.n, linha: por100(x.pk) + ' / 100 g' + (x.pa ? ' · antes ' + por100(x.pa) : ''), tom: tomDe(x.n), img: x.f || tigelaURL(tomDe(x.n), 260, 'transparente'), href: '#/p/' + encodeURIComponent(x.chave), bt: 'Quero' });
+      slides.push({ selo: x.s || 'Oferta', titulo: x.n, linha: por100(x.pk) + ' / 100 g' + (x.pa ? ' · antes ' + por100(x.pa) : ''), tom: tomDe(x.n), img: x.f || poteURL(tomDe(x.n), 300, 'transparente', tipoDe(x.n)), href: '#/p/' + encodeURIComponent(x.chave), bt: 'Quero' });
     });
     (dados.mixes || []).slice(0, 2).forEach(function (m, i) {
       var its = m.i.map(function (id) { return mapa['i:' + id]; }).filter(Boolean); if (its.length < 2) return;
       var tot = 0; its.forEach(function (y) { tot += L.precoItem(m.g, y.pk); });
-      slides.push({ selo: 'Mix pronto', titulo: m.n, linha: its.length + ' temperos · ' + L.brl(tot), tom: tomDe(its[0].n), img: tigelaURL(tomDe(its[0].n), 260, 'transparente'), mix: m, bt: 'Levar o mix' });
+      slides.push({ selo: 'Mix pronto', titulo: m.n, linha: its.length + ' temperos · ' + L.brl(tot), tom: tomDe(its[0].n), img: poteURL(tomDe(its[0].n), 300, 'transparente', tipoDe(its[0].n)), mix: m, bt: 'Levar o mix' });
     });
     if (!slides.length) {
-      slides.push({ selo: 'Pesado na hora', titulo: dados.loja.slogan || 'Temperos fresquinhos', linha: 'Escolha a quantidade que precisa', tom: getComputedStyle(document.documentElement).getPropertyValue('--p').trim() || '#b03818', img: tigelaURL('#B5401A', 260, 'transparente'), href: '#categorias', bt: 'Ver categorias' });
+      slides.push({ selo: 'Pesado na hora', titulo: dados.loja.slogan || 'Temperos fresquinhos', linha: 'Escolha a quantidade que precisa', tom: getComputedStyle(document.documentElement).getPropertyValue('--p').trim() || '#b03818', img: poteURL('#B5401A', 300, 'transparente'), href: '#categorias', bt: 'Ver categorias' });
     }
     var trilho = h('div', { class: 'banner-trilho' });
     var pontos = h('div', { class: 'banner-pontos', 'aria-hidden': 'true' });
@@ -365,7 +431,7 @@
     categoriasReais().forEach(function (x) {
       var tom = tomCategoria(x.c);
       nav.appendChild(h('a', { class: 'roda-it', href: '#/c/' + x.idx },
-        h('img', { src: tigelaURL(tom, 150, 'transparente'), alt: '' }),
+        h('img', { src: poteURL(tom, 160, '#ffffff'), alt: '' }),
         h('span', { text: x.c.nome })));
     });
     return nav;
@@ -468,7 +534,7 @@
         h('button', { class: 'voltar-cat', type: 'button', onclick: function () { if (ui.veioDoInicio) history.back(); else ir(''); } }, icone('voltar', 18), 'Cardápio'),
         h('div', { class: 'cat-top-in' },
           h('div', null, h('h1', { text: c.nome }), h('p', { text: c.itens.length + (c.itens.length === 1 ? ' produto' : ' produtos') + ' · pesados na hora' })),
-          h('img', { class: 'cat-monte', src: tigelaURL(tom, 240, 'transparente'), alt: '' })),
+          h('img', { class: 'cat-monte', src: poteURL(tom, 260, 'transparente'), alt: '' })),
         abas),
       corpo);
     // arrastar para o lado troca de categoria
