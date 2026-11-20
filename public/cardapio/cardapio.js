@@ -159,13 +159,13 @@
 
   // ---------- montinho de tempero desenhado (a miniatura de quem ainda não tem foto) ----------
   var TONS = [
+    [/amendoim/, '#B9824A'],
+    [/castanha|caju|amendoa|macadamia|pistache|baru/, '#D8B98C'],
+    [/nozes|\bnoz\b|pecan/, '#8A5A30'],
     [/\bmel\b|melado/, '#D9921A'],
     [/molho|tabasco|sriracha/, '#B5201A'],
     [/azeite|oleo/, '#8A8A2A'],
     [/vinagre|shoyu|xarope|melaco/, '#5A2A14'],
-    [/amendoim/, '#B9824A'],
-    [/castanha|caju|amendoa|macadamia|pistache|baru/, '#D8B98C'],
-    [/nozes|\bnoz\b|pecan/, '#8A5A30'],
     [/chocolate|cacau/, '#4A2A1A'],
     [/passa|ameixa|tamara/, '#4A2030'],
     [/damasco/, '#E08A2A'],
@@ -394,22 +394,49 @@
   }
 
   /** Como desenhar cada produto: frasco, pote de mel, garrafa, castanhas, amendoins, folhas, doces, grãos ou pó. */
-  var TIPOS = [
+  // O nome principal manda: "Amendoim mel e mostarda" é amendoim (sabor), "Mel com limão" e "Pimenta com mel" são mel.
+  var SOLIDOS = [
+    [/amendoim/, 'amendoim'],
+    [/castanha|caju|nozes|\bnoz\b|amendoa|macadamia|pistache|pecan|baru|avela/, 'castanha'],
+    [/granola|chia|linhaca|gergelim|semente|\bgraos?\b|quinoa|aveia|girassol|abobora|mix de/, 'graos'],
+  ];
+  var LIQUIDOS = [
     [/\bmel\b|melado/, 'mel'],
     [/molho|pimenta liquida|tabasco|sriracha/, 'molho'],
     [/azeite|oleo|vinagre|extrato|essencia|xarope|shoyu|melaco/, 'garrafa'],
-    [/amendoim/, 'amendoim'],
-    [/castanha|caju|nozes|\bnoz\b|amendoa|macadamia|pistache|pecan|baru/, 'castanha'],
+  ];
+  var OUTROS = [
     [/passa|damasco|tamara|cranberry|goji|banana desidratada|fruta desidratada|ameixa/, 'fruta'],
     [/doce|bala|confeito|goma|jujuba|chocolate|drageado|chips|coco queimado|cocada|pacoca/, 'doce'],
     [/\bcha\b|cha |hortela|camomila|boldo|cidreira|capim|folha|louro|oregano|alecrim|manjericao|salsa|cebolinha|chimichurri|tomilho|\bervas?\b|hibisco|melissa|carqueja|espinheira/, 'folhas'],
-    [/chia|linhaca|gergelim|granola|semente|grao|graos|quinoa|aveia|mix de|cravo|erva doce|anis|coentro|mostarda em grao|pimenta do reino em grao/, 'graos'],
+    [/cravo|erva doce|anis|coentro|mostarda em grao|pimenta do reino em grao/, 'graos'],
   ];
-  function tipoDe(nome) { var n = semAcento(nome); for (var i = 0; i < TIPOS.length; i++) if (TIPOS[i][0].test(n)) return TIPOS[i][1]; return ''; }
+  /** Categoria de castanhas, sementes, amêndoas, grãos ou petiscos nunca vira pote nem frasco. */
+  var CAT_SOLIDA = /castanha|semente|amendoa|amendoim|grao|graos|oleaginosa|nuts|petisco|granola|cereais|cereal|frutas secas/;
+  function procura(lista, n) { for (var i = 0; i < lista.length; i++) if (lista[i][0].test(n)) return lista[i][1]; return ''; }
+  function tipoDe(nome, cat) {
+    var n = semAcento(nome), solidaCat = CAT_SOLIDA.test(semAcento(cat || ''));
+    var t = procura(SOLIDOS, n);
+    if (t) return t;
+    if (!solidaCat) { t = procura(LIQUIDOS, n); if (t) return t; }
+    t = procura(OUTROS, n);
+    if (t) return t;
+    if (solidaCat) return /amendoa|castanha/.test(semAcento(cat)) ? 'castanha' : /amendoim/.test(semAcento(cat)) ? 'amendoim' : 'graos';
+    return '';
+  }
+  function tomPara(it) {
+    // numa categoria sólida, o mel do nome não pinta o produto de mel
+    if (CAT_SOLIDA.test(semAcento(it.cat || '')) && !procura(SOLIDOS, semAcento(it.n))) {
+      var t = tipoDe(it.n, it.cat);
+      if (t === 'castanha') return '#D8B98C';
+      if (t === 'amendoim') return '#B9824A';
+    }
+    return tomDe(it.n);
+  }
   // ---------- peças ----------
   function foto(it, cls, grande) {
     if (it.f) return h('img', { class: cls, src: it.f, alt: '', loading: 'lazy' });
-    return h('img', { class: cls + ' monte', src: poteURL(tomDe(it.n), grande ? 480 : 200, null, tipoDe(it.n)), alt: '' });
+    return h('img', { class: cls + ' monte', src: poteURL(tomPara(it), grande ? 480 : 200, null, tipoDe(it.n, it.cat)), alt: '' });
   }
   function por100(pk) { return L.brl(Math.round(pk / 10)); }
   function precoBloco(it) {
@@ -488,12 +515,12 @@
     var ofertas = dados.categorias.filter(function (c) { return c.nome === 'Ofertas'; })[0];
     (ofertas ? ofertas.itens : []).slice(0, 3).forEach(function (it) {
       var x = mapa[item('Ofertas', it).chave] || item('Ofertas', it);
-      slides.push({ selo: x.s || 'Oferta', titulo: x.n, linha: por100(x.pk) + ' / 100 g' + (x.pa ? ' · antes ' + por100(x.pa) : ''), tom: tomDe(x.n), img: x.f || poteURL(tomDe(x.n), 300, 'transparente', tipoDe(x.n)), href: '#/p/' + encodeURIComponent(x.chave), bt: 'Quero' });
+      slides.push({ selo: x.s || 'Oferta', titulo: x.n, linha: por100(x.pk) + ' / 100 g' + (x.pa ? ' · antes ' + por100(x.pa) : ''), tom: tomPara(x), img: x.f || poteURL(tomPara(x), 300, 'transparente', tipoDe(x.n, x.cat)), href: '#/p/' + encodeURIComponent(x.chave), bt: 'Quero' });
     });
     (dados.mixes || []).slice(0, 2).forEach(function (m, i) {
       var its = m.i.map(function (id) { return mapa['i:' + id]; }).filter(Boolean); if (its.length < 2) return;
       var tot = 0; its.forEach(function (y) { tot += L.precoItem(m.g, y.pk); });
-      slides.push({ selo: 'Mix pronto', titulo: m.n, linha: its.length + ' temperos · ' + L.brl(tot), tom: tomDe(its[0].n), img: poteURL(tomDe(its[0].n), 300, 'transparente', tipoDe(its[0].n)), mix: m, bt: 'Levar o mix' });
+      slides.push({ selo: 'Mix pronto', titulo: m.n, linha: its.length + ' temperos · ' + L.brl(tot), tom: tomPara(its[0]), img: poteURL(tomPara(its[0]), 300, 'transparente', tipoDe(its[0].n, its[0].cat)), mix: m, bt: 'Levar o mix' });
     });
     if (!slides.length) {
       slides.push({ selo: 'Pesado na hora', titulo: dados.loja.slogan || 'Temperos fresquinhos', linha: 'Escolha a quantidade que precisa', tom: getComputedStyle(document.documentElement).getPropertyValue('--p').trim() || '#b03818', img: poteURL('#B5401A', 300, 'transparente'), href: '#categorias', bt: 'Ver categorias' });
@@ -533,7 +560,7 @@
     categoriasReais().forEach(function (x) {
       var tom = tomCategoria(x.c);
       nav.appendChild(h('a', { class: 'roda-it', href: '#/c/' + x.idx },
-        h('img', { src: poteURL(tom, 160, '#ffffff'), alt: '' }),
+        h('img', { src: poteURL(tom, 160, '#ffffff', tipoCategoria(x.c)), alt: '' }),
         h('span', { text: x.c.nome })));
     });
     return nav;
@@ -612,9 +639,15 @@
   }
   function tomCategoria(c) {
     var conta = {};
-    c.itens.forEach(function (it) { var t = tomDe(it.n); conta[t] = (conta[t] || 0) + 1; });
+    c.itens.forEach(function (it) { var t = tomPara({ n: it.n, cat: c.nome }); conta[t] = (conta[t] || 0) + 1; });
     var melhor = null; Object.keys(conta).forEach(function (t) { if (!melhor || conta[t] > conta[melhor]) melhor = t; });
     return melhor || tomDe(c.nome);
+  }
+  function tipoCategoria(c) {
+    var conta = {};
+    c.itens.forEach(function (it) { var t = tipoDe(it.n, c.nome); conta[t] = (conta[t] || 0) + 1; });
+    var melhor = ''; Object.keys(conta).forEach(function (t) { if (conta[t] > (conta[melhor] || 0)) melhor = t; });
+    return melhor;
   }
   function telaCategoria(idx) {
     var reais = categoriasReais();
@@ -636,7 +669,7 @@
         h('button', { class: 'voltar-cat', type: 'button', onclick: function () { if (ui.veioDoInicio) history.back(); else ir(''); } }, icone('voltar', 18), 'Cardápio'),
         h('div', { class: 'cat-top-in' },
           h('div', null, h('h1', { text: c.nome }), h('p', { text: c.itens.length + (c.itens.length === 1 ? ' produto' : ' produtos') + ' · pesados na hora' })),
-          h('img', { class: 'cat-monte', src: poteURL(tom, 260, 'transparente'), alt: '' })),
+          h('img', { class: 'cat-monte', src: poteURL(tom, 260, 'transparente', tipoCategoria(c)), alt: '' })),
         abas),
       corpo);
     // arrastar para o lado troca de categoria
@@ -691,7 +724,7 @@
     atualizar();
 
     var junto = (it.j || []).map(function (id) { return mapa['i:' + id]; }).filter(Boolean);
-    var hero = h('div', { class: 'hero-prod' + (it.f ? '' : ' sem'), style: it.f ? null : 'background:radial-gradient(70% 70% at 50% 45%, ' + misturaHex(tomDe(it.n), '#ffffff', .55) + ', ' + misturaHex(tomDe(it.n), '#000000', .15) + ')' }, it.f ? h('img', { class: 'hero-fundo', src: it.f, alt: '' }) : null, foto(it, 'hero-img', true),
+    var hero = h('div', { class: 'hero-prod' + (it.f ? '' : ' sem'), style: it.f ? null : 'background:radial-gradient(70% 70% at 50% 45%, ' + misturaHex(tomPara(it), '#ffffff', .55) + ', ' + misturaHex(tomPara(it), '#000000', .15) + ')' }, it.f ? h('img', { class: 'hero-fundo', src: it.f, alt: '' }) : null, foto(it, 'hero-img', true),
       h('button', { class: 'voltar-flut', type: 'button', 'aria-label': 'Voltar', onclick: function () { history.length > 1 ? history.back() : ir(''); } }, icone('voltar')));
     var info = [];
     if (it.u) info.push(h('h3', { text: 'Combina com' }), h('p', { text: it.u }));
