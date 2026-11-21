@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import { Button, Field, Notice, PageHeader, downloadBlob } from '../ui/ui';
-import { atribuirPlus, balancaDe, casa, CODIGO_MAX, faixaCategoria, FORMATOS_ETIQUETA, gerarItensMgv, lerEtiquetaBalanca, precoBalanca, renumerarPorCategoria, tabelaBalanca, textoBalanca, vaiParaBalanca } from '../core/balanca';
+import { atribuirPlus, balancaDe, casa, CODIGO_MAX, codigo4, faixaCategoria, FORMATOS_ETIQUETA, gerarItensMgv, lerEtiquetaBalanca, listaBalanca, precoBalanca, renumerar, tabelaBalanca, textoBalanca, vaiParaBalanca } from '../core/balanca';
 import { formatBRL } from '../core/money';
 import type { ConfigBalanca, Product } from '../types';
 
@@ -26,21 +26,24 @@ export default function Balanca() {
   const leitura = teste.replace(/\D/g, '').length >= 13 ? lerEtiquetaBalanca(teste, cfg, lista.produtos) : null;
 
   function gerarCodigos() {
-    const r = atribuirPlus(lista.produtos, lista.categorias);
+    const r = atribuirPlus(lista.produtos, lista.categorias, cfg.numeracao);
     act.produtos(r.produtos);
     toast(r.novos ? `${r.novos} produto(s) ganharam código. Os códigos antigos não mudam.` : 'Todos os produtos com preço já têm código.');
   }
 
-  async function renumerar() {
+  async function refazerCodigos() {
     const ok = await confirm({
       titulo: 'Renumerar todos os códigos?',
-      mensagem: 'Cada produto ganha um número novo, pela categoria e em ordem alfabética. Tabelas e etiquetas já impressas com os números antigos deixam de valer: imprima a tabela de novo.',
+      mensagem:
+        cfg.numeracao === 'sequencial'
+          ? 'Os produtos ficam 0001, 0002, 0003… em ordem alfabética. Os códigos já cadastrados na balança deixam de bater: mande a lista nova para ela.'
+          : 'Cada produto ganha um número novo, pela categoria e em ordem alfabética. Os códigos já cadastrados na balança deixam de bater: mande a lista nova para ela.',
       confirmar: 'Renumerar códigos',
       perigo: true,
     });
     if (!ok) return;
-    act.produtos(renumerarPorCategoria(lista.produtos, lista.categorias));
-    toast('Códigos renumerados por categoria. Imprima a tabela nova.');
+    act.produtos(renumerar(lista.produtos, lista.categorias, cfg.numeracao));
+    toast('Códigos renumerados. Mande a lista nova para a balança.');
   }
 
   function imprimirTabela() {
@@ -64,6 +67,21 @@ export default function Balanca() {
     act.produtos(lista.produtos.map((x) => (x.id === p.id ? { ...x, plu: n } : x)));
   }
 
+  async function baixarPlanilha() {
+    const linhas = listaBalanca(lista.produtos);
+    if (!linhas.length) return toast('Gere os códigos primeiro.', 'erro');
+    const { planilhaBalanca } = await import('../export/listaBalanca');
+    downloadBlob(new Blob([await planilhaBalanca(linhas)]), 'produtos-balanca.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast(`Planilha com ${linhas.length} produto(s), de ${linhas[0].codigo} a ${linhas[linhas.length - 1].codigo}.`);
+  }
+
+  async function baixarCsv() {
+    const linhas = listaBalanca(lista.produtos);
+    if (!linhas.length) return toast('Gere os códigos primeiro.', 'erro');
+    const { csvBalanca } = await import('../export/listaBalanca');
+    downloadBlob(new Blob(['\ufeff' + csvBalanca(linhas)], { type: 'text/csv' }), 'produtos-balanca.csv', 'text/csv');
+  }
+
   function baixar() {
     if (!arquivo.incluidos) return toast('Nenhum produto pronto para a balança. Gere os códigos primeiro.', 'erro');
     const bytes = new TextEncoder().encode(arquivo.texto); // só ASCII: igual em qualquer codificação
@@ -81,11 +99,19 @@ export default function Balanca() {
       <section className="card">
         <h2>Sua balança</h2>
         <div className="form-grid">
-          <Field label="Modelo" hint={wind ? 'A balança não guarda produtos: você digita o preço do kg e usa a tabela impressa.' : 'A balança recebe a lista de produtos pelo computador.'}>
+          <Field label="Modelo" hint={wind ? 'Você digita o preço do kg e usa a tabela impressa.' : 'Os produtos são cadastrados no programa do computador e transmitidos para a balança.'}>
             {(id) => (
               <select id={id} value={cfg.modelo} onChange={(e) => setCfg({ modelo: e.target.value as ConfigBalanca['modelo'] })}>
-                <option value="wind">UPX Wind D3 (digita o preço)</option>
-                <option value="thunder">Etiquetadora com memória (UPX Thunder, Toledo MGV)</option>
+                <option value="thunder">Com software da balança (UPX Wind Mega, Thunder, Toledo MGV)</option>
+                <option value="wind">Sem software (digita o preço e usa a tabela)</option>
+              </select>
+            )}
+          </Field>
+          <Field label="Numeração dos códigos">
+            {(id) => (
+              <select id={id} value={cfg.numeracao} onChange={(e) => setCfg({ numeracao: e.target.value as ConfigBalanca['numeracao'] })}>
+                <option value="sequencial">Sequencial: 0001, 0002… em ordem alfabética</option>
+                <option value="categoria">Por categoria: 101–199, 201–299…</option>
               </select>
             )}
           </Field>
@@ -96,7 +122,8 @@ export default function Balanca() {
         <section className="card">
           <h2>1. Códigos dos produtos</h2>
           <p className="muted small">
-            Cada produto vendido por peso ou unidade ganha um número de 1 a {CODIGO_MAX}. O número segue a categoria: a 1ª categoria usa 101 a 199, a 2ª 201 a 299, e assim por diante. Assim o número já diz a família do produto.
+            Cada produto vendido por peso ou unidade ganha um número de 0001 a {CODIGO_MAX}.{' '}
+            {cfg.numeracao === 'sequencial' ? 'Em ordem alfabética: 0001, 0002, 0003…' : 'Pela categoria: a 1ª usa 101 a 199, a 2ª 201 a 299, e assim por diante.'} Produtos novos ganham o próximo número livre, sem mudar os antigos.
           </p>
           {semCodigo > 0 ? (
             <Notice tone="warn">{semCodigo} produto(s) com preço ainda sem código.</Notice>
@@ -107,11 +134,11 @@ export default function Balanca() {
             <Button icon="plus" onClick={gerarCodigos} disabled={semCodigo === 0}>
               Gerar códigos que faltam
             </Button>
-            <Button variant="secondary" onClick={renumerar} disabled={naBalanca.length === 0}>
-              Renumerar por categoria
+            <Button variant="secondary" onClick={refazerCodigos} disabled={naBalanca.length === 0}>
+              Renumerar todos
             </Button>
           </div>
-          {lista.categorias.length > 0 && (
+          {cfg.numeracao === 'categoria' && lista.categorias.length > 0 && (
             <details className="small">
               <summary>Faixa de cada categoria</summary>
               <ul className="faixas-bal">
@@ -153,17 +180,24 @@ export default function Balanca() {
             </Field>
           </div>
           <div className="row-gap wrap">
-            <Button icon="download" onClick={baixar} disabled={!arquivo.incluidos}>
-              Baixar ITENSMGV.TXT ({arquivo.incluidos})
+            <Button icon="sheet" onClick={baixarPlanilha} disabled={!naBalanca.length}>
+              Baixar planilha ({naBalanca.length})
+            </Button>
+            <Button variant="secondary" icon="download" onClick={baixar} disabled={!arquivo.incluidos}>
+              ITENSMGV.TXT
+            </Button>
+            <Button variant="ghost" onClick={baixarCsv} disabled={!naBalanca.length}>
+              CSV
             </Button>
           </div>
+          <p className="muted small">A planilha vem em ordem crescente (0001, 0002…) com as mesmas colunas do programa da balança: Código, Descrição, Preço/un, Tara, Validade e Tipo venda.</p>
           {arquivo.fora.filter((f) => f.motivo !== 'sem preço de venda').length > 0 && (
             <p className="muted small">Fora do arquivo: {arquivo.fora.filter((f) => f.motivo !== 'sem preço de venda').map((f) => `${f.produto.nome} (${f.motivo})`).join(', ')}.</p>
           )}
           <ol className="vit-passos">
-            <li>Abra o <strong>UPX Thunder</strong> no computador ligado à balança.</li>
-            <li>Use a opção de <strong>importar arquivo de produtos</strong> e escolha o <code>ITENSMGV.TXT</code> (formato Toledo MGV).</li>
-            <li>Envie para a balança pelo Wi-Fi. Mudou preço? Baixe e importe de novo.</li>
+            <li>Abra o programa da balança (<strong>UPX Wind Mega – Software Gerenciador</strong> ou Thunder).</li>
+            <li>Se o menu <strong>Arquivo</strong> tiver importar, escolha o <code>ITENSMGV.TXT</code> (formato Toledo MGV). Se não tiver, cadastre pelo <strong>+</strong> seguindo a planilha, na mesma ordem.</li>
+            <li>Use <strong>Transmitir</strong> para mandar para a balança. Mudou preço? Baixe de novo e transmita.</li>
           </ol>
           <p className="muted small">Os nomes vão em maiúsculas e sem acento, em até duas linhas de 25 letras, porque a balança não imprime acentos.</p>
         </section>
@@ -222,8 +256,8 @@ export default function Balanca() {
               <tbody>
                 {visiveis.map((p) => (
                   <tr key={p.id}>
-                    <td style={{ width: 120 }}>
-                      <input aria-label={`Código de balança de ${p.nome}`} inputMode="numeric" maxLength={4} defaultValue={p.plu ?? ''} key={p.plu ?? 0} onBlur={(e) => e.target.value !== String(p.plu) && mudarPlu(p, e.target.value)} style={{ maxWidth: 100 }} />
+                    <td style={{ width: 120 }} title={p.plu ? codigo4(p.plu) : ''}>
+                      <input aria-label={`Código de balança de ${p.nome}`} inputMode="numeric" maxLength={4} defaultValue={p.plu ? codigo4(p.plu) : ''} key={p.plu ?? 0} onBlur={(e) => Number(e.target.value.replace(/\D/g, '')) !== p.plu && mudarPlu(p, e.target.value)} style={{ maxWidth: 100 }} />
                     </td>
                     <td className={wind ? 'strong' : 'strong mono'}>{wind ? p.nome : textoBalanca(p.nome)}</td>
                     <td className="muted">{p.unidade === 'kg' || p.unidade === 'g' ? 'por kg' : 'por unidade'}</td>
@@ -247,7 +281,7 @@ export default function Balanca() {
               <h4>{g.categoria}</h4>
               {g.itens.map((i) => (
                 <div className="tb-linha" key={i.codigo}>
-                  <b>{i.codigo}</b>
+                  <b>{codigo4(i.codigo)}</b>
                   <span>{i.nome}</span>
                   <em>{formatBRL(i.preco)}{i.porKg ? '' : ' un'}</em>
                 </div>

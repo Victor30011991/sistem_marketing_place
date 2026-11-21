@@ -410,6 +410,8 @@ export interface ListaCompras {
 export interface ConfigBalanca {
   /** wind = balança sem memória (UPX Wind D3: digita o preço, usa a tabela impressa); thunder = etiquetadora que recebe os produtos */
   modelo: 'wind' | 'thunder';
+  /** sequencial = 0001, 0002… em ordem alfabética; categoria = 101–199 na 1ª categoria, 201–299 na 2ª… */
+  numeracao: 'sequencial' | 'categoria';
   /** como o código de barras da etiqueta da balança foi configurado */
   etiqueta: 'codigo6-valor5' | 'codigo5-valor6' | 'codigo6-peso5' | 'codigo5-peso6';
   /** validade impressa na etiqueta, em dias (0 = não imprime) */

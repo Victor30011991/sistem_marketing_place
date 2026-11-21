@@ -2,7 +2,7 @@ import type { ConfigBalanca, Product } from '../types';
 import { familyOf, convertQty } from './units';
 import { norm } from './normalize';
 
-export const BALANCA_PADRAO: ConfigBalanca = { modelo: 'wind', etiqueta: 'codigo6-valor5', validadeDias: 0, setor: 1 };
+export const BALANCA_PADRAO: ConfigBalanca = { modelo: 'thunder', numeracao: 'sequencial', etiqueta: 'codigo6-valor5', validadeDias: 0, setor: 1 };
 
 /** Maior código de produto que a balança aceita. */
 export const CODIGO_MAX = 9999;
@@ -18,8 +18,9 @@ export function balancaDe(raw: unknown): ConfigBalanca {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof ConfigBalanca, unknown>>;
   const fmt = FORMATOS_ETIQUETA.some((f) => f.id === r.etiqueta) ? (r.etiqueta as ConfigBalanca['etiqueta']) : BALANCA_PADRAO.etiqueta;
   const int = (v: unknown, d: number, max: number) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(Math.round(v), max) : d);
-  const modelo = r.modelo === 'thunder' ? 'thunder' : 'wind';
-  return { modelo, etiqueta: fmt, validadeDias: int(r.validadeDias, 0, 999), setor: int(r.setor, 1, 99) || 1 };
+  const modelo = r.modelo === 'wind' ? 'wind' : 'thunder';
+  const numeracao = r.numeracao === 'categoria' ? 'categoria' : 'sequencial';
+  return { modelo, numeracao, etiqueta: fmt, validadeDias: int(r.validadeDias, 0, 999), setor: int(r.setor, 1, 99) || 1 };
 }
 
 /** Produto que a balança consegue vender: tem preço e é por peso (kg/g) ou por unidade. */
@@ -50,17 +51,20 @@ function ordemTabela(categorias: string[]) {
   return (a: Product, b: Product) => pos(a.categoria) - pos(b.categoria) || a.nome.localeCompare(b.nome, 'pt-BR');
 }
 
+export type Numeracao = ConfigBalanca['numeracao'];
+
 /**
  * Dá um código de balança (PLU, 1 a 9999) a quem ainda não tem, sem nunca mudar os que já existem.
- * Com `categorias`, numera pela faixa da categoria (101–199, 201–299…).
+ * Sequencial: o primeiro número livre, em ordem alfabética. Categoria: dentro da faixa da categoria (101–199, 201–299…).
  */
-export function atribuirPlus(produtos: Product[], categorias: string[] = []): { produtos: Product[]; novos: number } {
+export function atribuirPlus(produtos: Product[], categorias: string[] = [], modo: Numeracao = 'sequencial'): { produtos: Product[]; novos: number } {
   const usados = new Set(produtos.map((p) => p.plu).filter((x): x is number => typeof x === 'number' && x > 0));
   const novosPorId = new Map<string, number>();
+  const porCat = modo === 'categoria';
   const semCodigo = produtos.filter((p) => !(p.plu && p.plu > 0) && vaiParaBalanca(p));
-  if (categorias.length) semCodigo.sort(ordemTabela(categorias));
+  semCodigo.sort(porCat ? ordemTabela(categorias) : (a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   for (const p of semCodigo) {
-    const n = categorias.length ? proximoLivre(usados, faixaCategoria(p.categoria, categorias)) : proximoLivre(usados, [1, CODIGO_MAX]);
+    const n = proximoLivre(usados, porCat ? faixaCategoria(p.categoria, categorias) : [1, CODIGO_MAX]);
     if (n == null) break;
     usados.add(n);
     novosPorId.set(p.id, n);
@@ -69,10 +73,28 @@ export function atribuirPlus(produtos: Product[], categorias: string[] = []): { 
   return { produtos: out, novos: novosPorId.size };
 }
 
-/** Refaz todos os códigos pela faixa da categoria, em ordem alfabética (para começar uma tabela arrumada). */
-export function renumerarPorCategoria(produtos: Product[], categorias: string[]): Product[] {
+/** Refaz todos os códigos do zero (sequencial em ordem alfabética, ou pela faixa da categoria). */
+export function renumerar(produtos: Product[], categorias: string[], modo: Numeracao): Product[] {
   const limpos = produtos.map((p) => (vaiParaBalanca(p) ? { ...p, plu: null } : p));
-  return atribuirPlus(limpos, categorias).produtos;
+  return atribuirPlus(limpos, categorias, modo).produtos;
+}
+
+/** Código com 4 dígitos, como aparece na lista da balança: 1 → 0001. */
+export const codigo4 = (n: number) => String(n).padStart(4, '0');
+
+export interface LinhaLista {
+  codigo: string;
+  descricao: string;
+  preco: number;
+  tipo: 'Peso' | 'Unidade';
+}
+
+/** Relação para cadastrar no software da balança: código crescente (0001…9999), descrição, preço do kg (ou da unidade) e tipo de venda. */
+export function listaBalanca(produtos: Product[]): LinhaLista[] {
+  return produtos
+    .filter((p) => p.plu && vaiParaBalanca(p))
+    .sort((a, b) => (a.plu ?? 0) - (b.plu ?? 0))
+    .map((p) => ({ codigo: codigo4(p.plu as number), descricao: p.nome, preco: precoBalanca(p) ?? 0, tipo: familyOf(p.unidade) === 'massa' ? 'Peso' : 'Unidade' }));
 }
 
 export interface GrupoTabela {
