@@ -505,7 +505,7 @@
         h('span', { class: 'cartao-foto' }, foto(it, 'img'), it.s ? h('em', { class: 'selo', text: it.s }) : it.mv ? h('em', { class: 'selo d', text: '🔥 Mais vendido' }) : null),
         h('strong', { class: 'cartao-nome', text: it.n })),
       h('div', { class: 'cartao-pe' }, precoBloco(it),
-        h('button', { class: 'mais mini', type: 'button', 'aria-label': 'Adicionar ' + L.fmtGramas(g) + ' de ' + it.n, onclick: function () { add(it.chave, g); desenharConteudo(true); desenharBarra(); } }, icone('mais', 18))));
+        h('button', { class: 'mais mini', type: 'button', 'aria-label': 'Adicionar ' + L.fmtGramas(g) + ' de ' + it.n, onclick: function () { add(it.chave, g); if (rota().tela === 'inicio') desenharConteudo(true); desenharBarra(); } }, icone('mais', 18))));
   }
 
   // banner que passa sozinho: ofertas e mixes
@@ -572,17 +572,26 @@
     var pesosEl = h('div', { class: 'pesos', role: 'radiogroup', 'aria-label': 'Quantidade de ' + it.n });
     pesos().forEach(function (p) {
       pesosEl.appendChild(h('button', { type: 'button', role: 'radio', 'aria-checked': p === escolhido ? 'true' : 'false', class: 'peso' + (p === escolhido ? ' on' : ''),
-        onclick: function () { ui.peso[it.chave] = p; desenharConteudo(true); } }, L.fmtGramas(p)));
+        onclick: function () { ui.peso[it.chave] = p; refazer(); } }, L.fmtGramas(p)));
     });
-    return h('li', { class: 'linha' + (g ? ' no-pedido' : '') },
+    // outra quantidade: abre o produto, que tem o campo para digitar as gramas
+    pesosEl.appendChild(h('a', { class: 'peso peso-outro', href: '#/p/' + encodeURIComponent(it.chave), 'aria-label': 'Outra quantidade de ' + it.n }, 'Outro'));
+    // redesenha só esta linha (funciona no início, na categoria e na busca)
+    function refazer() {
+      var novo = linha(it);
+      if (li.parentNode) li.parentNode.replaceChild(novo, li);
+      var b = novo.querySelector('.peso.on'); if (b) b.focus();
+    }
+    var li = h('li', { class: 'linha' + (g ? ' no-pedido' : '') },
       h('a', { class: 'linha-foto', href: '#/p/' + encodeURIComponent(it.chave), 'aria-label': 'Ver ' + it.n }, foto(it, 'img')),
       h('div', { class: 'linha-meio' },
         h('a', { class: 'linha-nome', href: '#/p/' + encodeURIComponent(it.chave) }, it.n, it.s ? h('em', { class: 'selo', text: it.s }) : null),
         it.u ? h('span', { class: 'linha-uso', text: it.u }) : null,
         g ? h('span', { class: 'no-ped' }, icone('check', 14), L.fmtGramas(g) + ' no pedido') : null),
       h('div', { class: 'linha-dir' }, h('span', { class: 'linha-preco' + (it.pa ? ' promo' : '') }, h('b', { text: L.brl(L.precoItem(escolhido, it.pk)) }), h('small', { text: L.fmtGramas(escolhido) })),
-        h('button', { class: 'mais', type: 'button', 'aria-label': 'Adicionar ' + L.fmtGramas(escolhido) + ' de ' + it.n, onclick: function () { add(it.chave, escolhido); desenharConteudo(true); desenharBarra(); } }, icone('mais', 22))),
+        h('button', { class: 'mais', type: 'button', 'aria-label': 'Adicionar ' + L.fmtGramas(escolhido) + ' de ' + it.n, onclick: function () { add(it.chave, escolhido); refazer(); desenharBarra(); } }, icone('mais', 22))),
       pesosEl);
+    return li;
   }
 
   function mixCard(m) {
