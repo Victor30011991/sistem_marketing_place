@@ -19,7 +19,7 @@ export interface Product {
   /** conteúdo de cada embalagem (pacote, frasco…), ex.: 250 g. Permite o preço proporcional de unidades de contagem */
   conteudoQtd?: number | null;
   conteudoUnidade?: string | null;
-  /** código do produto na balança (PLU), de 1 a 999999 */
+  /** código do produto na balança (PLU), de 1 a 9999 */
   plu?: number | null;
   /** texto de ingredientes para o rótulo */
   ingredientes?: string;
@@ -408,6 +408,8 @@ export interface ListaCompras {
 
 /** Integração com a balança etiquetadora (Toledo MGV / UPX Thunder). */
 export interface ConfigBalanca {
+  /** wind = balança sem memória (UPX Wind D3: digita o preço, usa a tabela impressa); thunder = etiquetadora que recebe os produtos */
+  modelo: 'wind' | 'thunder';
   /** como o código de barras da etiqueta da balança foi configurado */
   etiqueta: 'codigo6-valor5' | 'codigo5-valor6' | 'codigo6-peso5' | 'codigo5-peso6';
   /** validade impressa na etiqueta, em dias (0 = não imprime) */

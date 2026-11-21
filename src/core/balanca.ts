@@ -2,7 +2,10 @@ import type { ConfigBalanca, Product } from '../types';
 import { familyOf, convertQty } from './units';
 import { norm } from './normalize';
 
-export const BALANCA_PADRAO: ConfigBalanca = { etiqueta: 'codigo6-valor5', validadeDias: 0, setor: 1 };
+export const BALANCA_PADRAO: ConfigBalanca = { modelo: 'wind', etiqueta: 'codigo6-valor5', validadeDias: 0, setor: 1 };
+
+/** Maior código de produto que a balança aceita. */
+export const CODIGO_MAX = 9999;
 
 export const FORMATOS_ETIQUETA: { id: ConfigBalanca['etiqueta']; rotulo: string; exemplo: string }[] = [
   { id: 'codigo6-valor5', rotulo: 'Código (6) + valor total (5)', exemplo: '2 001234 00984 D' },
@@ -15,7 +18,8 @@ export function balancaDe(raw: unknown): ConfigBalanca {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof ConfigBalanca, unknown>>;
   const fmt = FORMATOS_ETIQUETA.some((f) => f.id === r.etiqueta) ? (r.etiqueta as ConfigBalanca['etiqueta']) : BALANCA_PADRAO.etiqueta;
   const int = (v: unknown, d: number, max: number) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(Math.round(v), max) : d);
-  return { etiqueta: fmt, validadeDias: int(r.validadeDias, 0, 999), setor: int(r.setor, 1, 99) || 1 };
+  const modelo = r.modelo === 'thunder' ? 'thunder' : 'wind';
+  return { modelo, etiqueta: fmt, validadeDias: int(r.validadeDias, 0, 999), setor: int(r.setor, 1, 99) || 1 };
 }
 
 /** Produto que a balança consegue vender: tem preço e é por peso (kg/g) ou por unidade. */
@@ -23,19 +27,70 @@ export function vaiParaBalanca(p: Product): boolean {
   return p.venda != null && p.venda > 0 && (familyOf(p.unidade) === 'massa' || familyOf(p.unidade) === 'contagem');
 }
 
-/** Dá um código de balança (PLU) a quem ainda não tem, sem nunca mudar os que já existem. */
-export function atribuirPlus(produtos: Product[]): { produtos: Product[]; novos: number } {
+/**
+ * Faixa de códigos de cada categoria: a 1ª categoria usa 101–199, a 2ª 201–299…
+ * Sem categoria (ou além da 98ª) fica em 9901–9999. Assim, na tabela impressa, o número já diz a família do produto.
+ */
+export function faixaCategoria(categoria: string, categorias: string[]): [number, number] {
+  const i = categoria ? categorias.indexOf(categoria) : -1;
+  if (i < 0 || i >= 98) return [9901, 9999];
+  return [(i + 1) * 100 + 1, (i + 1) * 100 + 99];
+}
+
+/** Próximo código livre: primeiro dentro da faixa da categoria; se ela lotar, o primeiro livre de 1 a 9999. */
+function proximoLivre(usados: Set<number>, [de, ate]: [number, number]): number | null {
+  for (let n = de; n <= ate; n++) if (!usados.has(n)) return n;
+  for (let n = 1; n <= CODIGO_MAX; n++) if (!usados.has(n)) return n;
+  return null;
+}
+
+/** Ordem da tabela: categoria (na ordem do sistema), depois nome. */
+function ordemTabela(categorias: string[]) {
+  const pos = (c: string) => (c && categorias.includes(c) ? categorias.indexOf(c) : 9999);
+  return (a: Product, b: Product) => pos(a.categoria) - pos(b.categoria) || a.nome.localeCompare(b.nome, 'pt-BR');
+}
+
+/**
+ * Dá um código de balança (PLU, 1 a 9999) a quem ainda não tem, sem nunca mudar os que já existem.
+ * Com `categorias`, numera pela faixa da categoria (101–199, 201–299…).
+ */
+export function atribuirPlus(produtos: Product[], categorias: string[] = []): { produtos: Product[]; novos: number } {
   const usados = new Set(produtos.map((p) => p.plu).filter((x): x is number => typeof x === 'number' && x > 0));
-  let prox = 1;
-  let novos = 0;
-  const out = produtos.map((p) => {
-    if ((p.plu && p.plu > 0) || !vaiParaBalanca(p)) return p;
-    while (usados.has(prox)) prox++;
-    usados.add(prox);
-    novos++;
-    return { ...p, plu: prox };
-  });
-  return { produtos: out, novos };
+  const novosPorId = new Map<string, number>();
+  const semCodigo = produtos.filter((p) => !(p.plu && p.plu > 0) && vaiParaBalanca(p));
+  if (categorias.length) semCodigo.sort(ordemTabela(categorias));
+  for (const p of semCodigo) {
+    const n = categorias.length ? proximoLivre(usados, faixaCategoria(p.categoria, categorias)) : proximoLivre(usados, [1, CODIGO_MAX]);
+    if (n == null) break;
+    usados.add(n);
+    novosPorId.set(p.id, n);
+  }
+  const out = produtos.map((p) => (novosPorId.has(p.id) ? { ...p, plu: novosPorId.get(p.id) } : p));
+  return { produtos: out, novos: novosPorId.size };
+}
+
+/** Refaz todos os códigos pela faixa da categoria, em ordem alfabética (para começar uma tabela arrumada). */
+export function renumerarPorCategoria(produtos: Product[], categorias: string[]): Product[] {
+  const limpos = produtos.map((p) => (vaiParaBalanca(p) ? { ...p, plu: null } : p));
+  return atribuirPlus(limpos, categorias).produtos;
+}
+
+export interface GrupoTabela {
+  categoria: string;
+  itens: { codigo: number; nome: string; preco: number; porKg: boolean }[];
+}
+
+/** Tabela para deixar ao lado da balança: código, nome e preço (por kg ou por unidade), agrupada por categoria. */
+export function tabelaBalanca(produtos: Product[], categorias: string[]): GrupoTabela[] {
+  const grupos: GrupoTabela[] = [];
+  for (const p of produtos.filter((x) => x.plu && vaiParaBalanca(x)).sort(ordemTabela(categorias))) {
+    const nomeCat = p.categoria || 'Outros';
+    let g = grupos[grupos.length - 1];
+    if (!g || g.categoria !== nomeCat) grupos.push((g = { categoria: nomeCat, itens: [] }));
+    g.itens.push({ codigo: p.plu as number, nome: p.nome, preco: precoBalanca(p) ?? 0, porKg: familyOf(p.unidade) === 'massa' });
+  }
+  for (const g of grupos) g.itens.sort((a, b) => a.codigo - b.codigo);
+  return grupos;
 }
 
 /** Texto que a balança imprime: maiúsculas, sem acento e só caracteres simples (as balanças não têm acentos). */

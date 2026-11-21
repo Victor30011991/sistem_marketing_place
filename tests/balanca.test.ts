@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atribuirPlus, balancaDe, BALANCA_PADRAO, digitoEan13, duasLinhas, gerarItensMgv, lerEtiquetaBalanca, linhaMgv5, textoBalanca } from '../src/core/balanca';
+import { atribuirPlus, balancaDe, renumerarPorCategoria, tabelaBalanca, BALANCA_PADRAO, digitoEan13, duasLinhas, gerarItensMgv, lerEtiquetaBalanca, linhaMgv5, textoBalanca } from '../src/core/balanca';
 import { criarBackup, lerBackup } from '../src/core/backup';
 import { buildExtras, mergeExtras } from '../src/core/extras';
 import { defaultSettings, defaultStore } from '../src/core/defaults';
@@ -16,6 +16,39 @@ describe('códigos da balança (PLU)', () => {
     expect(r.produtos.map((p) => p.plu)).toEqual([2, 1, undefined, 3]);
     expect(r.novos).toBe(2);
     expect(atribuirPlus(r.produtos).novos).toBe(0);
+  });
+});
+
+describe('códigos por categoria e tabela da balança', () => {
+  const cats = ['Castanhas', 'Temperos'];
+  const ps = [
+    prod({ id: 'p', nome: 'Pimenta', categoria: 'Temperos' }),
+    prod({ id: 'a', nome: 'Amêndoa', categoria: 'Castanhas', venda: 12990 }),
+    prod({ id: 'c', nome: 'Caju', categoria: 'Castanhas' }),
+    prod({ id: 'x', nome: 'Avulso', categoria: '' }),
+    prod({ id: 'k', nome: 'Kit', categoria: 'Temperos', unidade: 'un', venda: 1990, plu: 205 }),
+  ];
+  it('numera pela faixa da categoria, em ordem alfabética, sem mexer nos códigos que existem', () => {
+    const r = atribuirPlus(ps, cats);
+    const cod = Object.fromEntries(r.produtos.map((p) => [p.id, p.plu]));
+    expect(cod).toEqual({ a: 101, c: 102, p: 201, x: 9901, k: 205 });
+  });
+  it('renumerar refaz tudo dentro de 1 a 9999', () => {
+    const r = renumerarPorCategoria(ps, cats);
+    expect(Object.fromEntries(r.map((p) => [p.id, p.plu]))).toEqual({ a: 101, c: 102, k: 201, p: 202, x: 9901 });
+  });
+  it('categoria cheia usa o próximo número livre', () => {
+    const muitos = Array.from({ length: 101 }, (_, i) => prod({ id: 'm' + i, nome: 'M' + String(i).padStart(3, '0'), categoria: 'Castanhas' }));
+    const r = atribuirPlus(muitos, cats).produtos.map((p) => p.plu as number);
+    expect(new Set(r).size).toBe(101);
+    expect(Math.max(...r)).toBeLessThanOrEqual(9999);
+  });
+  it('tabela agrupa por categoria com preço do kg', () => {
+    const t = tabelaBalanca(atribuirPlus(ps, cats).produtos, cats);
+    expect(t.map((g) => g.categoria)).toEqual(['Castanhas', 'Temperos', 'Outros']);
+    expect(t[0].itens[0]).toEqual({ codigo: 101, nome: 'Amêndoa', preco: 12990, porKg: true });
+    expect(t[1].itens.map((i) => i.codigo)).toEqual([201, 205]);
+    expect(t[1].itens[1].porKg).toBe(false);
   });
 });
 
@@ -71,7 +104,7 @@ describe('etiqueta da balança no PDV', () => {
 describe('códigos e configuração da balança sobrevivem ao salvar', () => {
   it('backup .txt', () => {
     const cfg = defaultSettings();
-    cfg.balanca = { etiqueta: 'codigo5-peso6', validadeDias: 90, setor: 2 };
+    cfg.balanca = { modelo: 'thunder', etiqueta: 'codigo5-peso6', validadeDias: 90, setor: 2 };
     const r = lerBackup(criarBackup({ nome: 'L', categorias: [], produtos: [prod({ id: 'a', nome: 'A', plu: 7 }), prod({ id: 'b', nome: 'B', plu: 7 })] }, defaultStore(), cfg));
     expect(r.ok).toBe(true);
     if (r.ok) {
@@ -84,6 +117,6 @@ describe('códigos e configuração da balança sobrevivem ao salvar', () => {
     expect(mergeExtras([{ ...ps[0], plu: undefined }], buildExtras(ps))[0].plu).toBe(7);
   });
   it('configuração estranha volta ao padrão', () => {
-    expect(balancaDe({ etiqueta: 'xpto', validadeDias: -3, setor: 500 })).toEqual({ etiqueta: 'codigo6-valor5', validadeDias: 0, setor: 99 });
+    expect(balancaDe({ etiqueta: 'xpto', validadeDias: -3, setor: 500 })).toEqual({ modelo: 'wind', etiqueta: 'codigo6-valor5', validadeDias: 0, setor: 99 });
   });
 });
