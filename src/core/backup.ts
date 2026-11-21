@@ -72,6 +72,7 @@ function lerProduto(v: unknown): Product | null {
   if (v.conteudoQtd !== undefined) p.conteudoQtd = num(v.conteudoQtd);
   if (v.conteudoUnidade !== undefined) p.conteudoUnidade = typeof v.conteudoUnidade === 'string' ? v.conteudoUnidade : null;
   if (typeof v.plu === 'number' && Number.isInteger(v.plu) && v.plu > 0 && v.plu <= 999999) p.plu = v.plu;
+  if (str(v.nomeBalanca).trim()) p.nomeBalanca = str(v.nomeBalanca).trim().slice(0, 25);
   if (typeof v.ingredientes === 'string' && v.ingredientes.trim()) p.ingredientes = v.ingredientes;
   const nutri = nutricaoDe(v.nutricao);
   if (nutri) p.nutricao = nutri;

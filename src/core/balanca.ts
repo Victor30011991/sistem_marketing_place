@@ -2,7 +2,10 @@ import type { ConfigBalanca, Product } from '../types';
 import { familyOf, convertQty } from './units';
 import { norm } from './normalize';
 
-export const BALANCA_PADRAO: ConfigBalanca = { etiqueta: 'codigo6-valor5', validadeDias: 0, setor: 1 };
+export const BALANCA_PADRAO: ConfigBalanca = { modelo: 'thunder', numeracao: 'sequencial', etiqueta: 'codigo6-valor5', validadeDias: 0, setor: 1 };
+
+/** Maior código de produto que a balança aceita. */
+export const CODIGO_MAX = 9999;
 
 export const FORMATOS_ETIQUETA: { id: ConfigBalanca['etiqueta']; rotulo: string; exemplo: string }[] = [
   { id: 'codigo6-valor5', rotulo: 'Código (6) + valor total (5)', exemplo: '2 001234 00984 D' },
@@ -15,7 +18,9 @@ export function balancaDe(raw: unknown): ConfigBalanca {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof ConfigBalanca, unknown>>;
   const fmt = FORMATOS_ETIQUETA.some((f) => f.id === r.etiqueta) ? (r.etiqueta as ConfigBalanca['etiqueta']) : BALANCA_PADRAO.etiqueta;
   const int = (v: unknown, d: number, max: number) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(Math.round(v), max) : d);
-  return { etiqueta: fmt, validadeDias: int(r.validadeDias, 0, 999), setor: int(r.setor, 1, 99) || 1 };
+  const modelo = r.modelo === 'wind' ? 'wind' : 'thunder';
+  const numeracao = r.numeracao === 'categoria' ? 'categoria' : 'sequencial';
+  return { modelo, numeracao, etiqueta: fmt, validadeDias: int(r.validadeDias, 0, 999), setor: int(r.setor, 1, 99) || 1 };
 }
 
 /** Produto que a balança consegue vender: tem preço e é por peso (kg/g) ou por unidade. */
@@ -23,19 +28,91 @@ export function vaiParaBalanca(p: Product): boolean {
   return p.venda != null && p.venda > 0 && (familyOf(p.unidade) === 'massa' || familyOf(p.unidade) === 'contagem');
 }
 
-/** Dá um código de balança (PLU) a quem ainda não tem, sem nunca mudar os que já existem. */
-export function atribuirPlus(produtos: Product[]): { produtos: Product[]; novos: number } {
+/**
+ * Faixa de códigos de cada categoria: a 1ª categoria usa 101–199, a 2ª 201–299…
+ * Sem categoria (ou além da 98ª) fica em 9901–9999. Assim, na tabela impressa, o número já diz a família do produto.
+ */
+export function faixaCategoria(categoria: string, categorias: string[]): [number, number] {
+  const i = categoria ? categorias.indexOf(categoria) : -1;
+  if (i < 0 || i >= 98) return [9901, 9999];
+  return [(i + 1) * 100 + 1, (i + 1) * 100 + 99];
+}
+
+/** Próximo código livre: primeiro dentro da faixa da categoria; se ela lotar, o primeiro livre de 1 a 9999. */
+function proximoLivre(usados: Set<number>, [de, ate]: [number, number]): number | null {
+  for (let n = de; n <= ate; n++) if (!usados.has(n)) return n;
+  for (let n = 1; n <= CODIGO_MAX; n++) if (!usados.has(n)) return n;
+  return null;
+}
+
+/** Ordem da tabela: categoria (na ordem do sistema), depois nome. */
+function ordemTabela(categorias: string[]) {
+  const pos = (c: string) => (c && categorias.includes(c) ? categorias.indexOf(c) : 9999);
+  return (a: Product, b: Product) => pos(a.categoria) - pos(b.categoria) || a.nome.localeCompare(b.nome, 'pt-BR');
+}
+
+export type Numeracao = ConfigBalanca['numeracao'];
+
+/**
+ * Dá um código de balança (PLU, 1 a 9999) a quem ainda não tem, sem nunca mudar os que já existem.
+ * Sequencial: o primeiro número livre, em ordem alfabética. Categoria: dentro da faixa da categoria (101–199, 201–299…).
+ */
+export function atribuirPlus(produtos: Product[], categorias: string[] = [], modo: Numeracao = 'sequencial'): { produtos: Product[]; novos: number } {
   const usados = new Set(produtos.map((p) => p.plu).filter((x): x is number => typeof x === 'number' && x > 0));
-  let prox = 1;
-  let novos = 0;
-  const out = produtos.map((p) => {
-    if ((p.plu && p.plu > 0) || !vaiParaBalanca(p)) return p;
-    while (usados.has(prox)) prox++;
-    usados.add(prox);
-    novos++;
-    return { ...p, plu: prox };
-  });
-  return { produtos: out, novos };
+  const novosPorId = new Map<string, number>();
+  const porCat = modo === 'categoria';
+  const semCodigo = produtos.filter((p) => !(p.plu && p.plu > 0) && vaiParaBalanca(p));
+  semCodigo.sort(porCat ? ordemTabela(categorias) : (a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  for (const p of semCodigo) {
+    const n = proximoLivre(usados, porCat ? faixaCategoria(p.categoria, categorias) : [1, CODIGO_MAX]);
+    if (n == null) break;
+    usados.add(n);
+    novosPorId.set(p.id, n);
+  }
+  const out = produtos.map((p) => (novosPorId.has(p.id) ? { ...p, plu: novosPorId.get(p.id) } : p));
+  return { produtos: out, novos: novosPorId.size };
+}
+
+/** Refaz todos os códigos do zero (sequencial em ordem alfabética, ou pela faixa da categoria). */
+export function renumerar(produtos: Product[], categorias: string[], modo: Numeracao): Product[] {
+  const limpos = produtos.map((p) => (vaiParaBalanca(p) ? { ...p, plu: null } : p));
+  return atribuirPlus(limpos, categorias, modo).produtos;
+}
+
+/** Código com 4 dígitos, como aparece na lista da balança: 1 → 0001. */
+export const codigo4 = (n: number) => String(n).padStart(4, '0');
+
+export interface LinhaLista {
+  codigo: string;
+  descricao: string;
+  preco: number;
+  tipo: 'Peso' | 'Unidade';
+}
+
+/** Relação para cadastrar no software da balança: código crescente (0001…9999), descrição, preço do kg (ou da unidade) e tipo de venda. */
+export function listaBalanca(produtos: Product[]): LinhaLista[] {
+  return produtos
+    .filter((p) => p.plu && vaiParaBalanca(p))
+    .sort((a, b) => (a.plu ?? 0) - (b.plu ?? 0))
+    .map((p) => ({ codigo: codigo4(p.plu as number), descricao: nomeNaBalanca(p), preco: precoBalanca(p) ?? 0, tipo: familyOf(p.unidade) === 'massa' ? 'Peso' : 'Unidade' }));
+}
+
+export interface GrupoTabela {
+  categoria: string;
+  itens: { codigo: number; nome: string; preco: number; porKg: boolean }[];
+}
+
+/** Tabela para deixar ao lado da balança: código, nome e preço (por kg ou por unidade), agrupada por categoria. */
+export function tabelaBalanca(produtos: Product[], categorias: string[]): GrupoTabela[] {
+  const grupos: GrupoTabela[] = [];
+  for (const p of produtos.filter((x) => x.plu && vaiParaBalanca(x)).sort(ordemTabela(categorias))) {
+    const nomeCat = p.categoria || 'Outros';
+    let g = grupos[grupos.length - 1];
+    if (!g || g.categoria !== nomeCat) grupos.push((g = { categoria: nomeCat, itens: [] }));
+    g.itens.push({ codigo: p.plu as number, nome: p.nome, preco: precoBalanca(p) ?? 0, porKg: familyOf(p.unidade) === 'massa' });
+  }
+  for (const g of grupos) g.itens.sort((a, b) => a.codigo - b.codigo);
+  return grupos;
 }
 
 /** Texto que a balança imprime: maiúsculas, sem acento e só caracteres simples (as balanças não têm acentos). */
@@ -48,6 +125,15 @@ export function textoBalanca(t: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+/** Quantas letras a balança imprime na descrição (Wind Mega: 25). */
+export const LETRAS_BALANCA = 25;
+
+/** Nome que vai para a balança: o nome curto, se tiver; senão o nome do produto. */
+export const nomeNaBalanca = (p: Product) => p.nomeBalanca?.trim() || p.nome;
+
+/** Nome longo demais para a balança e sem nome curto: vai sair cortado. */
+export const nomeCortado = (p: Product) => textoBalanca(nomeNaBalanca(p)).length > LETRAS_BALANCA;
 
 /** Descrição em duas linhas de 25 caracteres, quebrando entre palavras. */
 export function duasLinhas(nome: string): [string, string] {
@@ -77,9 +163,20 @@ export function precoBalanca(p: Product): number | null {
  * imprime validade(1) imprime embalagem(1) fornecedor(4) lote(12) código especial(11) versão do preço(1) som(4) tara(4)
  * fracionador(4) extra 1(4) extra 2(4) conservação(4) EAN-13 do fornecedor(12).
  */
-export function linhaMgv5(p: Product, cfg: ConfigBalanca): string {
+export interface LigacoesMgv {
+  /** código da informação extra (TXINFO.TXT: ingredientes, alérgenos…) */
+  infoExtra?: number;
+  /** código da tabela nutricional (INFNUTR.TXT) */
+  nutri?: number;
+  /** código do fracionador (FRACIONA.TXT: quem fracionou e embalou) */
+  fracionador?: number;
+  /** código do campo extra 1 (CAMPEXT1.TXT: contém / não contém glúten) */
+  extra1?: number;
+}
+
+export function linhaMgv5(p: Product, cfg: ConfigBalanca, lig: LigacoesMgv = {}): string {
   const tipo = familyOf(p.unidade) === 'massa' ? '0' : '1';
-  const [d1, d2] = duasLinhas(p.nome);
+  const [d1, d2] = duasLinhas(nomeNaBalanca(p));
   return [
     zeros(cfg.setor, 2),
     tipo,
@@ -87,22 +184,22 @@ export function linhaMgv5(p: Product, cfg: ConfigBalanca): string {
     zeros(precoBalanca(p) ?? 0, 6),
     zeros(cfg.validadeDias, 3),
     esp(d1, 25) + esp(d2, 25),
-    zeros(0, 6),
+    zeros(lig.infoExtra ?? 0, 6),
     zeros(0, 4),
-    zeros(0, 6),
+    zeros(lig.nutri ?? 0, 6),
     cfg.validadeDias > 0 ? '1' : '0',
     '1',
     zeros(0, 4),
     zeros(0, 12),
     zeros(0, 11),
     '0',
-    zeros(0, 4),
-    zeros(0, 4),
-    zeros(0, 4),
-    zeros(0, 4),
-    zeros(0, 4),
-    zeros(0, 4),
-    zeros(0, 12),
+    zeros(0, 4), // som
+    zeros(0, 4), // tara
+    zeros(lig.fracionador ?? 0, 4), // fracionador
+    zeros(lig.extra1 ?? 0, 4), // campo extra 1
+    zeros(0, 4), // campo extra 2
+    zeros(0, 4), // conservação
+    zeros(0, 12), // EAN-13 do fornecedor
   ].join('');
 }
 

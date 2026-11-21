@@ -1043,3 +1043,26 @@ input[type='color'] { width: 44px; min-width: 44px; height: 40px; padding: 2px; 
 .en-foto-loja button { position: absolute; top: -6px; right: -6px; width: 28px; height: 28px; border-radius: 50%; border: none; background: var(--ink); color: #fff; font-size: 1rem; cursor: pointer; }
 .en-add-foto { width: 96px; height: 120px; border: 2px dashed var(--line); border-radius: 12px; display: grid; place-items: center; color: var(--muted); font-weight: 700; cursor: pointer; }
 .en-add-foto:focus-within, .en-foto .btn:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Balança: faixas e tabela impressa */
+.faixas-bal { list-style: none; padding: 0; margin: 8px 0 0; columns: 2; column-gap: 16px; }
+.faixas-bal li { break-inside: avoid; padding: 2px 0; }
+.faixas-bal .mono { display: inline-block; min-width: 82px; color: var(--muted); }
+.tabela-bal { display: none; }
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body.imprime-tabela * { visibility: hidden; }
+  body.imprime-tabela .tabela-bal, body.imprime-tabela .tabela-bal * { visibility: visible; }
+  body.imprime-tabela .tabela-bal { display: block; position: absolute; inset: 0 auto auto 0; width: 100%; color: #000; background: #fff; font: 11pt/1.3 system-ui, sans-serif; }
+  .tabela-bal header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2pt solid #000; padding-bottom: 4pt; margin-bottom: 8pt; }
+  .tabela-bal header strong { font-size: 16pt; }
+  .tabela-bal-cols { columns: 2; column-gap: 10mm; }
+  .tabela-bal section { break-inside: avoid-column; margin-bottom: 8pt; }
+  .tabela-bal h4 { margin: 0 0 3pt; font-size: 10pt; text-transform: none; border-bottom: 0.75pt solid #000; padding-bottom: 1pt; break-after: avoid; }
+  .tb-linha { display: grid; grid-template-columns: 13mm 1fr auto; gap: 3mm; padding: 1.5pt 0; border-bottom: 0.5pt dotted #999; break-inside: avoid; }
+  .tb-linha b { font-size: 12pt; font-variant-numeric: tabular-nums; }
+  .tb-linha em { font-style: normal; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+}
+
+.campo-alerta { border-color: var(--warn, #b7791f) !important; }
+.carga-resumo { list-style: none; padding: 0; margin: 4px 0 12px; display: grid; gap: 2px; }

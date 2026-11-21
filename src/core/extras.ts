@@ -7,6 +7,7 @@ export interface ProductExtra {
   conteudoQtd?: number | null;
   conteudoUnidade?: string | null;
   plu?: number | null;
+  nomeBalanca?: string;
   ingredientes?: string;
   nutricao?: InfoNutricional | null;
   foto?: string;
@@ -30,6 +31,7 @@ export function buildExtras(produtos: Product[]): ExtrasMap {
     const e: ProductExtra = {};
     if (p.estoque != null) e.estoque = p.estoque;
     if (p.plu) e.plu = p.plu;
+    if (p.nomeBalanca?.trim()) e.nomeBalanca = p.nomeBalanca;
     if (p.ingredientes?.trim()) e.ingredientes = p.ingredientes;
     if (p.nutricao) e.nutricao = p.nutricao;
     if (p.foto) e.foto = p.foto;
