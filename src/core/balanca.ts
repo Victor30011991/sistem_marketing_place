@@ -163,7 +163,16 @@ export function precoBalanca(p: Product): number | null {
  * imprime validade(1) imprime embalagem(1) fornecedor(4) lote(12) código especial(11) versão do preço(1) som(4) tara(4)
  * fracionador(4) extra 1(4) extra 2(4) conservação(4) EAN-13 do fornecedor(12).
  */
-export function linhaMgv5(p: Product, cfg: ConfigBalanca): string {
+export interface LigacoesMgv {
+  /** código da informação extra (TXINFO.TXT: ingredientes, alérgenos…) */
+  infoExtra?: number;
+  /** código da tabela nutricional (INFNUTR.TXT) */
+  nutri?: number;
+  /** código do fracionador (FRACIONA.TXT: quem fracionou e embalou) */
+  fracionador?: number;
+}
+
+export function linhaMgv5(p: Product, cfg: ConfigBalanca, lig: LigacoesMgv = {}): string {
   const tipo = familyOf(p.unidade) === 'massa' ? '0' : '1';
   const [d1, d2] = duasLinhas(nomeNaBalanca(p));
   return [
@@ -173,22 +182,22 @@ export function linhaMgv5(p: Product, cfg: ConfigBalanca): string {
     zeros(precoBalanca(p) ?? 0, 6),
     zeros(cfg.validadeDias, 3),
     esp(d1, 25) + esp(d2, 25),
-    zeros(0, 6),
+    zeros(lig.infoExtra ?? 0, 6),
     zeros(0, 4),
-    zeros(0, 6),
+    zeros(lig.nutri ?? 0, 6),
     cfg.validadeDias > 0 ? '1' : '0',
     '1',
     zeros(0, 4),
     zeros(0, 12),
     zeros(0, 11),
     '0',
-    zeros(0, 4),
-    zeros(0, 4),
-    zeros(0, 4),
-    zeros(0, 4),
-    zeros(0, 4),
-    zeros(0, 4),
-    zeros(0, 12),
+    zeros(0, 4), // som
+    zeros(0, 4), // tara
+    zeros(lig.fracionador ?? 0, 4), // fracionador
+    zeros(0, 4), // campo extra 1
+    zeros(0, 4), // campo extra 2
+    zeros(0, 4), // conservação
+    zeros(0, 12), // EAN-13 do fornecedor
   ].join('');
 }
 

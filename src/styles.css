@@ -1065,3 +1065,4 @@ input[type='color'] { width: 44px; min-width: 44px; height: 40px; padding: 2px; 
 }
 
 .campo-alerta { border-color: var(--warn, #b7791f) !important; }
+.carga-resumo { list-style: none; padding: 0; margin: 4px 0 12px; display: grid; gap: 2px; }

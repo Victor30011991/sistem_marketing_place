@@ -4,6 +4,7 @@ import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import { Button, Field, Notice, PageHeader, downloadBlob } from '../ui/ui';
 import { atribuirPlus, balancaDe, casa, CODIGO_MAX, codigo4, faixaCategoria, FORMATOS_ETIQUETA, gerarItensMgv, lerEtiquetaBalanca, LETRAS_BALANCA, listaBalanca, nomeCortado, precoBalanca, renumerar, tabelaBalanca, textoBalanca, vaiParaBalanca } from '../core/balanca';
 import { formatBRL } from '../core/money';
+import { gerarCargaCompleta, montarZip } from '../core/balancaCompleta';
 import type { ConfigBalanca, Product } from '../types';
 
 export default function Balanca() {
@@ -18,6 +19,7 @@ export default function Balanca() {
   const [teste, setTeste] = useState('');
 
   const arquivo = useMemo(() => gerarItensMgv(lista.produtos, cfg), [lista.produtos, cfg]);
+  const carga = useMemo(() => gerarCargaCompleta(lista.produtos, cfg, state.loja), [lista.produtos, cfg, state.loja]);
   const semCodigo = lista.produtos.filter((p) => vaiParaBalanca(p) && !p.plu).length;
   const naBalanca = lista.produtos.filter((p) => p.plu).sort((a, b) => (a.plu ?? 0) - (b.plu ?? 0));
   const visiveis = naBalanca.filter((p) => casa(p, busca));
@@ -65,6 +67,12 @@ export default function Balanca() {
     const dono = lista.produtos.find((x) => x.plu === n && x.id !== p.id);
     if (dono) return toast(`O código ${n} já é de “${dono.nome}”.`, 'erro');
     act.produtos(lista.produtos.map((x) => (x.id === p.id ? { ...x, plu: n } : x)));
+  }
+
+  function baixarCarga() {
+    if (!carga.produtos) return toast('Gere os códigos primeiro.', 'erro');
+    downloadBlob(new Blob([montarZip(carga.arquivos)], { type: 'application/zip' }), 'carga-balanca.zip', 'application/zip');
+    toast(`carga-balanca.zip com ${carga.arquivos.length} arquivo(s): ${carga.arquivos.map((a) => a.nome).join(', ')}.`);
   }
 
   async function baixarPlanilha() {
@@ -185,12 +193,21 @@ export default function Balanca() {
               {(id) => <input id={id} type="number" min={1} max={99} value={cfg.setor} onChange={(e) => setCfg({ setor: Math.max(1, Math.min(99, Math.round(Number(e.target.value) || 1))) })} />}
             </Field>
           </div>
+          <ul className="carga-resumo small">
+            <li><strong>{carga.produtos}</strong> produto(s) com código e preço</li>
+            <li><strong>{carga.comNutricao}</strong> com tabela nutricional</li>
+            <li><strong>{carga.comInfo}</strong> com ingredientes, alérgenos ou glúten</li>
+            <li>{carga.fracionador ? 'Fracionado e embalado por: dados da loja' : 'Sem dados da loja (preencha em Minha loja)'}</li>
+          </ul>
           <div className="row-gap wrap">
-            <Button icon="sheet" onClick={baixarPlanilha} disabled={!naBalanca.length}>
-              Baixar planilha ({naBalanca.length})
+            <Button icon="download" onClick={baixarCarga} disabled={!carga.produtos}>
+              Baixar carga completa (.zip)
             </Button>
-            <Button variant="secondary" icon="download" onClick={baixar} disabled={!arquivo.incluidos}>
-              ITENSMGV.TXT
+            <Button variant="secondary" icon="sheet" onClick={baixarPlanilha} disabled={!naBalanca.length}>
+              Planilha
+            </Button>
+            <Button variant="ghost" onClick={baixar} disabled={!arquivo.incluidos}>
+              Só ITENSMGV.TXT
             </Button>
             <Button variant="ghost" onClick={baixarCsv} disabled={!naBalanca.length}>
               CSV
@@ -201,13 +218,16 @@ export default function Balanca() {
               {cortados} nome(s) passam de {LETRAS_BALANCA} letras e sairiam cortados na etiqueta. Escreva um nome curto na lista abaixo.
             </Notice>
           )}
-          <p className="muted small">A planilha vem em ordem crescente (0001, 0002…) com as mesmas colunas do programa da balança: Código, Descrição, Preço/un, Tara, Validade e Tipo venda.</p>
+          {carga.infoLonga.length > 0 && (
+            <Notice tone="warn">A Wind Mega imprime até 7 linhas de informação. Texto longo em: {carga.infoLonga.join(', ')}.</Notice>
+          )}
+          <p className="muted small">A carga traz produtos (ITENSMGV), tabela nutricional (INFNUTR), ingredientes, alérgenos, glúten e conservação (TXINFO) e quem fracionou (FRACIONA). A planilha serve para conferir.</p>
           {arquivo.fora.filter((f) => f.motivo !== 'sem preço de venda').length > 0 && (
             <p className="muted small">Fora do arquivo: {arquivo.fora.filter((f) => f.motivo !== 'sem preço de venda').map((f) => `${f.produto.nome} (${f.motivo})`).join(', ')}.</p>
           )}
           <ol className="vit-passos">
             <li>Abra o programa da balança (<strong>UPX Wind Mega – Software Gerenciador</strong> ou Thunder).</li>
-            <li>Em <strong>Configurar</strong>, escolha a pasta de importação e coloque nela o <code>ITENSMGV.TXT</code>.</li>
+            <li>Extraia o <code>carga-balanca.zip</code> na pasta de importação escolhida em <strong>Configurar</strong> (substitua os arquivos antigos).</li>
             <li>Em <strong>Importação › Importar</strong>, o programa lê o arquivo e mostra um resumo. Confira os produtos na lista.</li>
             <li>Em <strong>Transmitir</strong>, envie. Na balança, aperte <strong>TARA</strong> e <strong>IMPRIME</strong> juntas: aparece “PC” e, no fim, “Fin”. Mudou preço? Baixe de novo, importe e transmita.</li>
           </ol>
