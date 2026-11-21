@@ -5,6 +5,7 @@ import { Button, Field, Notice, PageHeader, downloadBlob } from '../ui/ui';
 import { atribuirPlus, balancaDe, casa, CODIGO_MAX, codigo4, faixaCategoria, FORMATOS_ETIQUETA, gerarItensMgv, lerEtiquetaBalanca, LETRAS_BALANCA, listaBalanca, nomeCortado, precoBalanca, renumerar, tabelaBalanca, textoBalanca, vaiParaBalanca } from '../core/balanca';
 import { formatBRL } from '../core/money';
 import { gerarCargaCompleta, montarZip } from '../core/balancaCompleta';
+import { aplicarRotulos, casarRotulos, lerRotulosCsv, type CasamentoRotulos } from '../core/importRotulos';
 import type { ConfigBalanca, Product } from '../types';
 
 export default function Balanca() {
@@ -17,6 +18,7 @@ export default function Balanca() {
   const setCfg = (patch: Partial<ConfigBalanca>) => act.config((s) => ({ ...s, balanca: { ...balancaDe(s.balanca), ...patch } }));
   const [busca, setBusca] = useState('');
   const [teste, setTeste] = useState('');
+  const [rotulos, setRotulos] = useState<CasamentoRotulos | null>(null);
 
   const arquivo = useMemo(() => gerarItensMgv(lista.produtos, cfg), [lista.produtos, cfg]);
   const carga = useMemo(() => gerarCargaCompleta(lista.produtos, cfg, state.loja), [lista.produtos, cfg, state.loja]);
@@ -88,6 +90,20 @@ export default function Balanca() {
     if (!linhas.length) return toast('Gere os códigos primeiro.', 'erro');
     const { csvBalanca } = await import('../export/listaBalanca');
     downloadBlob(new Blob(['\ufeff' + csvBalanca(linhas)], { type: 'text/csv' }), 'produtos-balanca.csv', 'text/csv');
+  }
+
+  async function lerRotulos(f: File | undefined) {
+    if (!f) return;
+    const linhas = lerRotulosCsv(await f.text());
+    if (!linhas.length) return toast('Não achei a coluna "Produto" nessa planilha. Salve como CSV (separado por ponto e vírgula).', 'erro');
+    setRotulos(casarRotulos(linhas, lista.produtos));
+  }
+
+  function aplicarImportacao() {
+    if (!rotulos?.pares.length) return;
+    act.produtos(aplicarRotulos(lista.produtos, rotulos.pares));
+    toast(`Informações de rótulo aplicadas em ${rotulos.pares.length} produto(s).`);
+    setRotulos(null);
   }
 
   function mudarNomeCurto(p: Product, v: string) {
@@ -235,6 +251,37 @@ export default function Balanca() {
         </section>
         )}
       </div>
+
+      {!wind && (
+        <section className="card">
+          <h2>Informações dos rótulos</h2>
+          <p className="muted small">
+            Traga de uma planilha (CSV) a tabela nutricional por 100 g, ingredientes, alérgicos e glúten de cada produto. A coluna “Produto” liga pelo nome. Campos vazios não apagam o que já está cadastrado.
+          </p>
+          <div className="row-gap wrap">
+            <label className="btn btn-secondary">
+              Escolher planilha (.csv)
+              <input type="file" accept=".csv,text/csv,text/plain" hidden onChange={(e) => { void lerRotulos(e.target.files?.[0]); e.target.value = ''; }} />
+            </label>
+          </div>
+          {rotulos && (
+            <>
+              <Notice tone={rotulos.pares.length ? 'ok' : 'warn'}>
+                {rotulos.pares.length} produto(s) encontrados: {rotulos.pares.filter((x) => x.linha.nutricao).length} com tabela nutricional.
+                {rotulos.semProduto.length > 0 && ` Sem produto com esse nome: ${rotulos.semProduto.map((l) => l.nome).join(', ')}.`}
+              </Notice>
+              <div className="row-gap wrap">
+                <Button icon="check" onClick={aplicarImportacao} disabled={!rotulos.pares.length}>
+                  Aplicar em {rotulos.pares.length} produto(s)
+                </Button>
+                <Button variant="ghost" onClick={() => setRotulos(null)}>
+                  Cancelar
+                </Button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {!wind && (
       <section className="card">
