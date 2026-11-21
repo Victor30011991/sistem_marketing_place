@@ -23,6 +23,7 @@ export default function Balanca() {
   const arquivo = useMemo(() => gerarItensMgv(lista.produtos, cfg), [lista.produtos, cfg]);
   const carga = useMemo(() => gerarCargaCompleta(lista.produtos, cfg, state.loja), [lista.produtos, cfg, state.loja]);
   const semCodigo = lista.produtos.filter((p) => vaiParaBalanca(p) && !p.plu).length;
+  const comPreco = lista.produtos.filter(vaiParaBalanca).length;
   const naBalanca = lista.produtos.filter((p) => p.plu).sort((a, b) => (a.plu ?? 0) - (b.plu ?? 0));
   const visiveis = naBalanca.filter((p) => casa(p, busca));
   const tabela = useMemo(() => tabelaBalanca(lista.produtos, lista.categorias), [lista.produtos, lista.categorias]);
@@ -155,10 +156,14 @@ export default function Balanca() {
             Cada produto vendido por peso ou unidade ganha um número de 0001 a {CODIGO_MAX}.{' '}
             {cfg.numeracao === 'sequencial' ? 'Em ordem alfabética: 0001, 0002, 0003…' : 'Pela categoria: a 1ª usa 101 a 199, a 2ª 201 a 299, e assim por diante.'} Produtos novos ganham o próximo número livre, sem mudar os antigos.
           </p>
-          {semCodigo > 0 ? (
+          {lista.produtos.length === 0 ? (
+            <Notice tone="warn">Nenhum produto neste aparelho. Entre na nuvem pelo Menu (com o e-mail da loja) para carregar os produtos, e volte aqui.</Notice>
+          ) : comPreco === 0 ? (
+            <Notice tone="warn">Nenhum dos {lista.produtos.length} produtos tem preço de venda. Defina os preços em Produtos ou Precificação.</Notice>
+          ) : semCodigo > 0 ? (
             <Notice tone="warn">{semCodigo} produto(s) com preço ainda sem código.</Notice>
           ) : (
-            <Notice tone="ok">Todos os produtos com preço têm código.</Notice>
+            <Notice tone="ok">Todos os {comPreco} produtos com preço têm código.</Notice>
           )}
           <div className="row-gap wrap">
             <Button icon="plus" onClick={gerarCodigos} disabled={semCodigo === 0}>
