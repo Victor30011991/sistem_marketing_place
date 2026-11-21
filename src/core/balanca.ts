@@ -94,7 +94,7 @@ export function listaBalanca(produtos: Product[]): LinhaLista[] {
   return produtos
     .filter((p) => p.plu && vaiParaBalanca(p))
     .sort((a, b) => (a.plu ?? 0) - (b.plu ?? 0))
-    .map((p) => ({ codigo: codigo4(p.plu as number), descricao: p.nome, preco: precoBalanca(p) ?? 0, tipo: familyOf(p.unidade) === 'massa' ? 'Peso' : 'Unidade' }));
+    .map((p) => ({ codigo: codigo4(p.plu as number), descricao: nomeNaBalanca(p), preco: precoBalanca(p) ?? 0, tipo: familyOf(p.unidade) === 'massa' ? 'Peso' : 'Unidade' }));
 }
 
 export interface GrupoTabela {
@@ -126,6 +126,15 @@ export function textoBalanca(t: string): string {
     .trim();
 }
 
+/** Quantas letras a balança imprime na descrição (Wind Mega: 25). */
+export const LETRAS_BALANCA = 25;
+
+/** Nome que vai para a balança: o nome curto, se tiver; senão o nome do produto. */
+export const nomeNaBalanca = (p: Product) => p.nomeBalanca?.trim() || p.nome;
+
+/** Nome longo demais para a balança e sem nome curto: vai sair cortado. */
+export const nomeCortado = (p: Product) => textoBalanca(nomeNaBalanca(p)).length > LETRAS_BALANCA;
+
 /** Descrição em duas linhas de 25 caracteres, quebrando entre palavras. */
 export function duasLinhas(nome: string): [string, string] {
   const t = textoBalanca(nome);
@@ -156,7 +165,7 @@ export function precoBalanca(p: Product): number | null {
  */
 export function linhaMgv5(p: Product, cfg: ConfigBalanca): string {
   const tipo = familyOf(p.unidade) === 'massa' ? '0' : '1';
-  const [d1, d2] = duasLinhas(p.nome);
+  const [d1, d2] = duasLinhas(nomeNaBalanca(p));
   return [
     zeros(cfg.setor, 2),
     tipo,

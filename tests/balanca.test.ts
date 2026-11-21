@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atribuirPlus, balancaDe, codigo4, listaBalanca, renumerar, tabelaBalanca, BALANCA_PADRAO, digitoEan13, duasLinhas, gerarItensMgv, lerEtiquetaBalanca, linhaMgv5, textoBalanca } from '../src/core/balanca';
+import { atribuirPlus, balancaDe, codigo4, nomeCortado, listaBalanca, renumerar, tabelaBalanca, BALANCA_PADRAO, digitoEan13, duasLinhas, gerarItensMgv, lerEtiquetaBalanca, linhaMgv5, textoBalanca } from '../src/core/balanca';
 import { criarBackup, lerBackup } from '../src/core/backup';
 import { buildExtras, mergeExtras } from '../src/core/extras';
 import { defaultSettings, defaultStore } from '../src/core/defaults';
@@ -51,6 +51,14 @@ describe('códigos por categoria e tabela da balança', () => {
     expect(l[0]).toEqual({ codigo: '0001', descricao: 'Amêndoa', preco: 12990, tipo: 'Peso' });
     expect(l[3].tipo).toBe('Unidade');
     expect(codigo4(9999)).toBe('9999');
+  });
+  it('nome curto vai para a balança no lugar do nome longo', () => {
+    const longo = prod({ id: 'l', nome: 'Amendoim Crocante Cebola e Salsa', plu: 3 });
+    expect(nomeCortado(longo)).toBe(true);
+    const curto = { ...longo, nomeBalanca: 'Amendoim Cebola e Salsa' };
+    expect(nomeCortado(curto)).toBe(false);
+    expect(listaBalanca([curto])[0].descricao).toBe('Amendoim Cebola e Salsa');
+    expect(linhaMgv5(curto, BALANCA_PADRAO).slice(18, 68).trim()).toBe('AMENDOIM CEBOLA E SALSA');
   });
   it('tabela agrupa por categoria com preço do kg', () => {
     const t = tabelaBalanca(atribuirPlus(ps, cats, 'categoria').produtos, cats);

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import { Button, Field, Notice, PageHeader, downloadBlob } from '../ui/ui';
-import { atribuirPlus, balancaDe, casa, CODIGO_MAX, codigo4, faixaCategoria, FORMATOS_ETIQUETA, gerarItensMgv, lerEtiquetaBalanca, listaBalanca, precoBalanca, renumerar, tabelaBalanca, textoBalanca, vaiParaBalanca } from '../core/balanca';
+import { atribuirPlus, balancaDe, casa, CODIGO_MAX, codigo4, faixaCategoria, FORMATOS_ETIQUETA, gerarItensMgv, lerEtiquetaBalanca, LETRAS_BALANCA, listaBalanca, nomeCortado, precoBalanca, renumerar, tabelaBalanca, textoBalanca, vaiParaBalanca } from '../core/balanca';
 import { formatBRL } from '../core/money';
 import type { ConfigBalanca, Product } from '../types';
 
@@ -81,6 +81,12 @@ export default function Balanca() {
     const { csvBalanca } = await import('../export/listaBalanca');
     downloadBlob(new Blob(['\ufeff' + csvBalanca(linhas)], { type: 'text/csv' }), 'produtos-balanca.csv', 'text/csv');
   }
+
+  function mudarNomeCurto(p: Product, v: string) {
+    const t = v.trim().slice(0, LETRAS_BALANCA);
+    act.produtos(lista.produtos.map((x) => (x.id === p.id ? { ...x, nomeBalanca: t && t !== x.nome ? t : undefined } : x)));
+  }
+  const cortados = naBalanca.filter(nomeCortado).length;
 
   function baixar() {
     if (!arquivo.incluidos) return toast('Nenhum produto pronto para a balança. Gere os códigos primeiro.', 'erro');
@@ -190,16 +196,22 @@ export default function Balanca() {
               CSV
             </Button>
           </div>
+          {cortados > 0 && (
+            <Notice tone="warn">
+              {cortados} nome(s) passam de {LETRAS_BALANCA} letras e sairiam cortados na etiqueta. Escreva um nome curto na lista abaixo.
+            </Notice>
+          )}
           <p className="muted small">A planilha vem em ordem crescente (0001, 0002…) com as mesmas colunas do programa da balança: Código, Descrição, Preço/un, Tara, Validade e Tipo venda.</p>
           {arquivo.fora.filter((f) => f.motivo !== 'sem preço de venda').length > 0 && (
             <p className="muted small">Fora do arquivo: {arquivo.fora.filter((f) => f.motivo !== 'sem preço de venda').map((f) => `${f.produto.nome} (${f.motivo})`).join(', ')}.</p>
           )}
           <ol className="vit-passos">
             <li>Abra o programa da balança (<strong>UPX Wind Mega – Software Gerenciador</strong> ou Thunder).</li>
-            <li>Se o menu <strong>Arquivo</strong> tiver importar, escolha o <code>ITENSMGV.TXT</code> (formato Toledo MGV). Se não tiver, cadastre pelo <strong>+</strong> seguindo a planilha, na mesma ordem.</li>
-            <li>Use <strong>Transmitir</strong> para mandar para a balança. Mudou preço? Baixe de novo e transmita.</li>
+            <li>Em <strong>Configurar</strong>, escolha a pasta de importação e coloque nela o <code>ITENSMGV.TXT</code>.</li>
+            <li>Em <strong>Importação › Importar</strong>, o programa lê o arquivo e mostra um resumo. Confira os produtos na lista.</li>
+            <li>Em <strong>Transmitir</strong>, envie. Na balança, aperte <strong>TARA</strong> e <strong>IMPRIME</strong> juntas: aparece “PC” e, no fim, “Fin”. Mudou preço? Baixe de novo, importe e transmita.</li>
           </ol>
-          <p className="muted small">Os nomes vão em maiúsculas e sem acento, em até duas linhas de 25 letras, porque a balança não imprime acentos.</p>
+          <p className="muted small">Os nomes vão em maiúsculas e sem acento, com até 25 letras: a balança não imprime acentos nem nomes maiores.</p>
         </section>
         )}
       </div>
@@ -248,7 +260,8 @@ export default function Balanca() {
               <thead>
                 <tr>
                   <th>Código</th>
-                  <th>{wind ? 'Produto' : 'Como sai na balança'}</th>
+                  <th>Produto</th>
+                  {!wind && <th>Nome na balança ({LETRAS_BALANCA} letras)</th>}
                   <th>Tipo</th>
                   <th className="num">Preço</th>
                 </tr>
@@ -259,7 +272,22 @@ export default function Balanca() {
                     <td style={{ width: 120 }} title={p.plu ? codigo4(p.plu) : ''}>
                       <input aria-label={`Código de balança de ${p.nome}`} inputMode="numeric" maxLength={4} defaultValue={p.plu ? codigo4(p.plu) : ''} key={p.plu ?? 0} onBlur={(e) => Number(e.target.value.replace(/\D/g, '')) !== p.plu && mudarPlu(p, e.target.value)} style={{ maxWidth: 100 }} />
                     </td>
-                    <td className={wind ? 'strong' : 'strong mono'}>{wind ? p.nome : textoBalanca(p.nome)}</td>
+                    <td className="strong">{p.nome}</td>
+                    {!wind && (
+                      <td>
+                        <input
+                          aria-label={`Nome na balança de ${p.nome}`}
+                          maxLength={LETRAS_BALANCA}
+                          defaultValue={p.nomeBalanca ?? (p.nome.length <= LETRAS_BALANCA ? p.nome : '')}
+                          key={p.nomeBalanca ?? ''}
+                          placeholder={nomeCortado(p) ? 'Nome curto (obrigatório)' : p.nome}
+                          aria-invalid={nomeCortado(p) || undefined}
+                          className={nomeCortado(p) ? 'campo-alerta' : undefined}
+                          onBlur={(e) => e.target.value.trim() !== (p.nomeBalanca ?? (p.nome.length <= LETRAS_BALANCA ? p.nome : '')) && mudarNomeCurto(p, e.target.value)}
+                        />
+                        <span className="muted small mono"> {textoBalanca(p.nomeBalanca || p.nome).slice(0, LETRAS_BALANCA)}</span>
+                      </td>
+                    )}
                     <td className="muted">{p.unidade === 'kg' || p.unidade === 'g' ? 'por kg' : 'por unidade'}</td>
                     <td className="num">{formatBRL(precoBalanca(p))}{p.unidade === 'kg' || p.unidade === 'g' ? ' / kg' : ''}</td>
                   </tr>

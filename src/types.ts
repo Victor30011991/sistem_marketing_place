@@ -21,6 +21,8 @@ export interface Product {
   conteudoUnidade?: string | null;
   /** código do produto na balança (PLU), de 1 a 9999 */
   plu?: number | null;
+  /** nome curto para a balança (até 25 letras); vazio = usa o nome */
+  nomeBalanca?: string;
   /** texto de ingredientes para o rótulo */
   ingredientes?: string;
   /** informação nutricional por 100 g (opcional; só para o rótulo) */

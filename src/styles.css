@@ -1063,3 +1063,5 @@ input[type='color'] { width: 44px; min-width: 44px; height: 40px; padding: 2px; 
   .tb-linha b { font-size: 12pt; font-variant-numeric: tabular-nums; }
   .tb-linha em { font-style: normal; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 }
+
+.campo-alerta { border-color: var(--warn, #b7791f) !important; }
