@@ -170,6 +170,8 @@ export interface LigacoesMgv {
   nutri?: number;
   /** código do fracionador (FRACIONA.TXT: quem fracionou e embalou) */
   fracionador?: number;
+  /** código do campo extra 1 (CAMPEXT1.TXT: contém / não contém glúten) */
+  extra1?: number;
 }
 
 export function linhaMgv5(p: Product, cfg: ConfigBalanca, lig: LigacoesMgv = {}): string {
@@ -194,7 +196,7 @@ export function linhaMgv5(p: Product, cfg: ConfigBalanca, lig: LigacoesMgv = {})
     zeros(0, 4), // som
     zeros(0, 4), // tara
     zeros(lig.fracionador ?? 0, 4), // fracionador
-    zeros(0, 4), // campo extra 1
+    zeros(lig.extra1 ?? 0, 4), // campo extra 1
     zeros(0, 4), // campo extra 2
     zeros(0, 4), // conservação
     zeros(0, 12), // EAN-13 do fornecedor

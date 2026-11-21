@@ -221,7 +221,7 @@ export default function Balanca() {
           {carga.infoLonga.length > 0 && (
             <Notice tone="warn">A Wind Mega imprime até 7 linhas de informação. Texto longo em: {carga.infoLonga.join(', ')}.</Notice>
           )}
-          <p className="muted small">A carga traz produtos (ITENSMGV), tabela nutricional (INFNUTR), ingredientes, alérgenos, glúten e conservação (TXINFO) e quem fracionou (FRACIONA). A planilha serve para conferir.</p>
+          <p className="muted small">A carga traz produtos (ITENSMGV), tabela nutricional (INFNUTRI), ingredientes, alérgenos e conservação (TXINFO), glúten (CAMPEXT1) e quem fracionou (FRACIONA), no mesmo formato dos exemplos da Wind Mega. A planilha serve para conferir.</p>
           {arquivo.fora.filter((f) => f.motivo !== 'sem preço de venda').length > 0 && (
             <p className="muted small">Fora do arquivo: {arquivo.fora.filter((f) => f.motivo !== 'sem preço de venda').map((f) => `${f.produto.nome} (${f.motivo})`).join(', ')}.</p>
           )}

@@ -13,28 +13,33 @@ describe('carga completa da balança (Toledo MGV)', () => {
   it('texto sem acento e em maiúsculas', () => {
     expect(textoLivre('Açúcar, pimenta-do-reino: 1ª')).toBe('ACUCAR, PIMENTA-DO-REINO: 1');
   });
-  it('INFNUTR: parte antiga (porção) + RDC 429 (100 g)', () => {
+  it('INFNUTRI igual ao exemplo da Wind Mega: 45 + | + 61, valores da porção', () => {
     const l = linhaInfNutr(12, nutri);
+    expect(l).toHaveLength(107);
     const [a, b] = l.split('|');
-    expect(a).toHaveLength(49);
+    expect(a).toBe('N000012' + '0'.repeat(38));
     expect(b).toHaveLength(61);
-    expect(a.slice(0, 8)).toBe('N0000120');
-    expect(a.slice(8, 11)).toBe('005'); // porção 5 g
-    expect(a.slice(17, 21)).toBe('0015'); // 300 kcal em 100 g → 15 kcal na porção
-    expect(b.slice(13, 17)).toBe('0300'); // kcal em 100 g
+    expect(b.slice(4, 7)).toBe('005'); // porção 5 g
+    expect(b.slice(13, 17)).toBe('0015'); // 300 kcal em 100 g → 15 kcal na porção
+    expect(b.slice(17, 21)).toBe('0025'); // 50 g de carboidrato → 2,5 g na porção
     expect(b.slice(-14, -11)).toBe('001'); // sódio 3000 mg/100 g → alto em sódio
+  });
+  it('mesmo tamanho de linha dos exemplos (INFNUTRI)', () => {
+    const ex = 'N00167000000000000000000000000000000000000000|1000180001005031000550000002302200580030100062600000000000000';
+    expect(linhaInfNutr(1670, nutri)).toHaveLength(ex.length);
+    expect(linhaInfNutr(1670, nutri).indexOf('|')).toBe(ex.indexOf('|'));
   });
   it('medida caseira pela porção', () => {
     expect(medidaCaseira(5).texto).toBe('1 colher de chá');
     expect(medidaCaseira(40)).toMatchObject({ qtd: 4, codigo: '00' });
   });
   it('TXINFO: ingredientes, alérgenos, glúten e conservação em linhas de 56', () => {
-    const p = prod({ id: 'a', nome: 'Tempero Baiano', ingredientes: 'Sal, cominho, páprica', alergenicos: 'Pode conter amendoim', gluten: 'nao-contem' });
+    const p = prod({ id: 'a', nome: 'Tempero Baiano', ingredientes: 'Sal, cominho, páprica', alergenicos: 'Pode conter amendoim', modoUso: 'Use a gosto' });
     const linhas = linhasInfoExtra(p);
     expect(linhas[0]).toMatch(/^INGREDIENTES: SAL, COMINHO, PAPRICA\. ALERGICOS:/);
     expect(linhas.every((l) => l.length <= 56)).toBe(true);
-    expect(linhas.join(' ')).toContain('NAO CONTEM GLUTEN');
-    expect(linhaTxInfo(7, p.nome, linhas)).toHaveLength(946);
+    expect(linhas.join(' ')).toContain('MODO DE USO: USE A GOSTO');
+    expect(linhaTxInfo(7, p.nome, linhas)).toHaveLength(106 + 56 * linhas.length);
     expect(linhasInfoExtra(prod({ id: 'b', nome: 'X' }))).toEqual([]);
   });
   it('FRACIONA com os dados da loja', () => {
@@ -45,12 +50,16 @@ describe('carga completa da balança (Toledo MGV)', () => {
   });
   it('liga os códigos no ITENSMGV e gera só os arquivos que têm conteúdo', () => {
     const ps = [
-      prod({ id: 'a', nome: 'Tempero Baiano', plu: 2, nutricao: nutri, ingredientes: 'Sal' }),
+      prod({ id: 'a', nome: 'Tempero Baiano', plu: 2, nutricao: nutri, ingredientes: 'Sal', gluten: 'nao-contem' }),
       prod({ id: 'b', nome: 'Cominho', plu: 1, especiariaPura: true, nutricao: nutri }),
       prod({ id: 'c', nome: 'Sem código' }),
     ];
     const c = gerarCargaCompleta(ps, BALANCA_PADRAO, loja);
-    expect(c.arquivos.map((a) => a.nome)).toEqual(['ITENSMGV.TXT', 'INFNUTR.TXT', 'TXINFO.TXT', 'FRACIONA.TXT']);
+    expect(c.arquivos.map((a) => a.nome)).toEqual(['ITENSMGV.TXT', 'INFNUTRI.TXT', 'TXINFO.TXT', 'CAMPEXT1.TXT', 'FRACIONA.TXT']);
+    const ext = c.arquivos[3].texto.replace(/\r\n$/, '');
+    expect(ext).toHaveLength(272);
+    expect(ext.slice(0, 4)).toBe('0002');
+    expect(ext.slice(104).trim()).toBe('NAO CONTEM GLUTEN');
     const [cominho, baiano] = c.arquivos[0].texto.trim().split('\r\n');
     expect(cominho.slice(3, 9)).toBe('000001');
     expect(cominho.slice(68, 74)).toBe('000000'); // sem info extra
@@ -58,6 +67,7 @@ describe('carga completa da balança (Toledo MGV)', () => {
     expect(baiano.slice(68, 74)).toBe('000002'); // info extra
     expect(baiano.slice(78, 84)).toBe('000002'); // nutricional
     expect(baiano.slice(122, 126)).toBe('0001'); // fracionador
+    expect(baiano.slice(126, 130)).toBe('0002'); // campo extra 1: não contém glúten
     expect(baiano).toHaveLength(150);
     expect(c.fora.map((f) => f.motivo)).toEqual(['sem código da balança']);
     expect(c).toMatchObject({ produtos: 2, comNutricao: 1, comInfo: 1, fracionador: true });

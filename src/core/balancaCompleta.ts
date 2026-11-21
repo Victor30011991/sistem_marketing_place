@@ -4,8 +4,9 @@ import { CONSERVACAO_PADRAO } from './etiquetas';
 
 /**
  * Carga completa para balanças no padrão Toledo MGV (UPX Wind Mega, Thunder…):
- * ITENSMGV.TXT (produtos), INFNUTR.TXT (tabela nutricional), TXINFO.TXT (ingredientes, alérgenos, glúten, modo de uso
- * e conservação) e FRACIONA.TXT (quem fracionou e embalou). Layouts conforme o ACBrCargaBal (Toledo MGV6/MGV7).
+ * ITENSMGV.TXT (produtos), INFNUTRI.TXT (tabela nutricional RDC 429), TXINFO.TXT (ingredientes, alérgenos, modo de uso
+ * e conservação), CAMPEXT1.TXT (contém / não contém glúten) e FRACIONA.TXT (quem fracionou e embalou).
+ * Layouts conferidos com os arquivos de exemplo do UPX Wind Mega (pasta importa\Exemplo).
  */
 
 /** Texto livre para a balança: maiúsculas, sem acento, só ASCII imprimível. */
@@ -47,18 +48,22 @@ export function linhasInfoExtra(p: Product): string[] {
   const blocos: string[] = [];
   if (p.ingredientes?.trim()) blocos.push(`INGREDIENTES: ${p.ingredientes.trim().replace(/\.$/, '')}.`);
   if (p.alergenicos?.trim()) blocos.push(`ALERGICOS: ${p.alergenicos.trim().replace(/\.$/, '')}.`);
-  if (p.gluten === 'contem') blocos.push('CONTEM GLUTEN.');
-  if (p.gluten === 'nao-contem') blocos.push('NAO CONTEM GLUTEN.');
   if (p.modoUso?.trim()) blocos.push(`MODO DE USO: ${p.modoUso.trim().replace(/\.$/, '')}.`);
   if (!blocos.length) return [];
   blocos.push(CONSERVACAO_PADRAO);
   return quebrarLinhas(textoLivre(blocos.join(' ')), 56);
 }
 
-/** Uma linha do TXINFO.TXT: código(6) + observação(100) + texto(840 = 15 linhas de 56). */
+/** Uma linha do TXINFO.TXT: código(6) + observação(100) + linhas de 56 (até 15), como nos exemplos da Wind Mega. */
 export function linhaTxInfo(codigo: number, nome: string, linhas: string[]): string {
-  return zeros(codigo, 6) + esp(textoLivre(nome), 100) + linhas.slice(0, 15).map((l) => esp(l, 56)).join('').padEnd(840, ' ');
+  return zeros(codigo, 6) + esp(textoLivre(nome), 100) + linhas.slice(0, 15).map((l) => esp(l, 56)).join('');
 }
+
+/** CAMPEXT1.TXT: código(4) + observação(100) + 3 linhas de 56. Código 1 = contém glúten, 2 = não contém. */
+export function linhaCampoExtra(codigo: number, texto: string): string {
+  return zeros(codigo, 4) + esp('', 100) + esp(textoLivre(texto), 56) + esp('', 112);
+}
+export const GLUTEN_EXTRA = { contem: 1, 'nao-contem': 2 } as const;
 
 /** Medida caseira estimada pela porção: até 5 g = colheres de chá; acima, colheres de sopa (~10 g cada). */
 export function medidaCaseira(porcaoG: number): { qtd: number; codigo: string; texto: string } {
@@ -68,16 +73,15 @@ export function medidaCaseira(porcaoG: number): { qtd: number; codigo: string; t
 }
 
 /**
- * Uma linha do INFNUTR.TXT (Toledo MGV7, com a parte RDC 429 depois do "|").
- * Parte antiga: valores da porção. Parte RDC 429: valores em 100 g, e a balança calcula as porções pelo peso.
+ * Uma linha do INFNUTRI.TXT no formato dos exemplos da Wind Mega: "N" + código(6) + 38 zeros (parte antiga, não usada)
+ * + "|" + parte RDC 429 com os valores DA PORÇÃO (o sistema guarda por 100 g e converte aqui).
  */
 export function linhaInfNutr(codigo: number, n: InfoNutricional): string {
   const f = n.porcao / 100;
   const m = medidaCaseira(n.porcao);
-  const antiga =
-    'N' +
-    zeros(codigo, 6) +
-    '0' +
+  const rdc429 =
+    '1' + // porções calculadas automaticamente pelo peso
+    zeros(0, 3) +
     zeros(n.porcao, 3) +
     '0' + // gramas
     zeros(m.qtd, 2) +
@@ -85,38 +89,21 @@ export function linhaInfNutr(codigo: number, n: InfoNutricional): string {
     m.codigo +
     zeros(n.kcal * f, 4) +
     dec(n.carboidratos * f, 4, 1) +
+    dec(n.acucares * f, 3, 1) +
+    dec(0, 3, 1) + // açúcares adicionados: o sistema não guarda
     dec(n.proteinas * f, 3, 1) +
     dec(n.gorduras * f, 3, 1) +
     dec(n.saturadas * f, 3, 1) +
-    dec(0, 3, 1) + // gordura trans
+    dec(0, 3, 1) + // trans
     dec(n.fibras * f, 3, 1) +
     dec(n.sodio * f, 5, 1) +
-    '0000';
-  const rdc429 =
-    '1' + // porções calculadas automaticamente pelo peso
-    zeros(0, 3) +
-    zeros(n.porcao, 3) +
-    '0' +
-    zeros(m.qtd, 2) +
-    '0' +
-    m.codigo +
-    zeros(n.kcal, 4) +
-    dec(n.carboidratos, 4, 1) +
-    dec(n.acucares, 3, 1) +
-    dec(0, 3, 1) + // açúcares adicionados
-    dec(n.proteinas, 3, 1) +
-    dec(n.gorduras, 3, 1) +
-    dec(n.saturadas, 3, 1) +
-    dec(0, 3, 1) + // trans
-    dec(n.fibras, 3, 1) +
-    dec(n.sodio, 5, 1) +
-    '0' + // alto em açúcar adicionado: o sistema não guarda açúcar adicionado
-    (n.saturadas >= 6 ? '1' : '0') +
-    (n.sodio >= 600 ? '1' : '0') +
+    '0' + // alto em açúcar adicionado
+    (n.saturadas >= 6 ? '1' : '0') + // alto em gordura saturada (≥ 6 g em 100 g)
+    (n.sodio >= 600 ? '1' : '0') + // alto em sódio (≥ 600 mg em 100 g)
     dec(0, 5, 1) +
     dec(0, 5, 1) +
     '0';
-  return antiga + '|' + rdc429;
+  return 'N' + zeros(codigo, 6) + '0'.repeat(38) + '|' + rdc429;
 }
 
 /** Uma linha do FRACIONA.TXT: código(4) + observação(100) + 3 linhas de 56. */
@@ -148,6 +135,7 @@ export function gerarCargaCompleta(produtos: Product[], cfg: ConfigBalanca, loja
   const itens: string[] = [];
   const nutr: string[] = [];
   const info: string[] = [];
+  const extras = new Set<number>();
   const fora: CargaCompleta['fora'] = [];
   const infoLonga: string[] = [];
   const fraciona = linhaFraciona(1, loja);
@@ -173,11 +161,14 @@ export function gerarCargaCompleta(produtos: Product[], cfg: ConfigBalanca, loja
       info.push(linhaTxInfo(codigo, nomeNaBalanca(p), linhas));
       if (linhas.length > 7) infoLonga.push(p.nome);
     }
-    itens.push(linhaMgv5(p, cfg, { nutri: temNutri ? codigo : 0, infoExtra: linhas.length ? codigo : 0, fracionador: fraciona ? 1 : 0 }));
+    const gl = p.gluten ? GLUTEN_EXTRA[p.gluten] : 0;
+    if (gl) extras.add(gl);
+    itens.push(linhaMgv5(p, cfg, { nutri: temNutri ? codigo : 0, infoExtra: linhas.length ? codigo : 0, fracionador: fraciona ? 1 : 0, extra1: gl }));
   }
   const arquivos = [{ nome: 'ITENSMGV.TXT', texto: CRLF(itens) }];
-  if (nutr.length) arquivos.push({ nome: 'INFNUTR.TXT', texto: CRLF(nutr) });
+  if (nutr.length) arquivos.push({ nome: 'INFNUTRI.TXT', texto: CRLF(nutr) });
   if (info.length) arquivos.push({ nome: 'TXINFO.TXT', texto: CRLF(info) });
+  if (extras.size) arquivos.push({ nome: 'CAMPEXT1.TXT', texto: CRLF([...extras].sort().map((c) => linhaCampoExtra(c, c === 1 ? 'CONTEM GLUTEN' : 'NAO CONTEM GLUTEN'))) });
   if (fraciona && itens.length) arquivos.push({ nome: 'FRACIONA.TXT', texto: CRLF([fraciona]) });
   return { arquivos, produtos: itens.length, comNutricao: nutr.length, comInfo: info.length, infoLonga, fracionador: !!fraciona, fora };
 }
