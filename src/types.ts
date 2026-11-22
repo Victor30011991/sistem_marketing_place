@@ -398,6 +398,8 @@ export interface Venda {
   troco?: number;
   /** ISO; venda cancelada devolve o estoque e sai dos totais */
   cancelada?: string;
+  /** ISO de quando foi digitada, se foi lançada depois (venda retroativa) */
+  lancadaEm?: string;
 }
 
 /** Lista de compras para pedir cotação ao fornecedor. */

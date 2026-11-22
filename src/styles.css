@@ -1066,3 +1066,8 @@ input[type='color'] { width: 44px; min-width: 44px; height: 40px; padding: 2px; 
 
 .campo-alerta { border-color: var(--warn, #b7791f) !important; }
 .carga-resumo { list-style: none; padding: 0; margin: 4px 0 12px; display: grid; gap: 2px; }
+
+/* PDV: vender por peso ou por valor */
+.pdv-modo { display: inline-flex; align-self: flex-start; width: max-content; border: 1px solid var(--line, #e3d6c2); border-radius: 999px; padding: 2px; margin-bottom: 8px; }
+.pdv-modo button { border: 0; background: transparent; padding: 6px 12px; border-radius: 999px; font: inherit; font-size: 0.875rem; cursor: pointer; color: var(--muted); min-height: 36px; }
+.pdv-modo button.on { background: var(--primary, #5f7a6a); color: #fff; }

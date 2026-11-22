@@ -171,6 +171,7 @@ function lerVenda(raw: unknown): Venda | null {
   }
   if (cent(raw.troco) > 0) v.troco = cent(raw.troco);
   if (typeof raw.cancelada === 'string') v.cancelada = raw.cancelada;
+  if (typeof raw.lancadaEm === 'string') v.lancadaEm = raw.lancadaEm;
   return v;
 }
 

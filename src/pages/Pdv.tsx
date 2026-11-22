@@ -8,7 +8,7 @@ import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import { Button, Empty, Indicadores, MoneyInput, Notice, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
-import { comDesconto, descontoDoTexto, diaLocal, fecharPdv, formasPdv, itemVenda, lerPedidoWhatsapp, qtdNoProduto, resumoVendas, unidadeDeVenda } from '../core/vendas';
+import { comDesconto, descontoDoTexto, diaLocal, fecharPdv, formasPdv, itemVenda, lerPedidoWhatsapp, qtdNoProduto, qtdPorValor, resumoVendas, unidadeDeVenda } from '../core/vendas';
 import { balancaDe, lerEtiquetaBalanca } from '../core/balanca';
 import { formatBRL, parseNumberBR } from '../core/money';
 import { norm, newId } from '../core/normalize';
@@ -84,6 +84,10 @@ export default function Pdv() {
   const [qtdTxt, setQtdTxt] = useState('');
   const [colar, setColar] = useState<string | null>(null);
   const [dia, setDia] = useState(diaLocal(new Date()));
+  /** venda pelo valor em R$ (em vez de gramas) no produto escolhido */
+  const [porValor, setPorValor] = useState(false);
+  /** data e hora de uma venda lançada depois (datetime-local); vazio = agora */
+  const [retro, setRetro] = useState('');
   const qtdRef = useRef<HTMLInputElement>(null);
   const buscaRef = useRef<HTMLInputElement>(null);
 
@@ -140,13 +144,18 @@ export default function Pdv() {
   function escolher(p: Product) {
     setSel(p);
     setQtdTxt('');
+    setPorValor(false);
     setTimeout(() => qtdRef.current?.focus(), 0);
   }
-  const qtdSel = parseNumberBR(qtdTxt);
-  const previaSel = sel && qtdSel ? itemVenda(sel, qtdSel) : null;
+  const numSel = parseNumberBR(qtdTxt);
+  const pv = sel && porValor && numSel ? qtdPorValor(sel, Math.round(numSel * 100)) : null;
+  const qtdSel = porValor ? (pv?.qtd ?? null) : numSel;
+  const calcSel = sel && qtdSel ? itemVenda(sel, qtdSel) : null;
+  const previaSel = calcSel && pv && numSel ? { ...calcSel, total: Math.round(numSel * 100) } : calcSel;
   function confirmarSel() {
     if (!sel || !previaSel) return;
-    adicionar(sel, qtdSel!);
+    if (pv && numSel) adicionar(sel, pv.qtd, pv.unidade, Math.round(numSel * 100));
+    else adicionar(sel, qtdSel!);
     setSel(null);
     setBusca('');
     setQtdTxt('');
@@ -207,9 +216,14 @@ export default function Pdv() {
     const fiado = pagamentos.pagamentos.filter((p) => p.forma === 'fiado').reduce((a, p) => a + p.valor, 0);
     if (fiado > 0 && !r.cliente.trim()) return toast('Para vender fiado, escreva o nome do cliente.', 'erro');
     const principal = [...pagamentos.pagamentos].sort((a, b) => b.valor - a.valor)[0] ?? { forma: 'pix', label: 'Pix' };
+    const agora = new Date();
+    const dataRetro = retro ? new Date(retro) : null;
+    if (dataRetro && (isNaN(dataRetro.getTime()) || dataRetro > agora)) return toast('A data da venda não pode ser no futuro.', 'erro');
+    const quando = dataRetro ?? agora;
     const venda: Venda = {
       id: newId(),
-      quando: new Date().toISOString(),
+      quando: quando.toISOString(),
+      ...(dataRetro ? { lancadaEm: agora.toISOString() } : {}),
       itens: itens.map((x) => x.it),
       desconto: pagamentos.desconto,
       total: pagamentos.total,
@@ -228,13 +242,15 @@ export default function Pdv() {
       const existente = (r.clienteId && clientes.find((c) => c.id === r.clienteId)) || acharCliente(clientes, { nome: r.cliente });
       const cli = existente || novoCliente({ nome: r.cliente });
       venda.clienteId = cli.id;
-      const conta = contaFiado(fiado, venda.id, cli.id, config.prazoFiado ?? 30);
+      const conta = contaFiado(fiado, venda.id, cli.id, config.prazoFiado ?? 30, quando);
       act.config((s) => ({ ...s, clientes: existente ? s.clientes ?? [] : [...(s.clientes ?? []), cli], contas: [...(s.contas ?? []), conta] }));
     }
     act.registrarVenda(venda);
     rascunho = null;
     setR(vazio());
-    setDia(diaLocal(new Date()));
+    setRetro('');
+    setDia(diaLocal(quando));
+    if (dataRetro) return toast(`Venda de ${quando.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} registrada: ${formatBRL(venda.total)}. Ela não entra no caixa de hoje.`);
     toast(pagamentos.troco > 0 ? `Venda registrada: ${formatBRL(venda.total)}. Troco: ${formatBRL(pagamentos.troco)}.` : `Venda registrada: ${formatBRL(venda.total)}.`);
     setTimeout(() => buscaRef.current?.focus(), 0);
   }
@@ -308,19 +324,36 @@ export default function Pdv() {
                     </button>
                     {sel?.id === p.id && (
                       <div className="pdv-qtd">
+                        <div className="pdv-modo" role="radiogroup" aria-label="Vender por">
+                          <button type="button" role="radio" aria-checked={!porValor} className={!porValor ? 'on' : ''} onClick={() => { setPorValor(false); setQtdTxt(''); qtdRef.current?.focus(); }}>
+                            {unidadeDeVenda(p) === 'g' ? 'Por peso' : 'Por quantidade'}
+                          </button>
+                          <button type="button" role="radio" aria-checked={porValor} className={porValor ? 'on' : ''} onClick={() => { setPorValor(true); setQtdTxt(''); qtdRef.current?.focus(); }}>
+                            Por valor (R$)
+                          </button>
+                        </div>
                         <div className="row-gap">
-                          <label htmlFor="pdv-q">Quantidade ({unidadeDeVenda(p)})</label>
-                          <input id="pdv-q" ref={qtdRef} inputMode="decimal" value={qtdTxt} onChange={(e) => setQtdTxt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmarSel()} autoComplete="off" />
+                          <label htmlFor="pdv-q">{porValor ? 'Valor (R$)' : `Quantidade (${unidadeDeVenda(p)})`}</label>
+                          <input id="pdv-q" ref={qtdRef} inputMode="decimal" value={qtdTxt} onChange={(e) => setQtdTxt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmarSel()} autoComplete="off" placeholder={porValor ? '4,00' : ''} />
                         </div>
                         <div className="chips-add">
-                          {atalhos(unidadeDeVenda(p)).map((a) => (
-                            <button key={a} type="button" className="mini" onClick={() => setQtdTxt(String(a))}>
-                              {qtdTexto(a, unidadeDeVenda(p))}
-                            </button>
-                          ))}
+                          {porValor
+                            ? [2, 5, 10, 20].map((a) => (
+                                <button key={a} type="button" className="mini" onClick={() => setQtdTxt(String(a))}>
+                                  {formatBRL(a * 100)}
+                                </button>
+                              ))
+                            : atalhos(unidadeDeVenda(p)).map((a) => (
+                                <button key={a} type="button" className="mini" onClick={() => setQtdTxt(String(a))}>
+                                  {qtdTexto(a, unidadeDeVenda(p))}
+                                </button>
+                              ))}
                         </div>
                         <div className="row-gap pdv-qtd-fim">
-                          <strong>{previaSel ? formatBRL(previaSel.total) : '—'}</strong>
+                          <strong>
+                            {previaSel ? formatBRL(previaSel.total) : '—'}
+                            {pv && <small className="muted"> = {qtdTexto(pv.qtd, pv.unidade)}</small>}
+                          </strong>
                           <Button icon="plus" onClick={confirmarSel} disabled={!previaSel}>
                             Adicionar
                           </Button>
@@ -383,7 +416,7 @@ export default function Pdv() {
                           </td>
                           <td className="num pdv2-c-qtd">
                             {l.total != null ? (
-                              <span className="muted nowrap" title="Valor da etiqueta da balança">
+                              <span className="muted nowrap" title="Valor fechado (etiqueta da balança ou venda pelo valor)">
                                 {qtdTexto(l.qtd, l.unidade)}
                               </span>
                             ) : (
@@ -550,8 +583,28 @@ export default function Pdv() {
             </div>
           </details>
 
+          <details className="pdv2-descvenda" open={!!retro || undefined}>
+            <summary>Venda de outro dia</summary>
+            <div className="row-gap">
+              <input
+                type="datetime-local"
+                aria-label="Data e hora da venda"
+                value={retro}
+                max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                onChange={(e) => setRetro(e.target.value)}
+              />
+              {retro && (
+                <Button variant="ghost" onClick={() => setRetro('')}>
+                  Usar agora
+                </Button>
+              )}
+            </div>
+            <p className="muted small">Para lançar uma venda que não deu para registrar na hora. Ela fica no dia escolhido e não entra no caixa de hoje.</p>
+          </details>
+
           <Button icon="check" onClick={finalizar} disabled={!itens.length || (r.pagos.length > 0 && (fech.falta > 0 || fech.excesso > 0))} className="pdv-registrar">
             {r.pagos.length ? 'Finalizar venda' : `Finalizar no Pix · ${formatBRL(fech.total)}`}
+            {retro ? ` · ${new Date(retro).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}
           </Button>
           {!r.pagos.length && itens.length > 0 && <p className="muted small">Sem forma escolhida, a venda entra como Pix. Para outra forma ou para dividir, toque em “Receber em”.</p>}
         </aside>
@@ -629,6 +682,7 @@ export default function Pdv() {
                     <tr key={v.id} className={v.cancelada ? 'pdv-cancelada' : ''}>
                       <td className="nowrap">
                         {new Date(v.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        {v.lancadaEm && <small className="muted" title={`Lançada em ${new Date(v.lancadaEm).toLocaleString('pt-BR')}`}> · lançada depois</small>}
                         {v.por && <small className="muted"> · {v.por}</small>}
                       </td>
                       <td>
