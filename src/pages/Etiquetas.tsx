@@ -408,10 +408,10 @@ export default function Etiquetas() {
               {m.nome}
             </button>
           ))}
-          <Button variant="ghost" icon="plus" onClick={novo}>
-            Novo modelo
-          </Button>
         </div>
+        <Button variant="ghost" icon="plus" onClick={novo}>
+          Novo modelo
+        </Button>
         <div className="form-grid etq-cfg">
           <Field label="Nome do modelo">{(id) => <input id={id} value={modelo.nome} onChange={(e) => salvar({ ...modelo, nome: e.target.value })} />}</Field>
           <Field label="Tamanho da etiqueta" hint="O mesmo do rolo que está na impressora.">

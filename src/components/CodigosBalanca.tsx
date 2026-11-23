@@ -38,7 +38,9 @@ export default function CodigosBalanca() {
     [lista.produtos, lista.categorias, porPrat, cfg.prateleira],
   );
   const todos = useMemo(() => grupos.flatMap((g) => g.itens.map((x) => x.id)), [grupos]);
-  const [marcados, setMarcados] = useState<Set<string>>(() => new Set(todos));
+  // guarda só o que foi desmarcado: produto que chega depois (nuvem, código novo) já entra marcado
+  const [fora, setFora] = useState<Set<string>>(new Set());
+  const marcados = useMemo(() => new Set(todos.filter((id) => !fora.has(id))), [todos, fora]);
   const [modo, setModo] = useState<Modo>('balanca');
   const [separar, setSeparar] = useState(true);
   const [preco, setPreco] = useState(false);
@@ -53,9 +55,9 @@ export default function CodigosBalanca() {
   const hoje = new Date().toLocaleDateString('pt-BR');
 
   const marcar = (ids: string[], v: boolean) =>
-    setMarcados((m) => {
-      const n = new Set(m);
-      ids.forEach((id) => (v ? n.add(id) : n.delete(id)));
+    setFora((f) => {
+      const n = new Set(f);
+      ids.forEach((id) => (v ? n.delete(id) : n.add(id)));
       return n;
     });
 
@@ -138,10 +140,10 @@ export default function CodigosBalanca() {
 
         <h2>O que entra</h2>
         <div className="row-gap wrap">
-          <Button variant="secondary" onClick={() => setMarcados(new Set(todos))}>
+          <Button variant="secondary" onClick={() => setFora(new Set())}>
             Marcar todos
           </Button>
-          <Button variant="ghost" onClick={() => setMarcados(new Set())}>
+          <Button variant="ghost" onClick={() => setFora(new Set(todos))}>
             Desmarcar
           </Button>
         </div>
