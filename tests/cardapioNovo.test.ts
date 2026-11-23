@@ -106,3 +106,36 @@ describe('cardápio novo: página do cliente', () => {
     expect(v.mixes).toBe(false);
   });
 });
+
+describe('cardápio: aparência, cor do produto e fidelidade', () => {
+  it('sem escolha: cores da Minha loja, fundo claro e letra de serifa quadrada', () => {
+    const { arquivo } = montarCardapio(lista, defaultStore(), null);
+    const c = defaultStore().cores;
+    expect(arquivo.loja.cores).toMatchObject({ p: c.primaria, d: c.destaque, f: c.fundo, b: '#FAFAF7' });
+    expect(arquivo.loja.letra).toBe('slab');
+    expect(arquivo.loja.fid).toBeUndefined();
+  });
+  it('a aparência escolhida vale por cima da Minha loja e lixo é ignorado', () => {
+    const loja = { ...defaultStore(), vitrine: { ...vitrineDe(defaultStore()), visual: { fundo: '#ffffff', principal: '#a8432a', destaque: 'verde', letra: 'classica' as const } } };
+    const v = vitrineDe(loja);
+    expect(v.visual).toEqual({ fundo: '#FFFFFF', principal: '#A8432A', letra: 'classica' });
+    const { arquivo } = montarCardapio(lista, { ...loja, vitrine: v }, null);
+    expect(arquivo.loja.cores.b).toBe('#FFFFFF');
+    expect(arquivo.loja.cores.p).toBe('#A8432A');
+    expect(arquivo.loja.cores.d).toBe(defaultStore().cores.destaque);
+    expect(arquivo.loja.letra).toBe('classica');
+  });
+  it('a cor da bolinha do produto vai para o site; cor inválida não', () => {
+    const l2: ListState = { ...lista, produtos: [prod({ id: 'x', nome: 'Curry', cor: '#d49a1e' }), prod({ id: 'y', nome: 'Cominho', cor: 'amarelo' })] };
+    const { arquivo } = montarCardapio(l2, defaultStore(), null);
+    const itens = arquivo.categorias.flatMap((c) => c.itens);
+    expect(itens.find((i) => i.i === 'x')!.c).toBe('#D49A1E');
+    expect(itens.find((i) => i.i === 'y')!.c).toBeUndefined();
+  });
+  it('fidelidade ligada leva só a regra; desligada não vai', () => {
+    const lig = montarCardapio(lista, defaultStore(), null, new Date(), { fidelidade: { ativo: true, compras: 10, premio: ' 100 g de tempero ', minimo: 2000 } });
+    expect(lig.arquivo.loja.fid).toEqual({ n: 10, p: '100 g de tempero', m: 2000 });
+    const des = montarCardapio(lista, defaultStore(), null, new Date(), { fidelidade: { ativo: false, compras: 10, premio: 'x', minimo: 0 } });
+    expect(des.arquivo.loja.fid).toBeUndefined();
+  });
+});

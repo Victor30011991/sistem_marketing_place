@@ -33,6 +33,8 @@ export interface Product {
   nutricao?: InfoNutricional | null;
   /** foto pequena para o cardápio (data URL, ~120 px) */
   foto?: string;
+  /** cor da bolinha no cardápio quando não há foto (hex); sem ela, o cardápio escolhe pelo nome */
+  cor?: string;
   /** rótulo: glúten (obrigatório no rótulo de alimento embalado) */
   gluten?: 'contem' | 'nao-contem';
   /** rótulo: texto depois de "ALÉRGICOS:", ex.: "PODE CONTER AMENDOIM" */
@@ -200,6 +202,22 @@ export interface Vitrine {
   mixes?: boolean;
   /** página de entrada (a "primeira impressão" do link da bio) */
   entrada?: ConfigEntrada;
+  /** cores e letra do cardápio (sem isto: cores da Minha loja e fundo claro) */
+  visual?: VisualCardapio;
+}
+
+/** Aparência do cardápio público. Cada cor vazia usa a da Minha loja. */
+export interface VisualCardapio {
+  /** fundo da página */
+  fundo?: string;
+  /** botões, preços e carrinho */
+  principal?: string;
+  /** categoria escolhida, selos e fidelidade */
+  destaque?: string;
+  /** banner, etiquetas e cartões claros */
+  papel?: string;
+  /** letra dos títulos */
+  letra?: 'slab' | 'classica' | 'simples';
 }
 
 /** Um capítulo da página de entrada: um tempero que pinta a tela ao rolar. */

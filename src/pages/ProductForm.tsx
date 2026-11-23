@@ -411,6 +411,26 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
             </div>
             {erroFoto && <span className="field-error">{erroFoto}</span>}
           </div>
+          {!d.foto && (
+            <div className="pf-cor">
+              <label className="vit-cor-amostra" style={{ background: d.cor ?? '#d9cbb8' }}>
+                <span className="sr-only">Cor da bolinha no cardápio</span>
+                <input type="color" value={(d.cor ?? '#d9cbb8').toLowerCase()} onChange={(e) => set({ cor: e.target.value.toUpperCase() })} />
+              </label>
+              <div>
+                <strong>Cor no cardápio</strong>
+                <small className="muted">
+                  {d.cor ? 'Escolhida por você. ' : 'Automática, pelo nome do produto. '}
+                  Aparece na bolinha enquanto o produto não tem foto.
+                </small>
+                {d.cor && (
+                  <button type="button" className="link-btn" onClick={() => set({ cor: undefined })}>
+                    Voltar à cor automática
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           <label className="check">
             <input type="checkbox" checked={!!d.promo} onChange={(e) => set({ promo: e.target.checked ? { preco: d.venda ? Math.round(d.venda * 0.9) : 0, ate: '', selo: 'Oferta' } : null })} /> Em promoção
           </label>

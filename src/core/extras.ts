@@ -13,6 +13,7 @@ export interface ProductExtra {
   ingredientes?: string;
   nutricao?: InfoNutricional | null;
   foto?: string;
+  cor?: string;
   promo?: Product['promo'];
   gluten?: Product['gluten'];
   alergenicos?: string;
@@ -39,6 +40,7 @@ export function buildExtras(produtos: Product[]): ExtrasMap {
     if (p.ingredientes?.trim()) e.ingredientes = p.ingredientes;
     if (p.nutricao) e.nutricao = p.nutricao;
     if (p.foto) e.foto = p.foto;
+    if (p.cor) e.cor = p.cor;
     if (p.promo) e.promo = p.promo;
     if (p.gluten) e.gluten = p.gluten;
     if (p.alergenicos?.trim()) e.alergenicos = p.alergenicos;

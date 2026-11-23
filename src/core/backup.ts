@@ -84,6 +84,7 @@ function lerProduto(v: unknown): Product | null {
   if (str(v.modoUso).trim()) p.modoUso = str(v.modoUso);
   if (v.especiariaPura === true) p.especiariaPura = true;
   if (typeof v.foto === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(v.foto) && v.foto.length < 60000) p.foto = v.foto;
+  if (typeof v.cor === 'string' && /^#[0-9a-f]{6}$/i.test(v.cor)) p.cor = v.cor;
   if (isObj(v.promo) && num(v.promo.preco) != null && (v.promo.preco as number) > 0)
     p.promo = { preco: v.promo.preco as number, ate: /^\d{4}-\d{2}-\d{2}$/.test(str(v.promo.ate)) ? str(v.promo.ate) : '', selo: str(v.promo.selo).slice(0, 24) };
   return p;
