@@ -155,3 +155,22 @@ describe('kits no cardápio', () => {
     expect(Lx.ratearKit(100, [0, 0])).toEqual([100, 0]);
   });
 });
+
+describe('entrega grátis', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Lx = L as any;
+  it('mensagem e resumo mostram entrega grátis e o total sem taxa', () => {
+    const d = { itens: [{ n: 'Curry', g: 1000, total: 3750 }], nome: 'Ana', endereco: 'Rua A', modo: 'entrega', taxa: 0, gratis: true, pagamento: 'pix', abertura: 'Olá', loja: 'T' };
+    const t = Lx.montarMensagem(d);
+    expect(t).toContain('🛵 Entrega: grátis');
+    expect(t).toContain('Total: R$ 37,50*');
+    expect(t).not.toContain('+ entrega');
+    expect(Lx.resumoEntrega(d)).toContain('Entrega (grátis)');
+  });
+  it('a loja guarda o valor da entrega grátis; valor inválido some', () => {
+    const ok = vitrineDe({ vitrine: { ...vitrineDe(defaultStore()), entrega: { ativa: true, taxa: 'fixa', valor: 500, retirada: true, gratisAcima: 5000 } } });
+    expect(ok.entrega?.gratisAcima).toBe(5000);
+    const ruim = vitrineDe({ vitrine: { ...vitrineDe(defaultStore()), entrega: { ativa: true, taxa: 'fixa', valor: 500, retirada: true, gratisAcima: -3 } } });
+    expect(ruim.entrega?.gratisAcima).toBeUndefined();
+  });
+});

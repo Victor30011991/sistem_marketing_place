@@ -383,6 +383,23 @@ export default function Vitrine() {
                   )}
                 </div>
               )}
+              {entrega.ativa && (
+                <Field label="Entrega grátis a partir de (opcional)" hint="Vazio = não tem. O cliente vê quanto falta para ganhar a entrega grátis.">
+                  {(id) => (
+                    <input
+                      id={id}
+                      inputMode="decimal"
+                      defaultValue={entrega.gratisAcima ? (entrega.gratisAcima / 100).toFixed(2).replace('.', ',') : ''}
+                      placeholder="Ex.: 50,00"
+                      onBlur={(e) => {
+                        const n = Math.round(Number(e.target.value.replace(/\./g, '').replace(',', '.')) * 100);
+                        const { gratisAcima: _, ...resto } = entrega;
+                        set({ entrega: Number.isFinite(n) && n > 0 ? { ...resto, gratisAcima: n } : resto });
+                      }}
+                    />
+                  )}
+                </Field>
+              )}
               {!entrega.ativa && !entrega.retirada && <Notice tone="warn">Marque pelo menos uma opção. Sem nenhuma, o cardápio mostra entrega.</Notice>}
             </fieldset>
 

@@ -285,6 +285,8 @@ export interface EntregaCardapio {
   valor: number;
   /** cliente pode retirar na loja */
   retirada: boolean;
+  /** entrega grátis a partir deste valor de produtos (centavos); 0 ou vazio = não tem */
+  gratisAcima?: number;
 }
 
 export interface HorarioDia {

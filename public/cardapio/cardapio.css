@@ -335,3 +335,22 @@ a.b { text-decoration: none; }
 .qtd-kit { margin-top: 6px; }
 .qtd-kit .stp-v { min-width: 56px; }
 .linha > .stp { grid-column: 2 / -1; justify-self: start; margin-top: -2px; }
+.gratis { display: flex; flex-direction: column; gap: 6px; }
+.gratis p { margin: 0; font-size: .9rem; }
+.gratis-trilho { display: block; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.gratis-trilho i { display: block; height: 100%; border-radius: 4px; background: var(--d); }
+.escolha { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.escolha #outro { margin-top: 0; }
+#valor { width: 100%; min-height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); font-size: 16px; }
+.por-valor { margin: 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--d) 12%, var(--card)); font-size: .92rem; }
+.peso-g b { font-size: .95rem; }
+.peso-g span { font-size: .78rem; color: var(--muted); }
+.peso-g.on span { color: inherit; }
+.sugestoes { display: flex; flex-direction: column; gap: 10px; }
+.sug { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); }
+.sug-kit { background: color-mix(in srgb, var(--p) 8%, var(--card)); border-color: color-mix(in srgb, var(--p) 30%, transparent); }
+.sug p { margin: 0; font-size: .9rem; }
+.sug .b.sec { align-self: flex-start; width: auto; padding: 0 16px; }
+.sug-arte .bola { width: 36px; height: 36px; }
+.sug:not(.sug-kit) { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; }
+.sug:not(.sug-kit) .b.sec { grid-column: 2; }

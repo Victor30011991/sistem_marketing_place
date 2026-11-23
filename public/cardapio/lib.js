@@ -66,7 +66,7 @@
   function resumoEntrega(d) {
     var p = [];
     if (d.modo === 'retirada') p.push('Retirada na loja');
-    else if (d.modo === 'entrega') p.push(d.taxa > 0 ? 'Entrega (taxa ' + brl(d.taxa) + ')' : 'Entrega (taxa a combinar)');
+    else if (d.modo === 'entrega') p.push(d.gratis ? 'Entrega (grátis)' : d.taxa > 0 ? 'Entrega (taxa ' + brl(d.taxa) + ')' : 'Entrega (taxa a combinar)');
     if (PAGAMENTOS[d.pagamento]) p.push('Pagamento: ' + PAGAMENTOS[d.pagamento] + (d.pagamento === 'dinheiro' && String(d.troco || '').trim() ? ' (troco para ' + String(d.troco).trim() + ')' : ''));
     return p.join(' · ');
   }
@@ -99,6 +99,7 @@
     linhas.push('');
     linhas.push('Subtotal: ' + brl(sub));
     if (d.modo === 'retirada') { linhas.push('🏪 Retirada na loja'); linhas.push('💰 *Total: ' + brl(sub) + '*'); }
+    else if (d.gratis) { linhas.push('🛵 Entrega: grátis'); linhas.push('💰 *Total: ' + brl(sub) + '*'); }
     else if (d.taxa > 0) { linhas.push('🛵 Entrega: ' + brl(d.taxa)); linhas.push('💰 *Total: ' + brl(sub + d.taxa) + '*'); }
     else { linhas.push('🛵 Entrega: a combinar'); linhas.push('💰 *Total: ' + brl(sub) + ' + entrega*'); }
 
