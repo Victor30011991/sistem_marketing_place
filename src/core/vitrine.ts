@@ -6,6 +6,7 @@ import { comPromo } from './promo';
 import { newId } from './normalize';
 import { counterBasis } from './units';
 import { LOGO_COLORS } from './defaults';
+import { kitsDe, kitsParaCardapio, type KitPublicado } from './kits';
 
 export const VITRINE_PADRAO: Vitrine = {
   slogan: '',
@@ -93,6 +94,7 @@ export function vitrineDe(loja: Pick<StoreInfo, 'vitrine'> | null | undefined): 
     ...(v.mixes === false ? { mixes: false } : {}),
     ...(entradaDe(v.entrada) ? { entrada: entradaDe(v.entrada) } : {}),
     ...(visualDe(v.visual) ? { visual: visualDe(v.visual) } : {}),
+    ...(kitsDe(v.kits).length ? { kits: kitsDe(v.kits) } : {}),
   };
 }
 
@@ -232,6 +234,7 @@ export interface CardapioArquivo {
   };
   categorias: { nome: string; itens: ItemCardapio[] }[];
   mixes?: MixCardapio[];
+  kits?: KitPublicado[];
 }
 
 export type MotivoFora = 'oculto' | 'sem-estoque' | 'sem-preco' | 'nao-peso';
@@ -358,6 +361,7 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
     }
   }
 
+  const kitsPub = kitsParaCardapio(v.kits ?? [], lista.produtos, new Set(porId.keys()), hoje);
   const cores = loja.cores ?? LOGO_COLORS;
   const vis = v.visual ?? {};
   const hs = v.horarios;
@@ -392,6 +396,7 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
       },
       categorias,
       ...(mixes.length ? { mixes } : {}),
+      ...(kitsPub.length ? { kits: kitsPub } : {}),
     },
     fora,
     total: porId.size,

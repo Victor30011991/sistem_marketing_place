@@ -204,6 +204,31 @@ export interface Vitrine {
   entrada?: ConfigEntrada;
   /** cores e letra do cardápio (sem isto: cores da Minha loja e fundo claro) */
   visual?: VisualCardapio;
+  /** kits, combos e ofertas do carrossel, na ordem em que aparecem */
+  kits?: KitCardapio[];
+}
+
+export type TipoKit = 'combo' | 'kit' | 'oferta' | 'novidade';
+
+/** Kit montado pela loja: itens com gramas e um preço só. */
+export interface KitCardapio {
+  id: string;
+  nome: string;
+  tipo: TipoKit;
+  itens: { produtoId: string; gramas: number }[];
+  /** preço do kit (centavos) */
+  preco: number;
+  descricao: string;
+  /** frase que aparece no carrossel */
+  chamada?: string;
+  /** foto do cartão do carrossel (data URL) */
+  foto?: string;
+  /** cor do cartão: 'principal', 'destaque' ou #rrggbb */
+  cor?: string;
+  carrossel: boolean;
+  ativo: boolean;
+  /** vale até (AAAA-MM-DD) */
+  ate?: string;
 }
 
 /** Aparência do cardápio público. Cada cor vazia usa a da Minha loja. */

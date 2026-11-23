@@ -23,6 +23,17 @@
     return Math.floor((g * pk + 500) / 1000);
   }
 
+  /** Divide o preço do kit entre os itens, proporcional ao preço separado (soma exata). */
+  function ratearKit(preco, seps) {
+    var soma = 0; seps.forEach(function (x) { soma += x; });
+    if (!seps.length) return [];
+    if (soma <= 0) return seps.map(function (_, i) { return i === 0 ? preco : 0; });
+    var partes = seps.map(function (x) { return Math.floor((x * preco) / soma); });
+    var usado = 0; partes.forEach(function (x) { usado += x; });
+    partes[partes.length - 1] += preco - usado;
+    return partes;
+  }
+
   /** "250", "250 g", "1,5 kg", "1kg" -> gramas (inteiro). Texto que não dá para entender = null. */
   function parseGramas(texto) {
     var m = String(texto == null ? '' : texto)
@@ -81,7 +92,8 @@
     var linhas = ['🛒 *Pedido · ' + n + (n === 1 ? ' item' : ' itens') + '*', ''];
     for (var i = 0; i < n; i++) {
       var it = d.itens[i];
-      linhas.push('▪️ ' + String(it.n).trim() + ' · ' + fmtGramas(it.g) + ' · *' + brl(it.total) + '*');
+      if (it.kit) linhas.push('🎁 ' + (it.g > 1 ? it.g + 'x ' : '') + String(it.n).trim() + ' · *' + brl(it.total) + '*' + (it.desc ? '\n     ' + String(it.desc).trim() : ''));
+      else linhas.push('▪️ ' + String(it.n).trim() + ' · ' + fmtGramas(it.g) + ' · *' + brl(it.total) + '*');
     }
     var sub = subtotal(d.itens);
     linhas.push('');
@@ -190,6 +202,7 @@
     fmtGramas: fmtGramas,
     fmtTelefone: fmtTelefone,
     precoItem: precoItem,
+    ratearKit: ratearKit,
     parseGramas: parseGramas,
     subtotal: subtotal,
     normalizarOrigem: normalizarOrigem,

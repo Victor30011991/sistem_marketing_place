@@ -139,3 +139,19 @@ describe('cardápio: aparência, cor do produto e fidelidade', () => {
     expect(des.arquivo.loja.fid).toBeUndefined();
   });
 });
+
+describe('kits no cardápio', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Lx = L as any;
+  it('a mensagem mostra o kit numa linha só, com os itens embaixo', () => {
+    const t = Lx.montarMensagem({ itens: [{ kit: true, n: 'Churrasco no ponto', g: 2, total: 3180, desc: 'Páprica 100 g · Chimichurri 100 g' }, { n: 'Curry', g: 100, total: 375 }], nome: 'Ana', modo: 'retirada', pagamento: 'pix', abertura: 'Olá', loja: 'T' });
+    expect(t).toContain('🎁 2x Churrasco no ponto · *R$ 31,80*');
+    expect(t).toContain('Páprica 100 g · Chimichurri 100 g');
+    expect(t).toContain('Total: R$ 35,55');
+  });
+  it('dividir o preço do kit fecha a soma exata', () => {
+    expect(Lx.ratearKit(1590, [475, 730, 580])).toEqual([423, 650, 517]);
+    expect(Lx.ratearKit(1590, [475, 730, 580]).reduce((a: number, b: number) => a + b, 0)).toBe(1590);
+    expect(Lx.ratearKit(100, [0, 0])).toEqual([100, 0]);
+  });
+});
