@@ -1119,3 +1119,10 @@ input[type='color'] { width: 44px; min-width: 44px; height: 40px; padding: 2px; 
 .letra-op:hover, .letra-op:focus-visible { background: var(--surface-2, #f6efe3); }
 .letra-op.on { background: #e8efd9; outline: 1.5px solid var(--primary, #5f6f3e); }
 .letra-img { display: block; width: 300px; max-width: 100%; height: 40px; background-repeat: no-repeat; background-size: 300px auto; }
+
+/* Relatórios: potencial do estoque */
+.pot-cenario { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; align-items: end; margin-top: 12px; }
+.pot-range { display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; }
+.pot-range span { display: flex; justify-content: space-between; gap: 8px; }
+.pot-range input { width: 100%; accent-color: var(--primary); }
+.pot-faltam { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
