@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
+import CuponsCardapio from '../components/CuponsCardapio';
 import { Button, Empty, Field, MoneyInput, Notice, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
 import { fotoProduto } from '../ui/foto';
@@ -89,7 +90,7 @@ export default function Kits() {
     <div className="page">
       <PageHeader
         titulo="Kits e ofertas"
-        subtitulo="Monte kits e combos com preço próprio. Eles aparecem no carrossel do cardápio e o cliente leva tudo com um toque."
+        subtitulo="Monte kits e combos com preço próprio e crie cupons de desconto. Os kits aparecem no carrossel do cardápio; os cupons, na tela do pedido."
         acoes={
           <Button icon="plus" onClick={criar}>
             Novo kit
@@ -357,6 +358,7 @@ export default function Kits() {
           )}
         </div>
       )}
+      <CuponsCardapio />
     </div>
   );
 }

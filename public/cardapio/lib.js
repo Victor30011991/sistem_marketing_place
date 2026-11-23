@@ -68,7 +68,33 @@
     if (d.modo === 'retirada') p.push('Retirada na loja');
     else if (d.modo === 'entrega') p.push(d.gratis ? 'Entrega (grátis)' : d.taxa > 0 ? 'Entrega (taxa ' + brl(d.taxa) + ')' : 'Entrega (taxa a combinar)');
     if (PAGAMENTOS[d.pagamento]) p.push('Pagamento: ' + PAGAMENTOS[d.pagamento] + (d.pagamento === 'dinheiro' && String(d.troco || '').trim() ? ' (troco para ' + String(d.troco).trim() + ')' : ''));
+    var desc = descontoDe(d, subtotal(d.itens || []));
+    if (desc) p.push('Cupom ' + d.cupom + ' (− ' + brl(desc) + ')');
     return p.join(' · ');
+  }
+
+  /** Desconto do cupom já conferido (nunca passa dos produtos). */
+  function descontoDe(d, sub) {
+    var x = Math.round(Number(d.desconto) || 0);
+    return d.cupom && x > 0 ? Math.min(x, sub) : 0;
+  }
+
+  /** "primeira 10" -> "PRIMEIRA10" */
+  function limparCodigo(c) {
+    return String(c || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
+  }
+
+  /** Confere o cupom (mesma conta do sistema). cupons: [{ c, t: 'p'|'v', v, m, a? }] */
+  function avaliarCupom(cupons, codigo, sub, hoje) {
+    var cod = limparCodigo(codigo);
+    if (!cod) return { ok: false, erro: 'Digite o cupom.' };
+    var c = null;
+    for (var i = 0; i < (cupons || []).length; i++) if (cupons[i].c === cod) { c = cupons[i]; break; }
+    if (!c) return { ok: false, erro: 'Esse cupom não existe. Confira as letras.' };
+    if (c.a && c.a < hoje) return { ok: false, erro: 'Esse cupom já venceu.' };
+    if (c.m > 0 && sub < c.m) return { ok: false, erro: 'Esse cupom vale para pedidos a partir de ' + brl(c.m) + '.' };
+    var desc = Math.min(sub, c.t === 'p' ? Math.round(sub * c.v / 100) : c.v);
+    return { ok: true, codigo: cod, desconto: desc };
   }
 
   /** "86994953216" -> "(86) 99495-3216"; outros formatos ficam como vieram. */
@@ -95,9 +121,12 @@
       if (it.kit) linhas.push('🎁 ' + (it.g > 1 ? it.g + 'x ' : '') + String(it.n).trim() + ' · *' + brl(it.total) + '*' + (it.desc ? '\n     ' + String(it.desc).trim() : ''));
       else linhas.push('▪️ ' + String(it.n).trim() + ' · ' + fmtGramas(it.g) + ' · *' + brl(it.total) + '*');
     }
-    var sub = subtotal(d.itens);
+    var sub0 = subtotal(d.itens);
+    var desc = descontoDe(d, sub0);
+    var sub = sub0 - desc;
     linhas.push('');
-    linhas.push('Subtotal: ' + brl(sub));
+    linhas.push('Subtotal: ' + brl(sub0));
+    if (desc) linhas.push('🏷️ Cupom ' + d.cupom + ': − ' + brl(desc));
     if (d.modo === 'retirada') { linhas.push('🏪 Retirada na loja'); linhas.push('💰 *Total: ' + brl(sub) + '*'); }
     else if (d.gratis) { linhas.push('🛵 Entrega: grátis'); linhas.push('💰 *Total: ' + brl(sub) + '*'); }
     else if (d.taxa > 0) { linhas.push('🛵 Entrega: ' + brl(d.taxa)); linhas.push('💰 *Total: ' + brl(sub + d.taxa) + '*'); }
@@ -149,7 +178,7 @@
       endereco: (d.modo === 'retirada' ? 'Retirada na loja' : String(d.endereco || '').trim()).slice(0, 300),
       obs: obs.slice(0, 500),
       itens: itens,
-      total: subtotal(d.itens),
+      total: subtotal(d.itens) - descontoDe(d, subtotal(d.itens)),
       origem: normalizarOrigem(d.origem),
       situacao: 'novo',
     };
@@ -211,6 +240,8 @@
     urlWhatsapp: urlWhatsapp,
     pedidoNuvem: pedidoNuvem,
     resumoEntrega: resumoEntrega,
+    avaliarCupom: avaliarCupom,
+    limparCodigo: limparCodigo,
     pixCopiaECola: pixCopiaECola,
     statusHorario: statusHorario,
     fmtHora: fmtHora,

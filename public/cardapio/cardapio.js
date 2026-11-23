@@ -10,8 +10,8 @@
 
   var dados = null;
   var carrinho = {}; // chave "i:<id>" -> gramas
-  var form = { nome: '', telefone: '', endereco: '', obs: '', modo: '', pagamento: '', troco: '', enviadoEm: 0 };
-  var ui = { busca: '', peso: {}, erro: '', tentou: false, outro: '', cat: '' };
+  var form = { nome: '', telefone: '', endereco: '', obs: '', modo: '', pagamento: '', troco: '', cupom: '', enviadoEm: 0 };
+  var ui = { busca: '', peso: {}, erro: '', tentou: false, outro: '', cat: '', cupomTxt: '', cupomErro: '' };
 
   // ---------- guarda o pedido neste aparelho por 3 dias (volta igual se o cliente sair e voltar) ----------
   var GUARDA = 'cardapio-pedido', VALIDADE = 3 * 864e5, ENVIADO_VALE = 2 * 36e5;
@@ -990,6 +990,7 @@
     var ms = modos(); if (ms.indexOf(form.modo) < 0) form.modo = ms[0];
     var ps = pagamentos(); if (ps.indexOf(form.pagamento) < 0) form.pagamento = ps[0];
     var sub = L.subtotal(its), tx = taxa(sub), gratis = entregaGratis(sub);
+    var cup = cupomAplicado(sub), desc = cup && cup.ok ? cup.desconto : 0, tot = sub - desc + tx;
     var e = entrega();
     var pg = h('div', { class: 'pg' });
     if (form.enviadoEm) {
@@ -1064,6 +1065,9 @@
       campoTexto('f-tel', 'WhatsApp', 'telefone', { type: 'tel', im: 'tel', ac: 'tel', obrig: true, ph: '(86) 9 9999-9999' }),
       form.modo === 'entrega' ? campoTexto('f-end', 'Endereço de entrega', 'endereco', { tag: 'textarea', ac: 'street-address', obrig: true, ph: 'Rua, número, bairro e ponto de referência' }) : null)));
 
+    // cupom (só aparece quando a loja tem algum valendo), antes do pagamento para o Pix já vir com desconto
+    if (temCupom()) pg.appendChild(bloco('Cupom de desconto', blocoCupom(cup, desc)));
+
     // 4. pagamento
     var pag = h('div', { class: 'bloco-in' });
     var rot = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
@@ -1071,7 +1075,7 @@
     if (form.pagamento === 'cartao') pag.appendChild(h('p', { class: 'dica-bloco', text: form.modo === 'retirada' ? 'Pague com cartão na hora de retirar.' : 'Levamos a maquininha na entrega.' }));
     if (form.pagamento === 'dinheiro') pag.appendChild(campoTexto('f-troco', 'Troco para quanto? (opcional)', 'troco', { im: 'decimal', ph: 'Ex.: 100' }));
     if (form.pagamento === 'pix') {
-      var pix = L.pixCopiaECola(dados.loja.pix, sub + tx, 'CARDAPIO');
+      var pix = L.pixCopiaECola(dados.loja.pix, tot, 'CARDAPIO');
       if (pix) {
         var cod = h('code', { class: 'pix-cod', text: pix });
         pag.appendChild(h('div', { class: 'pix' },
@@ -1081,7 +1085,7 @@
             (navigator.clipboard ? navigator.clipboard.writeText(pix) : Promise.reject()).then(function () { avisar('Código Pix copiado'); }, function () {
               var r = document.createRange(); r.selectNodeContents(cod); var sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); avisar('Selecione e copie o código');
             });
-          } }, icone('copiar', 18), 'Copiar código Pix · ' + L.brl(sub + tx))));
+          } }, icone('copiar', 18), 'Copiar código Pix · ' + L.brl(tot))));
       } else pag.appendChild(h('p', { class: 'dica-bloco', text: 'Mandamos a chave Pix pelo WhatsApp junto da confirmação.' }));
     }
     pg.appendChild(bloco('Pagamento', pag));
@@ -1094,8 +1098,9 @@
     pg.appendChild(h('section', { class: 'bloco resumo-bloco' },
       h('div', { class: 'resumo' },
         h('div', null, h('span', { text: 'Produtos' }), h('span', { text: L.brl(sub) })),
+        desc ? h('div', { class: 'desc' }, h('span', { text: 'Cupom ' + cup.codigo }), h('span', { text: '− ' + L.brl(desc) })) : null,
         form.modo === 'entrega' ? h('div', null, h('span', { text: 'Entrega' }), h('span', { text: gratis ? 'grátis' : tx ? L.brl(tx) : 'a combinar' })) : h('div', null, h('span', { text: 'Retirada na loja' }), h('span', { text: 'grátis' })),
-        h('div', { class: 'total' }, h('span', { text: 'Total' }), h('span', { text: L.brl(sub + tx) + (form.modo === 'entrega' && !tx && !gratis ? ' + entrega' : '') }))),
+        h('div', { class: 'total' }, h('span', { text: 'Total' }), h('span', { text: L.brl(tot) + (form.modo === 'entrega' && !tx && !gratis ? ' + entrega' : '') }))),
       st && !st.aberto ? h('p', { class: 'aviso fechado', text: 'Estamos fechados agora (' + st.texto.replace(/^Fechado · /, '') + '). Pode mandar: respondemos assim que abrirmos.' }) : null,
       erroEl,
       h('button', { class: 'b enviar', type: 'button', onclick: finalizar }, icone('whatsapp'), 'Enviar pedido pelo WhatsApp'),
@@ -1115,8 +1120,8 @@
     if (form.modo === 'entrega' && !form.endereco.trim()) falta.push('o endereço');
     if (falta.length) { ui.erro = 'Preencha ' + falta.join(', ').replace(/, ([^,]*)$/, ' e $1') + '.'; desenhar(true); return; }
     if (!dados.loja.whatsapp) { ui.erro = 'O WhatsApp da loja ainda não foi configurado.'; desenhar(true); return; }
-    var sub0 = L.subtotal(its);
-    var base = { itens: its, nome: form.nome, telefone: form.telefone, endereco: form.endereco, obs: form.obs, origem: ORIGEM, modo: form.modo, taxa: taxa(sub0), gratis: entregaGratis(sub0), pagamento: form.pagamento, troco: form.troco };
+    var sub0 = L.subtotal(its), cup0 = cupomAplicado(sub0);
+    var base = { itens: its, nome: form.nome, telefone: form.telefone, endereco: form.endereco, obs: form.obs, origem: ORIGEM, modo: form.modo, taxa: taxa(sub0), gratis: entregaGratis(sub0), pagamento: form.pagamento, troco: form.troco, cupom: cup0 && cup0.ok ? cup0.codigo : '', desconto: cup0 && cup0.ok ? cup0.desconto : 0 };
     var texto = L.montarMensagem(Object.assign({ loja: dados.loja.nome, abertura: dados.loja.abertura, fechamento: dados.loja.fechamento }, base));
     // o pedido também cai na tela "Pedidos" da loja; não segura o WhatsApp se falhar
     if (!PREVIEW) try {
@@ -1178,7 +1183,36 @@
       h('p', null, 'Faltam ', h('b', { text: L.brl(g - sub) }), ' para a entrega grátis'),
       h('span', { class: 'gratis-trilho', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(g), 'aria-valuenow': String(sub), 'aria-label': 'Quanto falta para a entrega grátis' }, h('i', { style: 'width:' + pct + '%' })));
   }
-  function novoPedido() { carrinho = {}; form.enviadoEm = 0; form.obs = ''; ui.tentou = false; guardar(); ir(''); }
+  function novoPedido() { carrinho = {}; form.enviadoEm = 0; form.obs = ''; form.cupom = ''; ui.tentou = false; guardar(); ir(''); }
+
+  // ---------- cupom ----------
+  function hojeISO() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function temCupom() { return !!(dados.loja.cup && dados.loja.cup.length); }
+  function cupomAplicado(sub) { return form.cupom && temCupom() ? L.avaliarCupom(dados.loja.cup, form.cupom, sub, hojeISO()) : null; }
+  function blocoCupom(cup, desc) {
+    var caixa = h('div', { class: 'bloco-in cupom' });
+    if (cup && cup.ok) {
+      caixa.appendChild(h('p', { class: 'cupom-ok', role: 'status' }, icone('check', 18), h('span', null, 'Cupom ', h('b', { text: cup.codigo }), ' aplicado: ', h('b', { class: 'nw', text: '− ' + L.brl(desc) }))));
+      caixa.appendChild(h('button', { class: 'b sec', type: 'button', onclick: function () { form.cupom = ''; ui.cupomErro = ''; guardar(); desenhar(true); } }, 'Tirar o cupom'));
+      return caixa;
+    }
+    var inp = h('input', { id: 'f-cupom', type: 'text', autocomplete: 'off', autocapitalize: 'characters', placeholder: 'Ex.: PRIMEIRA10' });
+    inp.value = ui.cupomTxt || form.cupom || '';
+    inp.addEventListener('input', function () { ui.cupomTxt = inp.value; });
+    function aplicar() {
+      var its = itensDoPedido(), r = L.avaliarCupom(dados.loja.cup, inp.value, L.subtotal(its), hojeISO());
+      if (r.ok) { form.cupom = r.codigo; ui.cupomTxt = ''; ui.cupomErro = ''; } else { form.cupom = ''; ui.cupomErro = r.erro; }
+      guardar(); desenhar(true);
+      if (!r.ok) { var el = document.getElementById('f-cupom'); if (el) el.focus(); }
+    }
+    inp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); aplicar(); } });
+    var erro = cup && !cup.ok ? cup.erro : ui.cupomErro;
+    if (erro) { inp.setAttribute('aria-invalid', 'true'); inp.setAttribute('aria-describedby', 'f-cupom-erro'); }
+    caixa.appendChild(h('label', { class: 'campo', for: 'f-cupom' }, h('span', { text: 'Tem um cupom?' }),
+      h('div', { class: 'cupom-linha' }, inp, h('button', { class: 'b sec', type: 'button', onclick: aplicar }, 'Aplicar'))));
+    if (erro) caixa.appendChild(h('p', { id: 'f-cupom-erro', class: 'cupom-erro', role: 'alert', text: erro }));
+    return caixa;
+  }
 
   // ---------- barra do pedido ----------
   function desenharBarra() {

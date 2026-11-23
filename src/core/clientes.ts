@@ -1,4 +1,5 @@
 /** Clientes: cadastro, busca, histórico de compras e quem sumiu. */
+import { cupomDoTexto } from './cupons';
 import type { Cliente, OrcamentoSalvo, Pedido, Product, SituacaoPedido, Venda, VendaPausada } from '../types';
 import { diaLocal } from './vendas';
 import { newId, norm } from './normalize';
@@ -117,6 +118,9 @@ export function pedidoDe(id: string, raw: unknown): Pedido | null {
   });
   if (!itens.length) return null;
   const sit = SITUACOES_PEDIDO.some((x) => x.id === o.situacao) ? (o.situacao as SituacaoPedido) : 'novo';
+  const soma = itens.reduce((a, i) => a + i.t, 0);
+  const cup = cupomDoTexto(s(o.obs, 500));
+  const desconto = cup ? Math.min(cup.desconto, soma) : 0;
   return {
     id,
     criado: s(o.criado, 40),
@@ -125,9 +129,10 @@ export function pedidoDe(id: string, raw: unknown): Pedido | null {
     endereco: s(o.endereco, 300),
     obs: s(o.obs, 500),
     itens,
-    total: itens.reduce((a, i) => a + i.t, 0),
+    total: soma - desconto,
     origem: s(o.origem, 20),
     situacao: sit,
+    ...(cup && desconto ? { cupom: cup.cupom, desconto } : {}),
     ...(s(o.vendaPausada, 64) ? { vendaPausada: s(o.vendaPausada, 64) } : {}),
   };
 }
@@ -144,7 +149,7 @@ export function pedidoParaPdv(p: Pedido, produtos: Product[], clienteId: string 
     return [{ produtoId: prod.id, qtd: i.g, unidade: 'g', total: i.t }];
   });
   return {
-    venda: { id: newId(), quando: new Date().toISOString(), cliente: `${p.nome || 'Cliente'} (pedido)`, ...(clienteId ? { clienteId } : {}), linhas },
+    venda: { id: newId(), quando: new Date().toISOString(), cliente: `${p.nome || 'Cliente'} (pedido)`, ...(clienteId ? { clienteId } : {}), linhas, ...(p.desconto ? { desconto: p.desconto } : {}) },
     faltando,
   };
 }
