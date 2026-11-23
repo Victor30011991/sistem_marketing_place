@@ -16,6 +16,8 @@ import '@fontsource-variable/caveat';
 import '@fontsource/bebas-neue';
 import '@fontsource-variable/playfair-display';
 import '@fontsource-variable/dancing-script';
+import { SeletorLetra } from '../components/SeletorLetra';
+import { carregarLetras } from '../ui/letras';
 
 type Filtro = 'todas' | 'receitas' | 'ofertas' | 'sabia' | 'datas' | 'postadas';
 const FILTROS: { id: Filtro; rotulo: string; tipos?: Ideia['tipo'][] }[] = [
@@ -332,6 +334,7 @@ export default function PostaAi() {
     }
     setOcupado(nome);
     try {
+      await carregarLetras(estilo.camadas.map((c) => c.familia));
       await fn();
     } catch (e) {
       toast((e as Error).message || 'Não foi possível gerar.', 'erro');
@@ -408,7 +411,11 @@ export default function PostaAi() {
     });
   }
 
-  const familias = [...FAMILIAS_ARTE.map((f) => ({ id: f.id, rotulo: f.rotulo })), ...fontes.map((f) => ({ id: `f:${f.id}`, rotulo: `${f.nome} (sua)` }))];
+  // letras usadas na arte: baixa as que faltam e redesenha
+  const letrasUsadas = [...new Set(estilo.camadas.map((c) => c.familia).filter((f): f is string => !!f && !f.startsWith('f:')))].sort().join(',');
+  useEffect(() => {
+    if (letrasUsadas) void carregarLetras(letrasUsadas.split(',')).then(() => setProntas((n) => n + 1));
+  }, [letrasUsadas]);
   const set = (patch: Partial<ConteudoArte>) => setConteudo((k) => ({ ...k, ...patch }));
 
   // ---------------------------------------------------------------- legendas a partir do que vai ser postado
@@ -678,13 +685,7 @@ export default function PostaAi() {
                     <>
                       <Field label="Letra">
                         {(id) => (
-                          <select id={id} value={sel.familia ?? 'simples'} onChange={(e) => mudarCamada(sel.id, { familia: e.target.value })}>
-                            {familias.map((f) => (
-                              <option key={f.id} value={f.id}>
-                                {f.rotulo}
-                              </option>
-                            ))}
-                          </select>
+                          <SeletorLetra id={id} valor={sel.familia ?? 'simples'} onChange={(v) => mudarCamada(sel.id, { familia: v })} extras={fontes.map((f) => ({ id: `f:${f.id}`, nome: f.nome, css: `"PA ${f.id}", sans-serif` }))} />
                         )}
                       </Field>
                       <label className="pa-range">
@@ -964,14 +965,10 @@ export default function PostaAi() {
       <section className="card">
         <h2>Letras</h2>
         <p className="muted small">
-          As artes já têm 6 letras. Para usar outra, baixe uma letra gratuita (por exemplo no Google Fonts, todas liberadas para uso comercial) e adicione aqui. Ela fica salva para a equipe.
+          As artes têm {FAMILIAS_ARTE.length} letras gratuitas, liberadas para uso comercial: escolha na peça de texto. Cada uma só é baixada quando alguém usa. Para usar outra (inclusive uma que vocês compraram), adicione o arquivo da letra aqui: ela fica salva para a equipe.
         </p>
         <div className="pa-letras">
-          {FAMILIAS_ARTE.map((f) => (
-            <span key={f.id} className="pa-letra" style={{ fontFamily: f.css, fontWeight: f.peso }}>
-              {f.rotulo}
-            </span>
-          ))}
+
           {fontes.map((f) => (
             <span key={f.id} className="pa-letra sua">
               <span style={{ fontFamily: `"PA ${f.id}"` }}>{f.nome}</span>

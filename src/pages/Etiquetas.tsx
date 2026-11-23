@@ -7,12 +7,15 @@ import { Button, Field, Notice, NumberInput, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
 import { logoSrc } from '../ui/logo';
 import { Etiqueta, EtiquetaImpressa, type EdicaoEtiqueta } from '../components/Etiqueta';
-import { FAMILIAS, PECAS_MULTIPLAS, SELOS, areaDe, lugarLivre } from '../core/etiquetas';
+import { PECAS_MULTIPLAS, SELOS, areaDe, lugarLivre } from '../core/etiquetas';
 import { ROTULOS_PRONTOS, conferirRotulo } from '../core/rotulos';
 import { fotoProduto } from '../ui/foto';
 import '@fontsource-variable/caveat';
 import '@fontsource/bebas-neue';
 import '@fontsource-variable/playfair-display';
+import '@fontsource-variable/dancing-script';
+import { SeletorLetra } from '../components/SeletorLetra';
+import { carregarLetras } from '../ui/letras';
 import { CORES_PECA, MOLDURAS, NUTRI_VAZIA, PECAS, TAMANHOS, codigoEtiqueta, daquiA, limitar, modelosPadrao, novoModelo, novoTexto, porPeso, type DadosImpressao } from '../core/etiquetas';
 import { balancaDe, casa } from '../core/balanca';
 import type { InfoNutricional, ModeloEtiqueta, PecaEtiqueta, Product } from '../types';
@@ -39,6 +42,10 @@ export default function Etiquetas() {
   const salvo = modelos.find((m) => m.id === modeloId) ?? modelos[0];
   const [rascunho, setRascunho] = useState<ModeloEtiqueta | null>(null);
   const modelo = rascunho?.id === salvo.id ? rascunho : salvo;
+  const letrasUsadas = [...new Set(modelo.pecas.filter((p) => p.ativo).map((p) => p.familia ?? 'sans'))].sort().join(',');
+  useEffect(() => {
+    void carregarLetras(letrasUsadas.split(','));
+  }, [letrasUsadas]);
   const [selId, setSelId] = useState<string | null>(null);
   const sel = modelo.pecas.find((p) => p.id === selId) ?? null;
   const [face, setFace] = useState<'frente' | 'verso'>('frente');
@@ -246,6 +253,7 @@ export default function Etiquetas() {
 
   async function imprimir(itens: { produto: Product | null; pesoG: number | null }[]) {
     if (!itens.length) return toast('Marque pelo menos um produto para imprimir.', 'erro');
+    await carregarLetras(modelo.pecas.map((p) => p.familia ?? 'sans'));
     if (papel === 'a4') return imprimirA4(itens);
     const frame = document.createElement('iframe');
     frame.setAttribute('aria-hidden', 'true');
@@ -315,6 +323,7 @@ export default function Etiquetas() {
     );
   }
   async function abrirImpressao(css: string, conteudo: React.ReactNode) {
+    await carregarLetras(modelo.pecas.map((p) => p.familia ?? 'sans'));
     const frame = document.createElement('iframe');
     frame.setAttribute('aria-hidden', 'true');
     frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
@@ -627,13 +636,7 @@ export default function Etiquetas() {
                   {!['logo', 'codigo', 'imagem', 'forma', 'selos', 'nutricao'].includes(sel.tipo) && (
                     <Field label="Letra">
                       {(id) => (
-                        <select id={id} value={sel.familia ?? 'sans'} onChange={(e) => mudarPeca(sel.id, { familia: e.target.value as PecaEtiqueta['familia'] })}>
-                          {FAMILIAS.map((f) => (
-                            <option key={f.id} value={f.id} style={{ fontFamily: f.css }}>
-                              {f.rotulo}
-                            </option>
-                          ))}
-                        </select>
+                        <SeletorLetra id={id} valor={sel.familia ?? 'sans'} padrao="simples" onChange={(v) => mudarPeca(sel.id, { familia: v })} />
                       )}
                     </Field>
                   )}

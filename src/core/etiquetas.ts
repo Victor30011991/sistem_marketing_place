@@ -1,3 +1,4 @@
+import { LETRAS, cssLetra, letraDe } from './letras';
 /** Etiquetas da impressora térmica: modelos, peças e o que cada peça mostra. */
 import type { ConfigBalanca, InfoNutricional, ModeloEtiqueta, PecaEtiqueta, Product, StoreInfo, TipoPeca } from '../types';
 import { BALANCA_PADRAO, precoBalanca } from './balanca';
@@ -34,13 +35,13 @@ export const PECAS: { tipo: TipoPeca; rotulo: string; dica: string }[] = [
 /** Peças que podem ter várias na mesma etiqueta (entram por botão, não pela lista). */
 export const PECAS_MULTIPLAS: TipoPeca[] = ['texto', 'imagem', 'forma'];
 
-export const FAMILIAS: { id: NonNullable<PecaEtiqueta['familia']>; rotulo: string; css: string }[] = [
-  { id: 'sans', rotulo: 'Moderna', css: '"DM Sans Variable", "DM Sans", Arial, sans-serif' },
-  { id: 'serif', rotulo: 'Clássica', css: '"Fraunces Variable", Georgia, serif' },
-  { id: 'elegante', rotulo: 'Elegante', css: '"Playfair Display Variable", Georgia, serif' },
-  { id: 'manuscrita', rotulo: 'Manuscrita', css: '"Caveat Variable", "Segoe Script", cursive' },
-  { id: 'forte', rotulo: 'Forte (condensada)', css: '"Bebas Neue", Impact, "Arial Narrow", sans-serif' },
-];
+/** Letras das etiquetas: a mesma biblioteca do Posta Aí. */
+export const FAMILIAS: { id: string; rotulo: string; css: string }[] = LETRAS.map((x) => ({ id: x.id, rotulo: x.nome, css: cssLetra(x) }));
+/** CSS da letra de uma peça (nomes antigos sans/serif continuam valendo). */
+export const cssFamilia = (id: string | undefined) => {
+  const x = letraDe(id ?? 'sans');
+  return x ? cssLetra(x) : FAMILIAS[0].css;
+};
 
 /**
  * Selos com ícone. Frases como "sem conservantes" ou "100% natural" podem ser proibidas ou exigir comprovação
@@ -267,7 +268,7 @@ export function etiquetasDe(raw: unknown): ModeloEtiqueta[] | undefined {
       const hex = (v: unknown) => (typeof v === 'string' && (/^#[0-9a-f]{6}$/i.test(v) || ['primaria', 'destaque', 'fundo', 'branco', 'preto'].includes(v)) ? v : undefined);
       if (hex(q.corLivre)) p.corLivre = hex(q.corLivre);
       if (hex(q.fundo)) p.fundo = hex(q.fundo);
-      if (FAMILIAS.some((f) => f.id === q.familia)) p.familia = q.familia as PecaEtiqueta['familia'];
+      if (typeof q.familia === 'string' && letraDe(q.familia)) p.familia = q.familia;
       if (typeof q.raio === 'number' && q.raio > 0) p.raio = Math.min(q.raio, 999);
       if (q.maiusculas === true) p.maiusculas = true;
       if (q.lado === 'verso' || q.lado === 'frente') p.lado = q.lado;
