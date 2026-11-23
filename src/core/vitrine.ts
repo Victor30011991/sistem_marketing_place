@@ -1,4 +1,4 @@
-import type { BotaoCartao, EntregaCardapio, HorarioDia, ListState, Product, StoreInfo, TipoBotao, Vitrine, Venda, Lote } from '../types';
+import type { BotaoCartao, ConfigFidelidade, VisualCardapio, EntregaCardapio, HorarioDia, ListState, Product, StoreInfo, TipoBotao, Vitrine, Venda, Lote } from '../types';
 import { norm } from './normalize';
 import { MODELOS_IDEIA } from './postaai';
 import { entradaDe } from './entrada';
@@ -46,6 +46,27 @@ function pesosDe(v: unknown): number[] | undefined {
 }
 
 const str = (v: unknown, d: string): string => (typeof v === 'string' ? v : d);
+const corHex = (v: unknown): string | undefined => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v.toUpperCase() : undefined);
+
+/** Fundo claro e neutro do cardápio quando a loja não escolheu outro. */
+export const FUNDO_CARDAPIO = '#FAFAF7';
+export const LETRAS_CARDAPIO: { id: NonNullable<VisualCardapio['letra']>; nome: string }[] = [
+  { id: 'slab', nome: 'Serifa quadrada (como a do selo)' },
+  { id: 'classica', nome: 'Clássica elegante' },
+  { id: 'simples', nome: 'Simples, sem serifa' },
+];
+
+function visualDe(v: unknown): VisualCardapio | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  const out: VisualCardapio = {};
+  for (const k of ['fundo', 'principal', 'destaque', 'papel'] as const) {
+    const c = corHex(o[k]);
+    if (c) out[k] = c;
+  }
+  if (o.letra === 'slab' || o.letra === 'classica' || o.letra === 'simples') out.letra = o.letra;
+  return Object.keys(out).length ? out : undefined;
+}
 
 /** Lê a vitrine de uma loja de qualquer origem (Excel, backup, arquivo antigo) sem nunca lançar. */
 export function vitrineDe(loja: Pick<StoreInfo, 'vitrine'> | null | undefined): Vitrine {
@@ -71,6 +92,7 @@ export function vitrineDe(loja: Pick<StoreInfo, 'vitrine'> | null | undefined): 
     ...(pesosDe(v.pesos) ? { pesos: pesosDe(v.pesos) } : {}),
     ...(v.mixes === false ? { mixes: false } : {}),
     ...(entradaDe(v.entrada) ? { entrada: entradaDe(v.entrada) } : {}),
+    ...(visualDe(v.visual) ? { visual: visualDe(v.visual) } : {}),
   };
 }
 
@@ -152,6 +174,8 @@ export interface ItemCardapio {
   mv?: 1;
   /** quem levou também levou (ids) */
   j?: string[];
+  /** cor da bolinha escolhida pela loja (hex) */
+  c?: string;
 }
 
 export interface MixCardapio {
@@ -169,6 +193,8 @@ export interface ExtrasCardapio {
   lotes?: Lote[];
   /** dados do Pix (do orçamento) para o cliente pagar pelo cardápio */
   pix?: { chave: string; nome: string; cidade: string } | null;
+  /** cartão fidelidade da loja (só a regra vai para o site) */
+  fidelidade?: ConfigFidelidade | null;
 }
 
 /** Fotos no cardápio público até este tamanho somado (o documento da nuvem aceita 1 MB). */
@@ -181,7 +207,12 @@ export interface CardapioArquivo {
     nome: string;
     slogan: string;
     logo: string | null;
-    cores: { p: string; d: string; f: string; k?: string };
+    /** p = principal, d = destaque, f = papel, b = fundo da página, k = escuro */
+    cores: { p: string; d: string; f: string; k?: string; b?: string };
+    /** letra dos títulos */
+    letra?: VisualCardapio['letra'];
+    /** regra do cartão fidelidade: n compras, p prêmio, m compra mínima (centavos) */
+    fid?: { n: number; p: string; m: number };
     whatsapp: string;
     instagram: string;
     facebook: string;
@@ -262,6 +293,7 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
     if (p.ingredientes?.trim()) item.ig = p.ingredientes.trim().slice(0, 300);
     if (p.gluten) item.gl = p.gluten === 'contem' ? 'c' : 'n';
     if (p.alergenicos?.trim()) item.al = p.alergenicos.trim().slice(0, 200);
+    if (corHex(p.cor)) item.c = corHex(p.cor);
     if (produto.foto) {
       if (fotos + produto.foto.length <= LIMITE_FOTOS) {
         item.f = produto.foto;
@@ -327,7 +359,9 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
   }
 
   const cores = loja.cores ?? LOGO_COLORS;
+  const vis = v.visual ?? {};
   const hs = v.horarios;
+  const fid = extras.fidelidade;
   return {
     arquivo: {
       v: 1,
@@ -336,7 +370,9 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
         nome: loja.nomeFantasia || 'Loja',
         slogan: v.slogan.trim() || loja.informacoes.trim(),
         logo,
-        cores: { p: cores.primaria, d: cores.destaque, f: cores.fundo, ...(v.entrada?.escuro ? { k: v.entrada.escuro } : {}) },
+        cores: { p: vis.principal ?? cores.primaria, d: vis.destaque ?? cores.destaque, f: vis.papel ?? cores.fundo, b: vis.fundo ?? FUNDO_CARDAPIO, ...(v.entrada?.escuro ? { k: v.entrada.escuro } : {}) },
+        letra: vis.letra ?? 'slab',
+        ...(fid?.ativo && fid.compras > 0 && fid.premio.trim() ? { fid: { n: fid.compras, p: fid.premio.trim().slice(0, 80), m: fid.minimo } } : {}),
         whatsapp: normalizarWhatsapp(v.whatsapp) || normalizarWhatsapp(loja.telefone),
         instagram: normalizarInstagram(v.instagram),
         facebook: normalizarFacebook(v.facebook),

@@ -12,6 +12,8 @@ import {
   PESOS_PADRAO,
   linkCardapio,
   montarCardapio,
+  FUNDO_CARDAPIO,
+  LETRAS_CARDAPIO,
   normalizarFacebook,
   normalizarInstagram,
   normalizarWhatsapp,
@@ -19,7 +21,8 @@ import {
   type MotivoFora,
   type Origem,
 } from '../core/vitrine';
-import type { BotaoCartao, HorarioDia, Product, TipoBotao, Vitrine as VitrineCfg } from '../types';
+import type { BotaoCartao, HorarioDia, Product, TipoBotao, Vitrine as VitrineCfg, VisualCardapio } from '../types';
+import { LOGO_COLORS } from '../core/defaults';
 import { botoesPadrao, linkBotao, novoBotao, TIPOS_BOTAO } from '../core/vitrine';
 import { Icon } from '../ui/icons';
 import { useNuvem } from '../nuvem/NuvemProvider';
@@ -78,7 +81,7 @@ export default function Vitrine() {
   const [tipoNovo, setTipoNovo] = useState<TipoBotao>('maps');
 
   const naNuvem = useNuvem().fase === 'conectado';
-  const resultado = useMemo(() => montarCardapio(lista, loja, loja.logo, new Date(), { vendas: state.config.vendas, lotes: state.config.lotes, pix: dadosPix(cfgOrcamento(state.config.orcamentoCfg)) }), [lista, loja, state.config.vendas, state.config.lotes, state.config.orcamentoCfg]);
+  const resultado = useMemo(() => montarCardapio(lista, loja, loja.logo, new Date(), { vendas: state.config.vendas, lotes: state.config.lotes, pix: dadosPix(cfgOrcamento(state.config.orcamentoCfg)), fidelidade: state.config.fidelidade }), [lista, loja, state.config.vendas, state.config.lotes, state.config.orcamentoCfg, state.config.fidelidade]);
 
   // ---------- prévia: a própria página do cliente, dentro de um quadro ----------
   const frame = useRef<HTMLIFrameElement>(null);
@@ -93,6 +96,30 @@ export default function Vitrine() {
   useEffect(() => {
     if (pronto) frame.current?.contentWindow?.postMessage({ tipo: 'cardapio-previa', dados: resultado.arquivo }, window.location.origin);
   }, [pronto, resultado]);
+  const [telaPrev, setTelaPrev] = useState<'' | 'loja' | 'fidelidade'>('');
+  function verNaPrevia(t: '' | 'loja' | 'fidelidade') {
+    setTelaPrev(t);
+    try {
+      if (frame.current?.contentWindow) frame.current.contentWindow.location.hash = t ? `#/${t}` : '';
+    } catch {
+      /* prévia ainda carregando */
+    }
+  }
+
+  // ---------- aparência do cardápio ----------
+  const visual: VisualCardapio = v.visual ?? {};
+  const coresLoja = loja.cores ?? LOGO_COLORS;
+  const setVisual = (patch: Partial<VisualCardapio>) => {
+    const n = { ...visual, ...patch };
+    (Object.keys(n) as (keyof VisualCardapio)[]).forEach((k) => n[k] === undefined && delete n[k]);
+    set({ visual: Object.keys(n).length ? n : undefined });
+  };
+  const CORES_VISUAL: { k: 'fundo' | 'principal' | 'destaque' | 'papel'; nome: string; dica: string; padrao: string }[] = [
+    { k: 'fundo', nome: 'Fundo da página', dica: 'Atrás de tudo. Claro e neutro deixa os produtos aparecerem.', padrao: FUNDO_CARDAPIO },
+    { k: 'principal', nome: 'Cor principal', dica: 'Botões, preços, carrinho e o nome da loja.', padrao: coresLoja.primaria },
+    { k: 'destaque', nome: 'Cor de destaque', dica: 'Categoria escolhida, WhatsApp, ofertas e fidelidade.', padrao: coresLoja.destaque },
+    { k: 'papel', nome: 'Cor do papel', dica: 'Fundo das fotos e dos desenhos dos produtos.', padrao: coresLoja.fundo },
+  ];
 
   // ---------- itens por categoria ----------
   const grupos = useMemo(() => {
@@ -120,6 +147,7 @@ export default function Vitrine() {
   const baseSistema = typeof window !== 'undefined' ? window.location.href : '';
   const links: { rotulo: string; url: string }[] = [
     { rotulo: 'Link geral', url: linkCardapio(baseSistema) },
+    { rotulo: 'Cartão de visitas (link da bio)', url: `${linkCardapio(baseSistema, 'instagram')}#/loja` },
     ...ORIGENS.map((o: { id: Origem; label: string }) => ({ rotulo: `Para o ${o.label}`, url: linkCardapio(baseSistema, o.id) })),
   ];
 
@@ -154,6 +182,60 @@ export default function Vitrine() {
 
       <div className="vit-grid">
         <div className="vit-forms">
+          <section className="card">
+            <div className="card-head">
+              <h2>Aparência do cardápio</h2>
+              {v.visual && (
+                <Button variant="ghost" onClick={() => set({ visual: undefined })}>
+                  Voltar ao padrão
+                </Button>
+              )}
+            </div>
+            <p className="muted small">Cada cor muda o cardápio e o cartão de visitas na hora, na prévia ao lado. Sem escolher, valem as cores da Minha loja e o fundo claro.</p>
+            <div className="vit-cores">
+              {CORES_VISUAL.map((c) => {
+                const atual = visual[c.k] ?? c.padrao;
+                return (
+                  <div key={c.k} className="vit-cor">
+                    <label className="vit-cor-amostra" style={{ background: atual }}>
+                      <span className="sr-only">{c.nome}</span>
+                      <input type="color" value={atual.toLowerCase()} onChange={(e) => setVisual({ [c.k]: e.target.value.toUpperCase() })} />
+                    </label>
+                    <div>
+                      <strong>{c.nome}</strong>
+                      <small className="muted">{c.dica}</small>
+                      <small className="muted">
+                        {atual}
+                        {visual[c.k] ? (
+                          <>
+                            {' · '}
+                            <button type="button" className="link-btn" onClick={() => setVisual({ [c.k]: undefined })}>
+                              usar o padrão
+                            </button>
+                          </>
+                        ) : (
+                          ' · padrão'
+                        )}
+                      </small>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <Field label="Letra dos títulos">
+              {(id) => (
+                <select id={id} value={visual.letra ?? 'slab'} onChange={(e) => setVisual({ letra: e.target.value as VisualCardapio['letra'] })}>
+                  {LETRAS_CARDAPIO.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.nome}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <p className="muted small">A cor da bolinha de cada produto (quando ele não tem foto) se escolhe no cadastro do produto, em “Cardápio e promoção”.</p>
+          </section>
+
           <section className="card">
             <h2>Cartão de visita e links</h2>
             <div className="form-grid">
@@ -433,10 +515,16 @@ export default function Vitrine() {
           <section className="card">
             <h2>Destaques e divulgação</h2>
             <label className="check">
-              <input type="checkbox" checked={v.destaques !== false} onChange={(e) => set({ destaques: e.target.checked })} /> Mostrar no topo do cardápio: <strong>Ofertas</strong>, <strong>Mais vendidos</strong> (30 dias) e <strong>Chegou agora</strong> (lotes dos últimos 15 dias)
+              <input type="checkbox" checked={v.destaques !== false} onChange={(e) => set({ destaques: e.target.checked })} />
+              <span>
+                Mostrar no cardápio: <strong>Ofertas</strong>, <strong>Mais vendidos</strong> (30 dias) e <strong>Chegou agora</strong> (lotes dos últimos 15 dias)
+              </span>
             </label>
             <label className="check">
-              <input type="checkbox" checked={v.mixes !== false} onChange={(e) => set({ mixes: e.target.checked })} /> Mostrar <strong>Mixes prontos</strong> (receitas em que a loja tem todos os temperos, com o botão “Levar o mix”)
+              <input type="checkbox" checked={v.mixes !== false} onChange={(e) => set({ mixes: e.target.checked })} />
+              <span>
+                Mostrar <strong>Mixes prontos</strong> no carrossel (receitas em que a loja tem todos os temperos, com o botão “Levar o mix”)
+              </span>
             </label>
             {resultado.arquivo.mixes?.length ? <p className="muted small">Mixes agora: {resultado.arquivo.mixes.map((m) => m.n).join(', ')}.</p> : null}
             <p className="muted small">Fotos e promoções se colocam em cada produto (Produtos → editar → Cardápio e promoção).</p>
@@ -497,6 +585,19 @@ export default function Vitrine() {
         </div>
 
         <aside className="vit-preview" aria-label="Prévia da página do cliente">
+          <div className="seg-mini" role="group" aria-label="Tela da prévia">
+            {(
+              [
+                ['', 'Cardápio'],
+                ['loja', 'Cartão de visitas'],
+                ['fidelidade', 'Fidelidade'],
+              ] as const
+            ).map(([t, r]) => (
+              <button key={t} type="button" aria-pressed={telaPrev === t} className={telaPrev === t ? 'on' : ''} onClick={() => verNaPrevia(t)}>
+                {r}
+              </button>
+            ))}
+          </div>
           <div className="vit-phone">
             <iframe ref={frame} title="Prévia da página do cliente" src={`${import.meta.env.BASE_URL}cardapio/?preview=1`} />
           </div>
