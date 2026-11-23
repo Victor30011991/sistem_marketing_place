@@ -69,6 +69,7 @@ function lerProduto(v: unknown): Product | null {
     observacoes: str(v.observacoes),
   };
   if (v.estoque !== undefined) p.estoque = num(v.estoque);
+  if (num(v.estoqueMinimo) != null) p.estoqueMinimo = num(v.estoqueMinimo);
   if (v.conteudoQtd !== undefined) p.conteudoQtd = num(v.conteudoQtd);
   if (v.conteudoUnidade !== undefined) p.conteudoUnidade = typeof v.conteudoUnidade === 'string' ? v.conteudoUnidade : null;
   if (typeof v.plu === 'number' && Number.isInteger(v.plu) && v.plu > 0 && v.plu <= 999999) p.plu = v.plu;

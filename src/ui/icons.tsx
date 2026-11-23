@@ -10,6 +10,7 @@ const PATHS: Record<string, string> = {
   sheet: 'M5 3h14v18H5zM5 9h14M5 15h14M11 3v18',
   plus: 'M12 5v14M5 12h14',
   edit: 'M4 20h4L19 9l-4-4L4 16z',
+  send: 'M21 3L10 14M21 3l-7 18-4-7-7-4z',
   copy: 'M8 8h12v12H8zM16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2',
   trash: 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13',
   search: 'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4',

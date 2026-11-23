@@ -1071,3 +1071,18 @@ input[type='color'] { width: 44px; min-width: 44px; height: 40px; padding: 2px; 
 .pdv-modo { display: inline-flex; align-self: flex-start; width: max-content; border: 1px solid var(--line, #e3d6c2); border-radius: 999px; padding: 2px; margin-bottom: 8px; }
 .pdv-modo button { border: 0; background: transparent; padding: 6px 12px; border-radius: 999px; font: inherit; font-size: 0.875rem; cursor: pointer; color: var(--muted); min-height: 36px; }
 .pdv-modo button.on { background: var(--primary, #5f7a6a); color: #fff; }
+
+/* PDV: mais vendidos, última compra, venda feita, atalhos */
+.pdv-rapidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 12px; }
+.pdv-rapido { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 1px solid var(--line, #e3d6c2); border-radius: 12px; background: var(--surface, #fffdf8); font: inherit; cursor: pointer; min-height: 56px; }
+.pdv-rapido:hover, .pdv-rapido:focus-visible { border-color: var(--primary, #5f7a6a); }
+.pdv-rapido strong { font-size: 0.875rem; line-height: 1.25; }
+.pdv-rapido small { color: var(--muted); font-size: 0.75rem; }
+.pdv-ultima { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2, #f6efe3); }
+.pdv-feita { display: grid; gap: 8px; margin-top: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--line, #e3d6c2); background: var(--surface-2, #f6efe3); }
+.pdv-feita-topo { justify-content: space-between; }
+.pdv-baixo { display: grid; gap: 4px; border-top: 1px solid var(--line, #e3d6c2); padding-top: 8px; }
+.pdv-baixo p { margin: 0; }
+.pdv-atalhos { margin-top: 8px; }
+.pdv-atalhos kbd { font: inherit; font-size: 0.75rem; padding: 1px 5px; border: 1px solid var(--line, #e3d6c2); border-bottom-width: 2px; border-radius: 4px; background: var(--surface, #fff); }
+@media (hover: none) { .pdv-atalhos { display: none; } }

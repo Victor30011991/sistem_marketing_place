@@ -16,6 +16,8 @@ export interface Product {
   observacoes: string;
   /** quantidade em estoque, na unidade do produto (opcional; usada no custo médio e no inventário) */
   estoque?: number | null;
+  /** abaixo disto (na unidade do produto) o PDV avisa e sugere a lista de compras */
+  estoqueMinimo?: number | null;
   /** conteúdo de cada embalagem (pacote, frasco…), ex.: 250 g. Permite o preço proporcional de unidades de contagem */
   conteudoQtd?: number | null;
   conteudoUnidade?: string | null;
