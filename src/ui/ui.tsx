@@ -290,7 +290,11 @@ export function Indicadores({ itens }: { itens: Indicador[] }) {
         <div key={i.rotulo} className={`kpi ${i.tom === 'warn' ? 'warn' : i.tom === 'ok' ? 'ok' : ''}`}>
           <dt>{i.rotulo}</dt>
           <dd>{i.valor}</dd>
-          {i.nota && <small>{i.nota}</small>}
+          {i.nota && (
+            <dd className="kpi-nota">
+              <small>{i.nota}</small>
+            </dd>
+          )}
         </div>
       ))}
     </dl>
