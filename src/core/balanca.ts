@@ -1,6 +1,7 @@
-import type { ConfigBalanca, Product } from '../types';
+import type { ConfigBalanca, Prateleira, Product } from '../types';
 import { familyOf, convertQty } from './units';
 import { norm } from './normalize';
+import { codigoNovoNaPrateleira, gruposPrateleira, prateleiraDe, PRATELEIRA_PADRAO } from './prateleira';
 
 export const BALANCA_PADRAO: ConfigBalanca = { modelo: 'thunder', numeracao: 'sequencial', etiqueta: 'codigo6-valor5', validadeDias: 0, setor: 1 };
 
@@ -19,8 +20,8 @@ export function balancaDe(raw: unknown): ConfigBalanca {
   const fmt = FORMATOS_ETIQUETA.some((f) => f.id === r.etiqueta) ? (r.etiqueta as ConfigBalanca['etiqueta']) : BALANCA_PADRAO.etiqueta;
   const int = (v: unknown, d: number, max: number) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(Math.round(v), max) : d);
   const modelo = r.modelo === 'wind' ? 'wind' : 'thunder';
-  const numeracao = r.numeracao === 'categoria' ? 'categoria' : 'sequencial';
-  return { modelo, numeracao, etiqueta: fmt, validadeDias: int(r.validadeDias, 0, 999), setor: int(r.setor, 1, 99) || 1 };
+  const numeracao = r.numeracao === 'categoria' || r.numeracao === 'prateleira' ? r.numeracao : 'sequencial';
+  return { modelo, numeracao, etiqueta: fmt, validadeDias: int(r.validadeDias, 0, 999), setor: int(r.setor, 1, 99) || 1, ...(r.prateleira ? { prateleira: prateleiraDe(r.prateleira) } : {}) };
 }
 
 /** Produto que a balança consegue vender: tem preço e é por peso (kg/g) ou por unidade. */
@@ -57,17 +58,30 @@ export type Numeracao = ConfigBalanca['numeracao'];
  * Dá um código de balança (PLU, 1 a 9999) a quem ainda não tem, sem nunca mudar os que já existem.
  * Sequencial: o primeiro número livre, em ordem alfabética. Categoria: dentro da faixa da categoria (101–199, 201–299…).
  */
-export function atribuirPlus(produtos: Product[], categorias: string[] = [], modo: Numeracao = 'sequencial'): { produtos: Product[]; novos: number } {
+export function atribuirPlus(produtos: Product[], categorias: string[] = [], modo: Numeracao = 'sequencial', prat?: Prateleira): { produtos: Product[]; novos: number } {
   const usados = new Set(produtos.map((p) => p.plu).filter((x): x is number => typeof x === 'number' && x > 0));
   const novosPorId = new Map<string, number>();
   const porCat = modo === 'categoria';
   const semCodigo = produtos.filter((p) => !(p.plu && p.plu > 0) && vaiParaBalanca(p));
   semCodigo.sort(porCat ? ordemTabela(categorias) : (a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  for (const p of semCodigo) {
-    const n = proximoLivre(usados, porCat ? faixaCategoria(p.categoria, categorias) : [1, CODIGO_MAX]);
-    if (n == null) break;
-    usados.add(n);
-    novosPorId.set(p.id, n);
+  if (modo === 'prateleira') {
+    // produto novo entra depois do último código da prateleira dele
+    const pr = prat ?? PRATELEIRA_PADRAO;
+    let atual = produtos;
+    for (const p of semCodigo) {
+      const n = codigoNovoNaPrateleira(p, gruposPrateleira(atual, categorias, pr), pr, usados);
+      if (n == null) break;
+      usados.add(n);
+      novosPorId.set(p.id, n);
+      atual = atual.map((x) => (x.id === p.id ? { ...x, plu: n } : x));
+    }
+  } else {
+    for (const p of semCodigo) {
+      const n = proximoLivre(usados, porCat ? faixaCategoria(p.categoria, categorias) : [1, CODIGO_MAX]);
+      if (n == null) break;
+      usados.add(n);
+      novosPorId.set(p.id, n);
+    }
   }
   const out = produtos.map((p) => (novosPorId.has(p.id) ? { ...p, plu: novosPorId.get(p.id) } : p));
   return { produtos: out, novos: novosPorId.size };

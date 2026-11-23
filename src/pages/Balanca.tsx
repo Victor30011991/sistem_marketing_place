@@ -7,6 +7,7 @@ import { formatBRL } from '../core/money';
 import { gerarCargaCompleta, montarZip } from '../core/balancaCompleta';
 import { aplicarRotulos, casarRotulos, lerRotulosCsv, type CasamentoRotulos } from '../core/importRotulos';
 import type { ConfigBalanca, Product } from '../types';
+import OrdemPrateleira from '../components/OrdemPrateleira';
 
 export default function Balanca() {
   useDocumentTitle('Balança');
@@ -31,7 +32,7 @@ export default function Balanca() {
   const leitura = teste.replace(/\D/g, '').length >= 13 ? lerEtiquetaBalanca(teste, cfg, lista.produtos) : null;
 
   function gerarCodigos() {
-    const r = atribuirPlus(lista.produtos, lista.categorias, cfg.numeracao);
+    const r = atribuirPlus(lista.produtos, lista.categorias, cfg.numeracao, cfg.prateleira);
     act.produtos(r.produtos);
     toast(r.novos ? `${r.novos} produto(s) ganharam código. Os códigos antigos não mudam.` : 'Todos os produtos com preço já têm código.');
   }
@@ -143,18 +144,27 @@ export default function Balanca() {
               <select id={id} value={cfg.numeracao} onChange={(e) => setCfg({ numeracao: e.target.value as ConfigBalanca['numeracao'] })}>
                 <option value="sequencial">Sequencial: 0001, 0002… em ordem alfabética</option>
                 <option value="categoria">Por categoria: 101–199, 201–299…</option>
+                <option value="prateleira">Na ordem da prateleira (vocês arrumam)</option>
               </select>
             )}
           </Field>
         </div>
       </section>
 
+      {cfg.numeracao === 'prateleira' && (
+        <section className="card">
+          <h2>Ordem da prateleira</h2>
+          <p className="muted small">Arrume na mesma ordem em que os potes estão na loja. Os códigos seguem essa ordem, então quem está no balcão acha rápido.</p>
+          <OrdemPrateleira prateleira={cfg.prateleira} salvar={(p) => setCfg({ prateleira: p })} onBaixarCarga={wind ? undefined : baixarCarga} />
+        </section>
+      )}
+
       <div className="two-col">
         <section className="card">
           <h2>1. Códigos dos produtos</h2>
           <p className="muted small">
             Cada produto vendido por peso ou unidade ganha um número de 0001 a {CODIGO_MAX}.{' '}
-            {cfg.numeracao === 'sequencial' ? 'Em ordem alfabética: 0001, 0002, 0003…' : 'Pela categoria: a 1ª usa 101 a 199, a 2ª 201 a 299, e assim por diante.'} Produtos novos ganham o próximo número livre, sem mudar os antigos.
+            {cfg.numeracao === 'sequencial' ? 'Em ordem alfabética: 0001, 0002, 0003…' : cfg.numeracao === 'prateleira' ? 'Na ordem da prateleira, arrumada acima.' : 'Pela categoria: a 1ª usa 101 a 199, a 2ª 201 a 299, e assim por diante.'} Produtos novos ganham o próximo número livre{cfg.numeracao === 'prateleira' ? ' depois do último da prateleira deles' : ''}, sem mudar os antigos.
           </p>
           {lista.produtos.length === 0 ? (
             <Notice tone="warn">Nenhum produto neste aparelho. Entre na nuvem pelo Menu (com o e-mail da loja) para carregar os produtos, e volte aqui.</Notice>
@@ -169,9 +179,11 @@ export default function Balanca() {
             <Button icon="plus" onClick={gerarCodigos} disabled={semCodigo === 0}>
               Gerar códigos que faltam
             </Button>
-            <Button variant="secondary" onClick={refazerCodigos} disabled={naBalanca.length === 0}>
-              Renumerar todos
-            </Button>
+            {cfg.numeracao !== 'prateleira' && (
+              <Button variant="secondary" onClick={refazerCodigos} disabled={naBalanca.length === 0}>
+                Renumerar todos
+              </Button>
+            )}
           </div>
           {cfg.numeracao === 'categoria' && lista.categorias.length > 0 && (
             <details className="small">
