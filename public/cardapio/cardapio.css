@@ -319,3 +319,19 @@ a.b { text-decoration: none; }
 .banner-tx strong { font-size: 1.3rem; }
 .banner-preco b { font-size: 1.08rem; }
 .banner-bt { min-height: 40px; }
+
+/* ---------- kits ---------- */
+.bolas-mini { position: relative; display: block; width: 44px; height: 44px; }
+.bolas-mini i { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--cor); box-shadow: 0 0 0 2px var(--bg); }
+.bolas-mini i:nth-child(1) { left: 0; top: 2px; }
+.bolas-mini i:nth-child(2) { right: 0; top: 0; }
+.bolas-mini i:nth-child(3) { left: 9px; bottom: 0; }
+.bolas-mini i:only-child { width: 44px; height: 44px; left: 0; top: 0; }
+.linha-kit .linha-foto { align-self: start; margin-top: 2px; }
+.linha-kit-itens { font-size: .78rem; color: var(--muted); line-height: 1.3; }
+.linha-kit .linha-preco s { margin: 0 2px 0 0; }
+.ped-kit-arte { display: block; width: 52px; }
+.ped-kit-arte .bolas-mini, .ped-kit-arte .bola { width: 48px; height: 48px; }
+.qtd-kit { margin-top: 6px; }
+.qtd-kit .stp-v { min-width: 56px; }
+.linha > .stp { grid-column: 2 / -1; justify-self: start; margin-top: -2px; }

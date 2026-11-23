@@ -10,6 +10,7 @@ const Importar = lazy(() => import('./pages/Importar'));
 const Exportar = lazy(() => import('./pages/Exportar'));
 const Orcamento = lazy(() => import('./pages/Orcamento'));
 const Vitrine = lazy(() => import('./pages/Vitrine'));
+const Kits = lazy(() => import('./pages/Kits'));
 const Lotes = lazy(() => import('./pages/Lotes'));
 const Pdv = lazy(() => import('./pages/Pdv'));
 const Compras = lazy(() => import('./pages/Compras'));
@@ -28,6 +29,7 @@ export default function App() {
         <Route index element={<Home />} />
         <Route path="loja" element={<Loja />} />
         <Route path="pagina" element={<Vitrine />} />
+        <Route path="kits" element={<Kits />} />
         <Route path="produtos" element={<Produtos />} />
         <Route path="lotes" element={<Lotes />} />
         <Route path="vendas" element={<Pdv />} />
