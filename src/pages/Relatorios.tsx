@@ -9,9 +9,11 @@ import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import { Button, Empty, Field, Indicadores, MoneyInput, Notice, PageHeader, Tabs } from '../ui/ui';
 import { Barras } from '../components/Barras';
 import { formatBRL } from '../core/money';
+import { CENARIO_PADRAO, potencialEstoque, type Cenario } from '../core/potencial';
+import { paymentOptions } from '../core/pricing';
 import { compras, estoque, noPeriodo, painel, periodoAnterior, periodoDe, ranking, resultado, variacao, type Atalho, type LinhaRanking, type Periodo } from '../core/relatorios';
 
-type Aba = 'painel' | 'vendas' | 'resultado' | 'estoque' | 'compras' | 'alteracoes';
+type Aba = 'painel' | 'vendas' | 'resultado' | 'estoque' | 'potencial' | 'compras' | 'alteracoes';
 const ATALHOS: { id: Atalho; rotulo: string }[] = [
   { id: 'hoje', rotulo: 'Hoje' },
   { id: '7d', rotulo: '7 dias' },
@@ -57,6 +59,8 @@ export default function Relatorios() {
   const rk = useMemo(() => ranking(noPeriodo(vendas, periodo), lista.produtos), [vendas, periodo, lista.produtos]);
   const res = useMemo(() => resultado(vendas, config, periodo), [vendas, config, periodo]);
   const est = useMemo(() => estoque(lista.produtos, vendas), [lista.produtos, vendas]);
+  const [cen, setCen] = useState<Cenario>(CENARIO_PADRAO);
+  const pot = useMemo(() => potencialEstoque(lista.produtos, vendas, config, cen), [lista.produtos, vendas, config, cen]);
   const cp = useMemo(() => compras(config.lotes ?? [], lista.produtos, config, periodo), [config, lista.produtos, periodo]);
 
   const r = pn.resumo;
@@ -119,6 +123,7 @@ export default function Relatorios() {
           { id: 'vendas', label: 'Vendas' },
           { id: 'resultado', label: 'Resultado' },
           { id: 'estoque', label: 'Estoque' },
+          { id: 'potencial', label: 'Potencial do estoque' },
           { id: 'compras', label: 'Compras' },
           { id: 'alteracoes', label: 'Alterações' },
         ]}
@@ -333,6 +338,167 @@ export default function Relatorios() {
               </>
             )}
           </section>
+        </>
+      )}
+
+      {aba === 'potencial' && (
+        <>
+          <section className="card">
+            <h2>Se vender o estoque de hoje</h2>
+            <p className="muted small">
+              Quanto rende o que está na prateleira, pelo preço de hoje. Não depende do período escolhido acima. O tempo para vender e a mistura de pagamentos vêm das vendas dos últimos dias; é uma estimativa.
+            </p>
+            <div className="pot-cenario">
+              <label className="pot-range">
+                <span>
+                  Quanto do estoque vende <strong>{cen.vende}%</strong>
+                </span>
+                <input type="range" min={50} max={100} step={5} value={cen.vende} onChange={(e) => setCen({ ...cen, vende: Number(e.target.value) })} />
+              </label>
+              <label className="pot-range">
+                <span>
+                  Desconto médio <strong>{cen.desconto}%</strong>
+                </span>
+                <input type="range" min={0} max={30} step={5} value={cen.desconto} onChange={(e) => setCen({ ...cen, desconto: Number(e.target.value) })} />
+              </label>
+              <Field label="Como os clientes pagam">
+                {(id) => (
+                  <select id={id} value={cen.forma} onChange={(e) => setCen({ ...cen, forma: e.target.value })}>
+                    <option value="mix">Como hoje (mistura das vendas)</option>
+                    {paymentOptions(config).map((f) => (
+                      <option key={f.id} value={f.id}>
+                        Tudo em {f.label.toLowerCase()} ({String(f.taxa).replace('.', ',')}%)
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+              {(cen.vende !== 100 || cen.desconto !== 0 || cen.forma !== 'mix') && (
+                <Button variant="ghost" icon="undo" onClick={() => setCen(CENARIO_PADRAO)}>
+                  Voltar ao cenário completo
+                </Button>
+              )}
+            </div>
+          </section>
+
+          {pot.linhas.length === 0 ? (
+            <Empty icon="box" titulo="Nenhum produto com estoque, custo e preço">
+              Preencha o estoque atual e o custo dos produtos em <Link to="/produtos">Produtos</Link> (ou aplique uma nota em Lotes de compra) para ver o potencial.
+            </Empty>
+          ) : (
+            <>
+              <Indicadores
+                itens={[
+                  { rotulo: 'Investimento', valor: reais(pot.investimento), nota: 'Custo do estoque que está na prateleira' },
+                  { rotulo: 'Faturamento possível', valor: reais(pot.faturamento), nota: cen.vende === 100 ? 'Vendendo tudo pelo preço de hoje' : `Vendendo ${cen.vende}% do estoque` },
+                  { rotulo: 'Lucro bruto', valor: reais(pot.lucroBruto), nota: pot.margemBruta != null ? `${String(pot.margemBruta).replace('.', ',')}% do faturamento` : undefined, tom: pot.lucroBruto > 0 ? 'ok' : 'warn' },
+                  { rotulo: 'Lucro líquido', valor: reais(pot.lucroLiquido), nota: pot.margemLiquida != null ? `${String(pot.margemLiquida).replace('.', ',')}% do faturamento` : undefined, tom: pot.lucroLiquido > 0 ? 'ok' : 'warn' },
+                  { rotulo: 'Retorno', valor: pot.retorno != null ? `${num(pot.retorno * 100, 0)}%` : '—', nota: pot.retorno != null ? `Cada R$ 1,00 investido rende ${formatBRL(Math.round(pot.retorno * 100))} de lucro líquido` : undefined },
+                  { rotulo: 'Tempo para vender', valor: pot.dias != null ? `${pot.dias} dias` : '—', nota: pot.dias != null ? 'No ritmo das vendas dos últimos 30 dias' : 'Sem vendas recentes destes produtos' },
+                ]}
+              />
+              <section className="card">
+                <h2>De onde vem o lucro</h2>
+                <dl className="rel-dre">
+                  <div>
+                    <dt>Faturamento possível</dt>
+                    <dd>{formatBRL(pot.faturamento)}</dd>
+                  </div>
+                  <div className="menos">
+                    <dt>Custo dos produtos</dt>
+                    <dd>− {formatBRL(pot.custoVendido)}</dd>
+                  </div>
+                  <div className="sub">
+                    <dt>Lucro bruto</dt>
+                    <dd>{formatBRL(pot.lucroBruto)}</dd>
+                  </div>
+                  <div className="menos">
+                    <dt>
+                      Taxas das maquininhas <small>{String(pot.taxaPct).replace('.', ',')}% {cen.forma === 'mix' ? 'em média nas vendas recentes' : 'da forma escolhida'}</small>
+                    </dt>
+                    <dd>− {formatBRL(pot.taxas)}</dd>
+                  </div>
+                  <div className="menos">
+                    <dt>
+                      Impostos, embalagens e outros variáveis <small>cadastrados em Precificação</small>
+                    </dt>
+                    <dd>− {formatBRL(pot.variaveis)}</dd>
+                  </div>
+                  <div className="menos">
+                    <dt>
+                      Despesas fixas <small>{pot.dias != null ? `proporcionais a ${pot.dias} dias para vender` : '1 mês (sem ritmo de vendas)'}</small>
+                    </dt>
+                    <dd>− {formatBRL(pot.despesasFixas)}</dd>
+                  </div>
+                  <div className={`sub ${pot.lucroLiquido < 0 ? 'neg' : 'pos'}`}>
+                    <dt>Lucro líquido</dt>
+                    <dd>{formatBRL(pot.lucroLiquido)}</dd>
+                  </div>
+                  <div className="menos">
+                    <dt>Pró-labore (retirada de vocês) no mesmo tempo</dt>
+                    <dd>− {formatBRL(pot.proLabore)}</dd>
+                  </div>
+                  <div className={`total ${pot.sobra < 0 ? 'neg' : 'pos'}`}>
+                    <dt>O que sobra</dt>
+                    <dd>{formatBRL(pot.sobra)}</dd>
+                  </div>
+                </dl>
+              </section>
+              <section className="card">
+                <h2>Produto a produto</h2>
+                <p className="muted small">Em ordem de retorno: quanto cada real investido no produto volta de lucro bruto. No fim da lista ficam os que prendem mais dinheiro.</p>
+                <div className="table-scroll">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Produto</th>
+                        <th className="num">Estoque</th>
+                        <th className="num">Investido</th>
+                        <th className="num">Vende por</th>
+                        <th className="num">Lucro bruto</th>
+                        <th className="num">Retorno</th>
+                        <th className="num">Tempo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pot.linhas.map((l) => (
+                        <tr key={l.produto.id}>
+                          <td className="strong">{l.produto.nome}</td>
+                          <td className="num">
+                            {num(l.produto.estoque ?? 0)} {l.produto.unidade}
+                          </td>
+                          <td className="num">{formatBRL(l.investimento)}</td>
+                          <td className="num">{formatBRL(l.faturamento)}</td>
+                          <td className="num">{formatBRL(l.lucroBruto)}</td>
+                          <td className={`num ${l.retorno != null && l.retorno < 0.3 ? 'rel-desce' : ''}`}>{l.retorno != null ? `${num(l.retorno * 100, 0)}%` : '—'}</td>
+                          <td className={`num ${l.dias == null || l.dias > 90 ? 'rel-desce' : ''}`}>{l.dias != null ? `${l.dias} dias` : 'sem vendas'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </>
+          )}
+          {(pot.faltam.length > 0 || pot.semEstoqueInformado > 0) && (
+            <section className="card">
+              <h2>Ficaram de fora da conta</h2>
+              {pot.semEstoqueInformado > 0 && (
+                <p className="muted small">
+                  {pot.semEstoqueInformado} produto(s) com preço não têm o estoque atual preenchido. Preencha em <Link to="/produtos">Produtos</Link> para entrarem.
+                </p>
+              )}
+              {pot.faltam.length > 0 && (
+                <ul className="pot-faltam">
+                  {pot.faltam.map((f) => (
+                    <li key={f.produto.id}>
+                      <strong>{f.produto.nome}</strong> <span className="muted">· {f.motivo}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
         </>
       )}
 
