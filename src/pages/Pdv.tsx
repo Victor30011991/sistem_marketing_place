@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { acharCliente, novoCliente } from '../core/clientes';
 import { contaFiado } from '../core/contas';
 import { CaixaBarra, CaixasAnteriores } from '../components/CaixaBarra';
+import { LeitorCamera } from '../components/LeitorCamera';
 import { useQuem } from '../nuvem/NuvemProvider';
 import { Link } from 'react-router-dom';
 import { useApp } from '../state/store';
@@ -9,6 +10,7 @@ import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import { Button, Empty, Indicadores, MoneyInput, Notice, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
 import { comDesconto, descontoDoTexto, diaLocal, fecharPdv, formasPdv, itemVenda, lerPedidoWhatsapp, moverEstoque, qtdNoProduto, qtdPorValor, resumoVendas, unidadeDeVenda } from '../core/vendas';
+import { bolinhas, cartaoDe, FIDELIDADE_PADRAO, linhaCartao } from '../core/fidelidade';
 import { clienteDaVenda, estoqueBaixo, linkWhatsapp, maisVendidos, porNaListaCompras, reciboTexto, resumoDiaTexto, semanaPassada, ultimaCompra, variacao } from '../core/pdvExtras';
 import { balancaDe, lerEtiquetaBalanca } from '../core/balanca';
 import { formatBRL, parseNumberBR } from '../core/money';
@@ -90,6 +92,7 @@ export default function Pdv() {
   /** data e hora de uma venda lançada depois (datetime-local); vazio = agora */
   const [retro, setRetro] = useState('');
   /** última venda finalizada: recibo pelo WhatsApp e aviso de estoque baixo */
+  const [camera, setCamera] = useState(false);
   const [feita, setFeita] = useState<{ venda: Venda; baixos: Product[] } | null>(null);
   const qtdRef = useRef<HTMLInputElement>(null);
   const buscaRef = useRef<HTMLInputElement>(null);
@@ -99,7 +102,7 @@ export default function Pdv() {
   const achados = useMemo(() => {
     const q = norm(busca);
     if (!q || pareceEtiqueta(busca)) return [];
-    return vendaveis.filter((p) => norm(p.nome).includes(q) || norm(p.categoria).includes(q) || String(p.plu ?? '') === busca.trim()).slice(0, 8);
+    return vendaveis.filter((p) => norm(p.nome).includes(q) || norm(p.categoria).includes(q) || String(p.plu ?? '') === busca.trim() || (!!p.ean && p.ean === busca.trim())).slice(0, 8);
   }, [busca, vendaveis]);
 
   // itens da venda com preço, desconto do item e estoque
@@ -124,6 +127,21 @@ export default function Pdv() {
       return { ...x, linhas: [...x.linhas, { key: newId(), produtoId: p.id, qtd, unidade, ...(total != null ? { total } : {}) }] };
     });
   }
+
+  /** Código lido pela câmera: etiqueta da balança, código da embalagem (EAN) ou código da balança do produto. */
+  const lerCodigo = useCallback(
+    (codigo: string) => {
+      setCamera(false);
+      const t = codigo.replace(/\s/g, '');
+      if (pareceEtiqueta(t)) return lerEtiqueta(t);
+      const p = vendaveis.find((x) => x.ean === t) ?? vendaveis.find((x) => x.plu != null && String(x.plu) === t.replace(/^0+/, ''));
+      if (!p) return toast(`Nenhum produto com o código ${t}. Cadastre o código de barras no produto.`, 'erro');
+      setBusca(p.nome);
+      escolher(p);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [vendaveis, config.balanca, lista.produtos],
+  );
 
   /** Código de barras da balança digitado ou lido no campo de busca. */
   function lerEtiqueta(codigo: string) {
@@ -270,9 +288,24 @@ export default function Pdv() {
   const pctSemana = variacao(res.total, comp.total);
   const topo = useMemo(() => maisVendidos(config.vendas ?? [], lista.produtos), [config.vendas, lista.produtos]);
   const ultima = r.cliente.trim() ? ultimaCompra(config.vendas ?? [], { id: r.clienteId, nome: r.cliente }) : null;
+  const fid = config.fidelidade ?? FIDELIDADE_PADRAO;
+  const cliAtual = r.clienteId ? (config.clientes ?? []).find((c) => c.id === r.clienteId) : r.cliente.trim().length >= 3 ? (acharCliente(config.clientes ?? [], { nome: r.cliente }) ?? novoCliente({ nome: r.cliente })) : null;
+  const cartao = fid.ativo && cliAtual ? cartaoDe(cliAtual, config.vendas ?? [], fid) : null;
+  function entregarPremio() {
+    if (!cliAtual) return;
+    const novo = { ...cliAtual, resgates: [...(cliAtual.resgates ?? []), new Date().toISOString()] };
+    act.config((s) => {
+      const l = s.clientes ?? [];
+      return { ...s, clientes: l.some((x) => x.id === novo.id) ? l.map((x) => (x.id === novo.id ? novo : x)) : [...l, novo] };
+    });
+    atualizar((x) => ({ ...x, clienteId: novo.id }));
+    toast(`Prêmio do cartão entregue para ${novo.nome}. O cartão começa de novo.`);
+  }
 
   function abrirRecibo(v: Venda) {
-    window.open(linkWhatsapp(clienteDaVenda(config.clientes ?? [], v)?.telefone, reciboTexto(v, state.loja)), '_blank', 'noopener');
+    const cli = clienteDaVenda(config.clientes ?? [], v) ?? (v.cliente.trim() ? acharCliente(config.clientes ?? [], { nome: v.cliente }) ?? novoCliente({ nome: v.cliente }) : undefined);
+    const extra = fid.ativo && cli ? linhaCartao(cartaoDe(cli, config.vendas ?? [], fid), fid) : undefined;
+    window.open(linkWhatsapp(cli?.telefone, reciboTexto(v, state.loja, extra)), '_blank', 'noopener');
   }
   function repetir(v: Venda) {
     v.itens.forEach((i) => {
@@ -350,10 +383,15 @@ export default function Pdv() {
                 onKeyDown={(e) => {
                   if (e.key !== 'Enter') return;
                   if (pareceEtiqueta(busca)) lerEtiqueta(busca);
+                  else if (/^\d{8,14}$/.test(busca.trim()) && vendaveis.some((x) => x.ean === busca.trim())) lerCodigo(busca.trim());
                   else if (achados.length === 1) escolher(achados[0]);
                 }}
               />
+              <button type="button" className="icon-btn" aria-label="Ler código de barras com a câmera" title="Ler com a câmera" onClick={() => setCamera(true)}>
+                <Icon name="barcode" />
+              </button>
             </div>
+            <LeitorCamera open={camera} onClose={() => setCamera(false)} onLer={lerCodigo} />
             {!busca.trim() && colar == null && topo.length > 0 && (
               <div className="pdv-rapidos" aria-label="Mais vendidos">
                 {topo.map((p) => (
@@ -536,6 +574,24 @@ export default function Pdv() {
                 ))}
               </datalist>
             </label>
+            {cartao && (
+              <div className={`pdv-ultima pdv-cartao ${cartao.premioPronto ? 'pronto' : ''}`}>
+                {cartao.premioPronto ? (
+                  <>
+                    <span className="small">
+                      <strong>🎁 Prêmio do cartão fidelidade liberado:</strong> {fid.premio}
+                    </span>
+                    <Button variant="secondary" icon="check" onClick={entregarPremio}>
+                      Marcar prêmio como entregue
+                    </Button>
+                  </>
+                ) : (
+                  <span className="small">
+                    <strong>Cartão fidelidade:</strong> <span className="cli-bolinhas">{bolinhas(cartao)}</span> {cartao.contadas} de {cartao.meta}. Com esta compra, {cartao.faltam <= 1 ? 'o prêmio fica liberado!' : cartao.faltam === 2 ? 'falta 1.' : `faltam ${cartao.faltam - 1}.`}
+                  </span>
+                )}
+              </div>
+            )}
             {ultima && (
               <div className="pdv-ultima">
                 <span className="small">

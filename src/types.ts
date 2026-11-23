@@ -16,6 +16,8 @@ export interface Product {
   observacoes: string;
   /** quantidade em estoque, na unidade do produto (opcional; usada no custo médio e no inventário) */
   estoque?: number | null;
+  /** código de barras da embalagem (EAN), para ler no PDV */
+  ean?: string;
   /** abaixo disto (na unidade do produto) o PDV avisa e sugere a lista de compras */
   estoqueMinimo?: number | null;
   /** conteúdo de cada embalagem (pacote, frasco…), ex.: 250 g. Permite o preço proporcional de unidades de contagem */
@@ -485,6 +487,21 @@ export interface Cliente {
   obs: string;
   /** ISO */
   criado: string;
+  /** aniversário, MM-DD (opcional) */
+  aniversario?: string;
+  /** ISO de cada prêmio do cartão fidelidade entregue */
+  resgates?: string[];
+}
+
+/** Cartão fidelidade: a cada N compras, um prêmio. */
+export interface ConfigFidelidade {
+  ativo: boolean;
+  /** compras para ganhar o prêmio */
+  compras: number;
+  /** o que o cliente ganha (texto livre, ex.: 100 g de tempero à escolha) */
+  premio: string;
+  /** compra mínima para contar, em centavos (0 = qualquer compra) */
+  minimo: number;
 }
 
 export type SituacaoPedido = 'novo' | 'separando' | 'pronto' | 'entregue' | 'cancelado';
@@ -582,7 +599,7 @@ export type FamiliaArte = string; // 'manuscrita' | 'script' | 'elegante' | 'gor
 export type CampoArte = 'titulo' | 'subtitulo' | 'chamada' | 'preco' | 'livre';
 export interface CamadaArte {
   id: string;
-  tipo: 'foto' | 'texto' | 'forma' | 'logo' | 'enfeite' | 'lista';
+  tipo: 'foto' | 'texto' | 'forma' | 'logo' | 'enfeite' | 'lista' | 'selo';
   x: number;
   y: number;
   w: number;
@@ -600,6 +617,12 @@ export interface CamadaArte {
   alinhar?: 'esquerda' | 'centro' | 'direita';
   maiusculas?: boolean;
   sombra?: boolean;
+  /** contorno escuro em volta das letras */
+  contorno?: boolean;
+  /** faixa colorida atrás de cada linha (como o texto dos stories) */
+  fundoTexto?: CorArte;
+  // selo
+  formaSelo?: 'circulo' | 'estrela' | 'etiqueta';
   // foto
   mascara?: 'retangulo' | 'pote' | 'circulo' | 'arco' | 'arredondado';
   /** 0–0,7: escurece a foto para o texto aparecer */
@@ -643,6 +666,8 @@ export interface Settings {
   contas?: Conta[];
   /** dias para pagar o fiado (padrão 30) */
   prazoFiado?: number;
+  /** cartão fidelidade (opcional) */
+  fidelidade?: ConfigFidelidade;
   /** ISO da última cópia automática guardada na nuvem */
   ultimaCopia?: string;
   /** ISO do último backup .txt baixado */

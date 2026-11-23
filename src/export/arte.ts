@@ -12,11 +12,46 @@ export interface ConteudoArte {
   preco: string;
   itens: string[];
 }
+import { filtrarPixels, temAjuste } from '../core/filtroFoto';
+export { FILTROS_FOTO } from '../core/filtroFoto';
 export interface AjusteFoto {
   zoom: number;
   /** -1 a 1: qual parte da foto aparece quando ela sobra */
   fx: number;
   fy: number;
+  /** -1 a 1 (0 = como a foto veio) */
+  brilho?: number;
+  contraste?: number;
+  saturacao?: number;
+  /** quente (+) ou frio (−) */
+  calor?: number;
+  /** filtro pronto escolhido (só para mostrar qual está ligado) */
+  filtro?: string;
+}
+
+/** Foto com os ajustes aplicados, guardada para não refazer a cada desenho (até 1600 px). */
+const cacheFiltro = new WeakMap<HTMLImageElement, { chave: string; cv: HTMLCanvasElement }>();
+function fotoAjustada(img: HTMLImageElement, a: AjusteFoto): HTMLImageElement | HTMLCanvasElement {
+  if (!temAjuste(a) || typeof document === 'undefined') return img;
+  const chave = [a.brilho, a.contraste, a.saturacao, a.calor].map((v) => (v ?? 0).toFixed(3)).join('|');
+  const c = cacheFiltro.get(img);
+  if (c && c.chave === chave) return c.cv;
+  const s = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.round(img.width * s));
+  cv.height = Math.max(1, Math.round(img.height * s));
+  const ctx = cv.getContext('2d');
+  if (!ctx) return img;
+  ctx.drawImage(img, 0, 0, cv.width, cv.height);
+  try {
+    const dados = ctx.getImageData(0, 0, cv.width, cv.height);
+    filtrarPixels(dados.data, a);
+    ctx.putImageData(dados, 0, 0);
+  } catch {
+    return img;
+  }
+  cacheFiltro.set(img, { chave, cv });
+  return cv;
 }
 export interface OpcoesArte {
   formato: FormatoArte;
@@ -121,7 +156,8 @@ function recortar(ctx: CanvasRenderingContext2D, m: CamadaArte['mascara'], b: Ca
 }
 
 /** Desenha a imagem cobrindo a caixa, com zoom e deslocamento. */
-function cobrir(ctx: CanvasRenderingContext2D, img: HTMLImageElement, b: Caixa, a: AjusteFoto) {
+function cobrir(ctx: CanvasRenderingContext2D, origem: HTMLImageElement, b: Caixa, a: AjusteFoto) {
+  const img = fotoAjustada(origem, a);
   const s = Math.max(b.w / img.width, b.h / img.height) * Math.max(1, a.zoom);
   const dw = img.width * s, dh = img.height * s;
   const ox = dw - b.w, oy = dh - b.h;
@@ -170,8 +206,80 @@ function texto(ctx: CanvasRenderingContext2D, c: CamadaArte, valor: string, b: C
     ctx.shadowOffsetY = tam * 0.04;
   }
   const total = linhas.length * tam * alt;
-  linhas.forEach((l, i) => ctx.fillText(l, x, b.y + b.h / 2 - total / 2 + tam * alt * (i + 0.5)));
+  const yDe = (i: number) => b.y + b.h / 2 - total / 2 + tam * alt * (i + 0.5);
+  if (c.fundoTexto) {
+    // faixa atrás de cada linha, como o texto dos stories
+    const cor = ctx.fillStyle;
+    ctx.save();
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = corArte(c.fundoTexto, op.loja, op.variacao);
+    const pad = tam * 0.28;
+    linhas.forEach((l, i) => {
+      const lw = ctx.measureText(l).width;
+      const x0 = al === 'esquerda' ? x : al === 'direita' ? x - lw : x - lw / 2;
+      ctx.beginPath();
+      ctx.roundRect(x0 - pad, yDe(i) - tam * 0.62, lw + 2 * pad, tam * 1.24, tam * 0.22);
+      ctx.fill();
+    });
+    ctx.restore();
+    ctx.fillStyle = cor;
+  }
+  if (c.contorno) {
+    ctx.save();
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = 'rgba(30,20,15,0.9)';
+    ctx.lineWidth = Math.max(2, tam * 0.09);
+    ctx.lineJoin = 'round';
+    linhas.forEach((l, i) => ctx.strokeText(l, x, yDe(i)));
+    ctx.restore();
+  }
+  linhas.forEach((l, i) => ctx.fillText(l, x, yDe(i)));
   ctx.shadowColor = 'transparent';
+}
+
+/** Selo (preço, novidade…): forma colorida com o texto encaixado dentro. */
+function selo(ctx: CanvasRenderingContext2D, c: CamadaArte, valor: string, b: Caixa, W: number, op: OpcoesArte) {
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  ctx.save();
+  ctx.fillStyle = corArte(c.cor ?? 'destaque', op.loja, op.variacao);
+  ctx.shadowColor = 'rgba(0,0,0,0.25)';
+  ctx.shadowBlur = W * 0.012;
+  ctx.shadowOffsetY = W * 0.004;
+  ctx.beginPath();
+  const forma = c.formaSelo ?? 'circulo';
+  if (forma === 'estrela') {
+    const pontas = 14;
+    const rx = b.w / 2, ry = b.h / 2;
+    for (let i = 0; i < pontas * 2; i++) {
+      const ang = (Math.PI * i) / pontas - Math.PI / 2;
+      const f = i % 2 ? 0.86 : 1;
+      const px = cx + Math.cos(ang) * rx * f, py = cy + Math.sin(ang) * ry * f;
+      if (i) ctx.lineTo(px, py);
+      else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+  } else if (forma === 'etiqueta') {
+    const r = Math.min(b.w, b.h) * 0.18;
+    ctx.moveTo(b.x + b.h * 0.35, b.y);
+    ctx.lineTo(b.x + b.w - r, b.y);
+    ctx.quadraticCurveTo(b.x + b.w, b.y, b.x + b.w, b.y + r);
+    ctx.lineTo(b.x + b.w, b.y + b.h - r);
+    ctx.quadraticCurveTo(b.x + b.w, b.y + b.h, b.x + b.w - r, b.y + b.h);
+    ctx.lineTo(b.x + b.h * 0.35, b.y + b.h);
+    ctx.lineTo(b.x, cy);
+    ctx.closePath();
+  } else ctx.ellipse(cx, cy, b.w / 2, b.h / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  if (forma === 'etiqueta') {
+    ctx.fillStyle = corArte('creme', op.loja, op.variacao);
+    ctx.beginPath();
+    ctx.arc(b.x + b.h * 0.3, cy, Math.min(b.w, b.h) * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  const dentro = forma === 'etiqueta' ? { x: b.x + b.h * 0.42, y: b.y + b.h * 0.12, w: b.w - b.h * 0.5, h: b.h * 0.76 } : { x: b.x + b.w * 0.16, y: b.y + b.h * 0.2, w: b.w * 0.68, h: b.h * 0.6 };
+  texto(ctx, { ...c, cor: c.cor === 'creme' || c.cor === 'branco' ? 'escuro' : 'creme', sombra: false, contorno: false, fundoTexto: undefined, alinhar: 'centro' }, valor, dentro, W, op);
 }
 
 function lista(ctx: CanvasRenderingContext2D, c: CamadaArte, itens: string[], b: Caixa, W: number, op: OpcoesArte) {
@@ -263,6 +371,9 @@ export function desenharArte(ctx: CanvasRenderingContext2D, estilo: EstiloArte, 
       if (v) texto(ctx, c, v, b, W, op);
     } else if (c.tipo === 'lista') {
       lista(ctx, c, k.itens.slice(0, 7), b, W, op);
+    } else if (c.tipo === 'selo') {
+      const v = valorDe(c, k).trim();
+      if (v) selo(ctx, c, v, b, W, op);
     }
     ctx.restore();
     if (op.previa && op.selecionada === c.id) {
@@ -273,6 +384,15 @@ export function desenharArte(ctx: CanvasRenderingContext2D, estilo: EstiloArte, 
       ctx.shadowColor = 'rgba(0,0,0,.6)';
       ctx.shadowBlur = 6;
       ctx.strokeRect(b.x, b.y, b.w, b.h);
+      // alça para aumentar e diminuir (canto de baixo, à direita)
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(b.x + b.w, b.y + b.h, W * 0.022, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.55)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
       ctx.restore();
     }
   }

@@ -10,7 +10,7 @@ import { contatosLoja } from '../core/orcamentos';
 import { ANGULOS, TEMAS, entender, sugerirLegendas, type Sugestao, type Tema } from '../core/legendas';
 import { FORMATOS_IDEIA, TIPOS_IDEIA, frasesArriscadas, gerarIdeias, ideiaLivre, legendaCompleta, type Ideia } from '../core/postaai';
 import { CORES_ARTE, ENFEITES, ESTILOS_PRONTOS, FAMILIAS_ARTE, FORMATOS_ARTE, VARIACOES, corArte, novaCamada, type FormatoArte } from '../core/estilosArte';
-import { AJUSTE_PADRAO, arteEmImagem, camadaEm, carregarImagem, carrosselEmImagens, desenharArte, garantirFontes, videoDasFotos, type AjusteFoto, type ConteudoArte, type OpcoesArte } from '../export/arte';
+import { AJUSTE_PADRAO, FILTROS_FOTO, arteEmImagem, camadaEm, carregarImagem, carrosselEmImagens, desenharArte, garantirFontes, videoDasFotos, type AjusteFoto, type ConteudoArte, type OpcoesArte } from '../export/arte';
 import type { CamadaArte, ConfigPostaAi, EstiloArte, FonteSalva } from '../types';
 import '@fontsource-variable/caveat';
 import '@fontsource/bebas-neue';
@@ -31,7 +31,8 @@ const hojeLocal = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
-const ROTULO_TIPO: Record<CamadaArte['tipo'], string> = { foto: 'Foto', texto: 'Texto', forma: 'Faixa / forma', logo: 'Logo', enfeite: 'Enfeite', lista: 'Lista em faixas' };
+const ROTULO_TIPO: Record<CamadaArte['tipo'], string> = { foto: 'Foto', texto: 'Texto', forma: 'Faixa / forma', logo: 'Logo', enfeite: 'Enfeite', lista: 'Lista em faixas', selo: 'Selo' };
+const SELOS_PRONTOS = ['Novidade', 'Mais vendido', 'Promoção', 'Feito com carinho'];
 const CAMPOS: { id: NonNullable<CamadaArte['campo']>; rotulo: string }[] = [
   { id: 'titulo', rotulo: 'Título' },
   { id: 'subtitulo', rotulo: 'Subtítulo' },
@@ -170,35 +171,116 @@ export default function PostaAi() {
     desenharArte(cv.getContext('2d')!, estilo, conteudo, { ...opcoes, previa: true, selecionada: modo === 'pecas' ? selId : null }, (LARG * dpr) / FW);
   });
 
-  const arrasto = useRef<{ x: number; y: number; c?: CamadaArte; a: AjusteFoto } | null>(null);
-  const editar = (fn: (e: EstiloArte) => EstiloArte) => setRascunho(fn(estilo));
-  const mudarCamada = (id: string, patch: Partial<CamadaArte>) => editar((e) => ({ ...e, camadas: e.camadas.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
+  const arrasto = useRef<{ x: number; y: number; c?: CamadaArte; a: AjusteFoto; alca?: boolean; movido?: boolean } | null>(null);
+  // desfazer / refazer: guarda o visual antes de cada mudança (até 60 passos)
+  const hist = useRef<{ id: string; passado: EstiloArte[]; futuro: EstiloArte[] }>({ id: '', passado: [], futuro: [] });
+  const [, setVersao] = useState(0);
+  if (hist.current.id !== estilo.id) hist.current = { id: estilo.id, passado: [], futuro: [] };
+  const editar = (fn: (e: EstiloArte) => EstiloArte, registrar = true) => {
+    if (registrar) {
+      hist.current.passado = [...hist.current.passado, estilo].slice(-60);
+      hist.current.futuro = [];
+      setVersao((v) => v + 1);
+    }
+    setRascunho(fn(estilo));
+  };
+  const mudarCamada = (id: string, patch: Partial<CamadaArte>, registrar = true) => editar((e) => ({ ...e, camadas: e.camadas.map((c) => (c.id === id ? { ...c, ...patch } : c)) }), registrar);
+  function desfazer() {
+    const h = hist.current;
+    const antes = h.passado.pop();
+    if (!antes) return;
+    h.futuro = [estilo, ...h.futuro];
+    setRascunho(antes);
+    setVersao((v) => v + 1);
+  }
+  function refazer() {
+    const h = hist.current;
+    const [depois, ...resto] = h.futuro;
+    if (!depois) return;
+    h.passado = [...h.passado, estilo];
+    h.futuro = resto;
+    setRascunho(depois);
+    setVersao((v) => v + 1);
+  }
+  function duplicar(c: CamadaArte) {
+    const nova = { ...c, id: novaCamada(c.tipo).id, x: +(c.x + 0.04).toFixed(4), y: +(c.y + 0.04).toFixed(4) };
+    editar((e) => ({ ...e, camadas: [...e.camadas, nova] }));
+    setSelId(nova.id);
+  }
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || (e.target as HTMLElement)?.closest('input, textarea, select')) return;
+      if (e.key.toLowerCase() === 'z' && !e.shiftKey) (e.preventDefault(), desfazer());
+      else if (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey)) (e.preventDefault(), refazer());
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  });
   function ponto(e: PointerEvent<HTMLCanvasElement>) {
     const r = e.currentTarget.getBoundingClientRect();
     return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
   }
+  const dedos = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinca = useRef<{ dist: number; c: CamadaArte; feito: boolean } | null>(null);
+  const distancia = () => {
+    const [a, b] = [...dedos.current.values()];
+    return Math.hypot((a.x - b.x) * FW, (a.y - b.y) * FH);
+  };
+  /** perto da alça do canto de baixo, à direita, da peça escolhida */
+  const naAlca = (c: CamadaArte | null, p: { x: number; y: number }) => !!c && Math.abs(p.x - (c.x + c.w)) < 0.045 && Math.abs(p.y - (c.y + c.h)) < (0.045 * FW) / FH;
   function down(e: PointerEvent<HTMLCanvasElement>) {
     const p = ponto(e);
     e.currentTarget.setPointerCapture(e.pointerId);
+    dedos.current.set(e.pointerId, p);
+    if (modo === 'pecas' && dedos.current.size === 2 && sel) {
+      // dois dedos: aumenta ou diminui a peça escolhida
+      pinca.current = { dist: distancia(), c: sel, feito: false };
+      arrasto.current = null;
+      return;
+    }
     if (modo === 'pecas') {
+      if (naAlca(sel, p)) {
+        arrasto.current = { ...p, c: sel!, a: ajuste, alca: true };
+        return;
+      }
       const c = camadaEm(estilo, p.x, p.y);
       setSelId(c?.id ?? null);
       arrasto.current = { ...p, c: c ?? undefined, a: ajuste };
     } else arrasto.current = { ...p, a: ajuste };
   }
   function move(e: PointerEvent<HTMLCanvasElement>) {
+    if (dedos.current.has(e.pointerId)) dedos.current.set(e.pointerId, ponto(e));
+    const pc = pinca.current;
+    if (pc && dedos.current.size === 2) {
+      const f = Math.max(0.2, Math.min(5, distancia() / Math.max(1, pc.dist)));
+      const c = pc.c;
+      const w = Math.max(0.03, c.w * f), h = Math.max(0.03, c.h * f);
+      mudarCamada(c.id, { w: +w.toFixed(4), h: +h.toFixed(4), x: +(c.x - (w - c.w) / 2).toFixed(4), y: +(c.y - (h - c.h) / 2).toFixed(4) }, !pc.feito);
+      pc.feito = true;
+      return;
+    }
     const d = arrasto.current;
     if (!d) return;
     const p = ponto(e);
     const dx = p.x - d.x, dy = p.y - d.y;
-    if (modo === 'pecas' && d.c) mudarCamada(d.c.id, { x: +(d.c.x + dx).toFixed(4), y: +(d.c.y + dy).toFixed(4) });
-    else if (modo === 'foto') {
+    if (modo === 'pecas' && d.c && d.alca) {
+      mudarCamada(d.c.id, { w: +Math.max(0.03, d.c.w + dx).toFixed(4), h: +Math.max(0.03, d.c.h + dy).toFixed(4) }, !d.movido);
+      d.movido = true;
+    } else if (modo === 'pecas' && d.c) {
+      if (!d.movido && Math.abs(dx) + Math.abs(dy) < 0.004) return;
+      mudarCamada(d.c.id, { x: +(d.c.x + dx).toFixed(4), y: +(d.c.y + dy).toFixed(4) }, !d.movido);
+      d.movido = true;
+    } else if (modo === 'foto') {
       const lim = (v: number) => Math.max(-1, Math.min(1, v));
       const k = 2 / Math.max(0.15, ajuste.zoom - 0.85);
       setAjuste({ ...d.a, fx: lim(d.a.fx - dx * k), fy: lim(d.a.fy - dy * k) });
     }
   }
-  const up = () => (arrasto.current = null);
+  const up = (e: PointerEvent<HTMLCanvasElement>) => {
+    dedos.current.delete(e.pointerId);
+    if (dedos.current.size < 2) pinca.current = null;
+    arrasto.current = null;
+  };
 
   // miniaturas dos estilos
   const minis = useRef<Map<string, HTMLCanvasElement>>(new Map());
@@ -510,6 +592,14 @@ export default function PostaAi() {
                     Mover peças
                   </button>
                 </div>
+                <div className="pa-seg" role="group" aria-label="Desfazer e refazer">
+                  <button type="button" onClick={desfazer} disabled={!hist.current.passado.length} title="Desfazer (Ctrl+Z)">
+                    Desfazer
+                  </button>
+                  <button type="button" onClick={refazer} disabled={!hist.current.futuro.length} title="Refazer (Ctrl+Y)">
+                    Refazer
+                  </button>
+                </div>
               </div>
               <canvas
                 ref={canvas}
@@ -522,11 +612,34 @@ export default function PostaAi() {
                 role="img"
                 aria-label={`Prévia da arte: ${conteudo.titulo}`}
               />
-              <p className="muted small">{modo === 'foto' ? 'Arraste a foto para escolher a parte que aparece. Aumente o zoom para ter mais folga.' : 'Toque numa peça para escolher e arraste para mudar de lugar.'}</p>
+              <p className="muted small">{modo === 'foto' ? 'Arraste a foto para escolher a parte que aparece. Aumente o zoom para ter mais folga.' : 'Toque numa peça para escolher e arraste para mudar de lugar. Puxe a bolinha do canto ou use dois dedos para aumentar e diminuir.'}</p>
               <label className="pa-range">
                 <span>Zoom da foto</span>
                 <input type="range" min={1} max={3} step={0.05} value={ajuste.zoom} onChange={(e) => setAjuste({ ...ajuste, zoom: Number(e.target.value) })} />
               </label>
+              <details className="pa-ajustes">
+                <summary>Filtros e ajustes da foto</summary>
+                <div className="pa-filtros" role="radiogroup" aria-label="Filtro da foto">
+                  {FILTROS_FOTO.map((f) => (
+                    <button key={f.id} type="button" role="radio" aria-checked={(ajuste.filtro ?? 'natural') === f.id} className={(ajuste.filtro ?? 'natural') === f.id ? 'on' : ''} onClick={() => setAjuste({ ...ajuste, ...f.a, filtro: f.id })}>
+                      {f.nome}
+                    </button>
+                  ))}
+                </div>
+                {(
+                  [
+                    ['brilho', 'Brilho'],
+                    ['contraste', 'Contraste'],
+                    ['saturacao', 'Cor'],
+                    ['calor', 'Frio ↔ Quente'],
+                  ] as const
+                ).map(([k, r]) => (
+                  <label key={k} className="pa-range">
+                    <span>{r}</span>
+                    <input type="range" min={-1} max={1} step={0.05} value={ajuste[k] ?? 0} onChange={(e) => setAjuste({ ...ajuste, [k]: Number(e.target.value), filtro: undefined })} />
+                  </label>
+                ))}
+              </details>
               <div className="pa-cores" role="radiogroup" aria-label="Combinação de cores">
                 {VARIACOES.map((v, i) => (
                   <button key={v} type="button" role="radio" aria-checked={variacao === i} className={variacao === i ? 'on' : ''} onClick={() => setVariacao(i)} title={v}>
@@ -561,7 +674,7 @@ export default function PostaAi() {
                       )}
                     </>
                   )}
-                  {(sel.tipo === 'texto' || sel.tipo === 'lista') && (
+                  {(sel.tipo === 'texto' || sel.tipo === 'lista' || sel.tipo === 'selo') && (
                     <>
                       <Field label="Letra">
                         {(id) => (
@@ -597,7 +710,48 @@ export default function PostaAi() {
                       <label className="check">
                         <input type="checkbox" checked={!!sel.sombra} onChange={(e) => mudarCamada(sel.id, { sombra: e.target.checked || undefined })} /> Sombra
                       </label>
+                      <label className="check">
+                        <input type="checkbox" checked={!!sel.contorno} onChange={(e) => mudarCamada(sel.id, { contorno: e.target.checked || undefined })} /> Contorno
+                      </label>
                     </div>
+                  )}
+                  {sel.tipo === 'texto' && (
+                    <Field label="Faixa atrás do texto" hint="Como o texto dos stories.">
+                      {(id) => (
+                        <select id={id} value={sel.fundoTexto ?? ''} onChange={(e) => mudarCamada(sel.id, { fundoTexto: (e.target.value || undefined) as CamadaArte['fundoTexto'] })}>
+                          <option value="">Sem faixa</option>
+                          {CORES_ARTE.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.rotulo}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                  )}
+                  {sel.tipo === 'selo' && (
+                    <>
+                      <Field label="Formato do selo">
+                        {(id) => (
+                          <select id={id} value={sel.formaSelo ?? 'circulo'} onChange={(e) => mudarCamada(sel.id, { formaSelo: e.target.value as CamadaArte['formaSelo'] })}>
+                            <option value="estrela">Estrela</option>
+                            <option value="circulo">Círculo</option>
+                            <option value="etiqueta">Etiqueta</option>
+                          </select>
+                        )}
+                      </Field>
+                      <div className="pa-filtros" role="group" aria-label="Textos prontos do selo">
+                        <button type="button" className={sel.campo === 'preco' ? 'on' : ''} onClick={() => mudarCamada(sel.id, { campo: 'preco' })}>
+                          Preço
+                        </button>
+                        {SELOS_PRONTOS.map((t) => (
+                          <button key={t} type="button" className={sel.campo === 'livre' && sel.texto === t ? 'on' : ''} onClick={() => mudarCamada(sel.id, { campo: 'livre', texto: t })}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                      {sel.campo === 'livre' && <Field label="Texto do selo">{(id) => <input id={id} value={sel.texto ?? ''} onChange={(e) => mudarCamada(sel.id, { texto: e.target.value })} />}</Field>}
+                    </>
                   )}
                   {sel.tipo === 'foto' && (
                     <>
@@ -684,6 +838,9 @@ export default function PostaAi() {
                     </label>
                   ))}
                   <div className="pa-linha">
+                    <Button variant="ghost" icon="copy" onClick={() => duplicar(sel)}>
+                      Duplicar
+                    </Button>
                     <Button variant="ghost" onClick={() => moverOrdem(sel.id, 1)}>
                       Para a frente
                     </Button>
@@ -719,6 +876,9 @@ export default function PostaAi() {
                 <span className="muted small">Adicionar:</span>
                 <Button variant="ghost" icon="plus" onClick={() => addCamada('texto')}>
                   Texto
+                </Button>
+                <Button variant="ghost" icon="plus" onClick={() => addCamada('selo')}>
+                  Selo de preço
                 </Button>
                 <Button variant="ghost" icon="plus" onClick={() => addCamada('enfeite')}>
                   Enfeite

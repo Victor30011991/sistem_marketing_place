@@ -5,6 +5,7 @@ import { estilosDe, fontesDe } from './estilosArte';
 import { imagensDe } from './entrada';
 import { cfgOrcamento, orcamentosDe } from './orcamentos';
 import { clientesDe } from './clientes';
+import { fidelidadeDe } from './fidelidade';
 import { caixasDe } from './caixa';
 import { contasDe } from './contas';
 import { newId, newKey } from './normalize';
@@ -70,6 +71,7 @@ function lerProduto(v: unknown): Product | null {
   };
   if (v.estoque !== undefined) p.estoque = num(v.estoque);
   if (num(v.estoqueMinimo) != null) p.estoqueMinimo = num(v.estoqueMinimo);
+  if (/^\d{8,14}$/.test(str(v.ean))) p.ean = str(v.ean);
   if (v.conteudoQtd !== undefined) p.conteudoQtd = num(v.conteudoQtd);
   if (v.conteudoUnidade !== undefined) p.conteudoUnidade = typeof v.conteudoUnidade === 'string' ? v.conteudoUnidade : null;
   if (typeof v.plu === 'number' && Number.isInteger(v.plu) && v.plu > 0 && v.plu <= 999999) p.plu = v.plu;
@@ -238,6 +240,8 @@ function lerConfig(raw: unknown): Settings {
   const contas = contasDe(raw.contas);
   if (contas?.length) cfg.contas = contas;
   if (num(raw.prazoFiado) != null) cfg.prazoFiado = Math.max(1, Math.round(raw.prazoFiado as number));
+  const fid = fidelidadeDe(raw.fidelidade);
+  if (fid) cfg.fidelidade = fid;
   const caixas = caixasDe(raw.caixas);
   if (caixas?.length) cfg.caixas = caixas;
   const clientes = clientesDe(raw.clientes);

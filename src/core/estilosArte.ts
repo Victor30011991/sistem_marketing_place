@@ -202,6 +202,7 @@ export function novaCamada(tipo: CamadaArte['tipo'], extra: Partial<CamadaArte> 
     foto: { x: 0.1, y: 0.1, w: 0.8, h: 0.6, mascara: 'retangulo' },
     logo: { x: 0.42, y: 0.04, w: 0.16, h: 0.12 },
     lista: { x: 0.05, y: 0.2, w: 0.9, h: 0.6, familia: 'simples', tamanho: 0.04, cor: 'branco', faixa: 'escuro' },
+    selo: { x: 0.64, y: 0.6, w: 0.3, h: 0.24, campo: 'preco', familia: 'forte', tamanho: 0.05, cor: 'destaque', formaSelo: 'estrela', girar: -8 },
   };
   return { id: newId(), tipo, x: 0, y: 0, w: 0.5, h: 0.2, ...base[tipo], ...extra } as CamadaArte;
 }
@@ -212,7 +213,7 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object
 const fr = (v: unknown, d: number, min = 0, max = 1) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : d);
 const CORES: CorArte[] = ['primaria', 'destaque', 'creme', 'escuro', 'branco'];
 const cor = (v: unknown): CorArte | undefined => (CORES.includes(v as CorArte) ? (v as CorArte) : undefined);
-const TIPOS: CamadaArte['tipo'][] = ['foto', 'texto', 'forma', 'logo', 'enfeite', 'lista'];
+const TIPOS: CamadaArte['tipo'][] = ['foto', 'texto', 'forma', 'logo', 'enfeite', 'lista', 'selo'];
 const MASCARAS = ['retangulo', 'pote', 'circulo', 'arco', 'arredondado'] as const;
 const CAMPOS = ['titulo', 'subtitulo', 'chamada', 'preco', 'livre'] as const;
 
@@ -237,6 +238,10 @@ function camadaDe(v: unknown): CamadaArte | null {
   if (v.alinhar === 'esquerda' || v.alinhar === 'direita' || v.alinhar === 'centro') k.alinhar = v.alinhar;
   if (v.maiusculas === true) k.maiusculas = true;
   if (v.sombra === true) k.sombra = true;
+  if (v.contorno === true) k.contorno = true;
+  const kft = cor(v.fundoTexto);
+  if (kft) k.fundoTexto = kft;
+  if (v.formaSelo === 'circulo' || v.formaSelo === 'estrela' || v.formaSelo === 'etiqueta') k.formaSelo = v.formaSelo;
   if (MASCARAS.includes(v.mascara as (typeof MASCARAS)[number])) k.mascara = v.mascara as CamadaArte['mascara'];
   if (typeof v.escurecer === 'number') k.escurecer = fr(v.escurecer, 0, 0, 0.8);
   if (typeof v.raio === 'number') k.raio = fr(v.raio, 0, 0, 1);
