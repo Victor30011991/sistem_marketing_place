@@ -7,7 +7,7 @@ import { Button, Field, Notice, NumberInput, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
 import { logoSrc } from '../ui/logo';
 import { Etiqueta, EtiquetaImpressa, type EdicaoEtiqueta } from '../components/Etiqueta';
-import { FAMILIAS, PECAS_MULTIPLAS, SELOS, areaDe } from '../core/etiquetas';
+import { FAMILIAS, PECAS_MULTIPLAS, SELOS, areaDe, lugarLivre } from '../core/etiquetas';
 import { ROTULOS_PRONTOS, conferirRotulo } from '../core/rotulos';
 import { fotoProduto } from '../ui/foto';
 import '@fontsource-variable/caveat';
@@ -184,6 +184,17 @@ export default function Etiquetas() {
     const resto = modelos.filter((m) => m.id !== modelo.id);
     gravarModelos(resto);
     setModeloId(resto[0].id);
+  }
+  /** Liga ou desliga uma peça da lista. Ao ligar, ela vai para um lugar livre e visível da etiqueta (e vai para a frente). */
+  function ligarPeca(p: PecaEtiqueta, on: boolean) {
+    if (!on) {
+      mudarPeca(p.id, { ativo: false });
+      return;
+    }
+    const lado = modelo.solapa ? face : undefined;
+    const nova = lugarLivre(modelo, { ...p, ativo: true, ...(lado ? { lado } : {}) }, lado);
+    salvar({ ...modelo, pecas: [...modelo.pecas.filter((x) => x.id !== p.id), nova] });
+    setSelId(p.id);
   }
   function addPeca(p: PecaEtiqueta) {
     const nova = limitar({ ...p, ...(modelo.solapa ? { lado: face } : {}) }, modelo);
@@ -523,7 +534,7 @@ export default function Etiquetas() {
                 return (
                   <li key={p.id} className={p.id === selId ? 'sel' : ''}>
                     <label>
-                      <input type="checkbox" checked={p.ativo && daFace(p)} onChange={(e) => { mudarPeca(p.id, { ativo: e.target.checked, ...(modelo.solapa && e.target.checked ? { lado: face } : {}) }); setSelId(p.id); }} />
+                      <input type="checkbox" checked={p.ativo && daFace(p)} onChange={(e) => ligarPeca(p, e.target.checked)} />
                       <span>
                         {p.tipo === 'texto' ? `Texto: ${p.texto || '…'}` : p.tipo === 'forma' ? 'Faixa / forma de cor' : info.rotulo}
                         {info.dica && <small>{info.dica}</small>}
