@@ -25,13 +25,15 @@ export function PixBalcao({ orcamentoCfg, valor, txid }: { orcamentoCfg: unknown
   const [grande, setGrande] = useState(false);
   const pix = useMemo(() => (valor > 0 ? pixCopiaECola(cfgOrcamento(orcamentoCfg), valor, txid) : null), [orcamentoCfg, valor, txid]);
   const temChave = !!cfgOrcamento(orcamentoCfg).pixChave.trim();
-  if (!temChave)
+  if (!temChave || !pix)
     return (
-      <p className="muted small">
-        Para mostrar o QR do Pix aqui, cadastre a chave em <Link to="/orcamento">Orçamento › Pix</Link>.
-      </p>
+      <div className="pix-falta">
+        <p>{temChave ? 'O QR não saiu: confira a chave, o nome e a cidade do Pix.' : 'Para o QR aparecer aqui, cadastre a chave Pix da loja (uma vez só).'}</p>
+        <Link className="btn btn-secondary btn-sm" to="/orcamento?cfg=pix">
+          {temChave ? 'Conferir o Pix' : 'Cadastrar chave Pix'}
+        </Link>
+      </div>
     );
-  if (!pix) return <p className="muted small">Confira a chave, o nome e a cidade do Pix em <Link to="/orcamento">Orçamento</Link>.</p>;
   async function copiar() {
     try {
       await navigator.clipboard.writeText(pix as string);

@@ -45,3 +45,10 @@
 .abc-letra.abc-C { background: var(--paper); color: var(--muted); }
 @media (max-width: 760px) { .abc-resumo { grid-template-columns: 1fr; } }
 .volta-convidar { display: inline-flex; margin-top: 6px; }
+
+/* Pix sempre à vista no PDV */
+.pdv2-pix { margin: 12px 0 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.pdv2-pix h3 { margin: 0; font-size: 1rem; }
+.pdv2-pix .pix-balcao { margin-top: 8px; }
+.pix-falta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 6px; }
+.pix-falta p { margin: 0; flex: 1 1 200px; }

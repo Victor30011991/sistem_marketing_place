@@ -703,10 +703,10 @@ export default function Pdv() {
           </div>
 
           {itens.length > 0 && valorPix > 0 && (
-            <details className="pdv2-descvenda pdv2-pix">
-              <summary>QR do Pix · {formatBRL(valorPix)}</summary>
+            <section className="pdv2-pix" aria-label={`Pix de ${formatBRL(valorPix)}`}>
+              <h3>Pix · {formatBRL(valorPix)}</h3>
               <PixBalcao orcamentoCfg={config.orcamentoCfg} valor={valorPix} txid="PDV" />
-            </details>
+            </section>
           )}
 
           <details className="pdv2-descvenda">

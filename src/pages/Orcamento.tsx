@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import { Button, Empty, Field, MoneyInput, Notice, NumberInput, PageHeader, downloadBlob } from '../ui/ui';
@@ -335,6 +335,11 @@ export default function Orcamento() {
   const setCli = (k: keyof Rascunho['cliente'], v: string) => atualizar((o) => ({ ...o, cliente: { ...o.cliente, [k]: v } }));
   const sugerirParcelar = cfg.parcelarAcima > 0 && tot.total >= cfg.parcelarAcima && r.parcelas <= 1;
   const pixInvalido = cfg.pixChave.trim() && !chavePix(cfg.pixTipo, cfg.pixChave);
+  // vindo do PDV ("Cadastrar chave Pix"): abre a configuração já no Pix
+  const abrirPix = new URLSearchParams(useLocation().search).get('cfg') === 'pix';
+  useEffect(() => {
+    if (abrirPix) setTimeout(() => document.getElementById('orc-pix')?.scrollIntoView({ block: 'start' }), 50);
+  }, [abrirPix]);
   const pixIncompleto = cfg.pixChave.trim() && !pixInvalido && (!cfg.pixNome.trim() || !cfg.pixCidade.trim());
 
   return (
@@ -658,7 +663,7 @@ export default function Orcamento() {
       </section>
 
       <section className="card">
-        <details className="orc-cfg">
+        <details className="orc-cfg" open={abrirPix || undefined}>
           <summary>
             <h2>Configurar orçamento</h2>
             <span className="muted small">Validade, formas de pagamento, Pix e cupom</span>
@@ -679,7 +684,7 @@ export default function Orcamento() {
               )}
             </Field>
           </div>
-          <h3 className="orc-sub">Pix copia e cola</h3>
+          <h3 className="orc-sub" id="orc-pix">Pix copia e cola</h3>
           <p className="muted small">Com a chave preenchida, o orçamento leva o QR code e o código do Pix já com o valor. O cliente paga sem pedir a chave.</p>
           <div className="form-grid">
             <Field label="Tipo de chave">
