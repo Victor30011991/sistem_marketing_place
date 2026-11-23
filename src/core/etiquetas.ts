@@ -163,6 +163,55 @@ export function limitar(p: PecaEtiqueta, modelo: Pick<ModeloEtiqueta, 'largura' 
   return { ...p, w, h, x: Math.min(Math.max(r(p.x), mg), mg + W - w), y: Math.min(Math.max(r(p.y), mg), mg + H - h) };
 }
 
+/** Tamanho inicial de uma peça ligada pela lista, em mm (cabe na área da etiqueta). */
+function tamanhoInicial(tipo: TipoPeca, W: number, H: number): { w: number; h: number; fonte: number } {
+  const t: Partial<Record<TipoPeca, [number, number, number]>> = {
+    nutricao: [40, 30, 6],
+    codigo: [34, 12, 8],
+    ingredientes: [40, 10, 6],
+    fabricante: [40, 8, 5.5],
+    conservacao: [40, 6, 5.5],
+    modoUso: [40, 8, 6],
+    gluten: [34, 5, 7],
+    logo: [12, 12, 8],
+    selos: [30, 8, 6],
+    nome: [40, 8, 12],
+  };
+  const [w, h, fonte] = t[tipo] ?? [28, 5, 8];
+  return { w: Math.min(w, W), h: Math.min(h, H), fonte };
+}
+
+/**
+ * Lugar para uma peça que acabou de ser ligada: dentro da área segura (no rótulo redondo, o quadrado de dentro do
+ * círculo) e onde ela cobre menos as peças que já estão na etiqueta.
+ */
+export function lugarLivre(m: ModeloEtiqueta, nova: PecaEtiqueta, lado?: 'frente' | 'verso'): PecaEtiqueta {
+  const a = areaDe(m);
+  const mg = Math.max(a.margem ?? 0, 1);
+  let x0 = mg, y0 = mg, W = a.largura - 2 * mg, H = a.altura - 2 * mg;
+  if (m.forma === 'redondo' || m.forma === 'oval') {
+    // quadrado (retângulo) inscrito na elipse
+    const k = Math.SQRT1_2;
+    x0 = a.largura / 2 - (a.largura / 2) * k + 1;
+    y0 = a.altura / 2 - (a.altura / 2) * k + 1;
+    W = a.largura * k - 2;
+    H = a.altura * k - 2;
+  }
+  const { w, h, fonte } = tamanhoInicial(nova.tipo, W, H);
+  const outras = m.pecas.filter((p) => p.ativo && p.id !== nova.id && (!m.solapa || (p.lado ?? 'frente') === (lado ?? 'frente')));
+  const cobre = (x: number, y: number) =>
+    outras.reduce((s, p) => s + Math.max(0, Math.min(x + w, p.x + p.w) - Math.max(x, p.x)) * Math.max(0, Math.min(y + h, p.y + p.h) - Math.max(y, p.y)), 0);
+  let melhor = { x: x0 + (W - w) / 2, y: y0 + (H - h) / 2, c: Infinity };
+  const passo = 1;
+  for (let y = y0; y <= y0 + H - h + 0.01; y += passo)
+    for (let x = x0; x <= x0 + W - w + 0.01; x += passo) {
+      // empate: prefere perto do centro, para não sumir num canto
+      const c = cobre(x, y) + Math.hypot(x + w / 2 - (x0 + W / 2), y + h / 2 - (y0 + H / 2)) * 0.01;
+      if (c < melhor.c) melhor = { x, y, c };
+    }
+  return limitar({ ...nova, w, h, fonte: nova.fonte || fonte, x: melhor.x, y: melhor.y }, m);
+}
+
 /** Área de uma face: na solapa, cada lado é metade da altura. */
 export function areaDe<T extends Pick<ModeloEtiqueta, 'largura' | 'altura' | 'margem' | 'solapa'>>(m: T): T {
   return m.solapa ? { ...m, altura: m.altura / 2 } : m;

@@ -96,3 +96,18 @@ describe('modelos', () => {
     expect(volta.ingredientes).toBe('Cúrcuma.');
   });
 });
+
+describe('ligar peça pela lista', () => {
+  it('vai para dentro do círculo do rótulo redondo e longe das outras peças', async () => {
+    const { ROTULOS_PRONTOS } = await import('../src/core/rotulos');
+    const { lugarLivre } = await import('../src/core/etiquetas');
+    const m = ROTULOS_PRONTOS.find((r) => r.id === 'redondo')!.criar();
+    const cod = m.pecas.find((p) => p.tipo === 'codigo')!;
+    const n = lugarLivre(m, { ...cod, ativo: true });
+    // centro da peça dentro do círculo de 60 mm
+    const cx = n.x + n.w / 2 - 30, cy = n.y + n.h / 2 - 30;
+    expect(Math.hypot(cx, cy)).toBeLessThan(30);
+    // os quatro cantos dentro do círculo
+    for (const [x, y] of [[n.x, n.y], [n.x + n.w, n.y], [n.x, n.y + n.h], [n.x + n.w, n.y + n.h]]) expect(Math.hypot(x - 30, y - 30)).toBeLessThanOrEqual(30.5);
+  });
+});
