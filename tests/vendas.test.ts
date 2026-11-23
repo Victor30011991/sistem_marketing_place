@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diaLocal, fecharVenda, itemVenda, lerPedidoWhatsapp, moverEstoque, resumoVendas, unidadeDeVenda } from '../src/core/vendas';
+import { diaLocal, fecharVenda, itemVenda, lerPedidoWhatsapp, qtdPorValor, moverEstoque, resumoVendas, unidadeDeVenda } from '../src/core/vendas';
 import { defaultSettings, defaultStore } from '../src/core/defaults';
 import { montarCardapio, VITRINE_PADRAO } from '../src/core/vitrine';
 import { criarBackup, lerBackup } from '../src/core/backup';
@@ -202,5 +202,26 @@ describe('PDV novo: desconto por item e pagamento dividido', () => {
       expect(r.config.vendas).toEqual(cfg.vendas);
       expect(r.config.vendasPausadas).toEqual(cfg.vendasPausadas);
     }
+  });
+});
+
+describe('venda pelo valor (R$ 4 de páprica)', () => {
+  const base = { categoria: '', custo: 3000, custosAdicionais: 0, propQtd: 100, propUnidade: 'g', observacoes: '' };
+  it('converte o valor em gramas pelo preço do kg', () => {
+    const paprica = { ...base, id: 'p', nome: 'Páprica', unidade: 'kg', venda: 8000 } as Product; // R$ 80/kg
+    expect(qtdPorValor(paprica, 400)).toEqual({ qtd: 50, unidade: 'g' });
+    expect(qtdPorValor(paprica, 0)).toBeNull();
+  });
+  it('produto por unidade vira fração', () => {
+    const pote = { ...base, id: 'u', nome: 'Pote', unidade: 'un', venda: 1500 } as Product;
+    expect(qtdPorValor(pote, 3000)).toEqual({ qtd: 2, unidade: 'un' });
+  });
+  it('sem preço não calcula', () => {
+    expect(qtdPorValor({ ...base, id: 'x', nome: 'X', unidade: 'kg', venda: null } as Product, 400)).toBeNull();
+  });
+  it('venda lançada depois guarda lancadaEm no backup', () => {
+    const v: Venda = { id: 'v', quando: '2026-11-20T15:00:00.000Z', lancadaEm: '2026-11-22T23:00:00.000Z', itens: [{ produtoId: 'p', nome: 'P', qtd: 50, unidade: 'g', total: 400, custo: 150 }], desconto: 0, total: 400, pagamento: 'pix', pagamentoLabel: 'Pix', taxa: 0, cliente: '' };
+    const b = lerBackup(criarBackup({ nome: 'x', produtos: [], categorias: [] }, defaultStore(), { ...defaultSettings(), vendas: [v] }));
+    expect(b.ok && b.config.vendas?.[0].lancadaEm).toBe('2026-11-22T23:00:00.000Z');
   });
 });

@@ -121,6 +121,7 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
       propQtd: temProp && propUnits.includes(d.propUnidade!) ? d.propQtd : null,
       propUnidade: temProp && propUnits.includes(d.propUnidade!) ? d.propUnidade : null,
       estoque: d.estoque ?? null,
+      estoqueMinimo: d.estoqueMinimo != null && d.estoqueMinimo > 0 ? d.estoqueMinimo : null,
       conteudoQtd: conteudo ? conteudo.qtd : null,
       conteudoUnidade: conteudo ? conteudo.unidade : null,
     });
@@ -234,6 +235,9 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
 
         <Field label="Estoque atual (opcional)" hint={`Quantidade em estoque, em ${unidade || 'unidades'}. Usada no custo médio e na ficha de inventário.`}>
           {(id) => <OptionalNumber id={id} placeholder="Ex.: 12" value={d.estoque} onChange={(v) => set({ estoque: v })} />}
+        </Field>
+        <Field label="Estoque mínimo (opcional)" hint={`Quando o estoque chegar a isto (em ${unidade || 'unidades'}), o PDV avisa e oferece pôr na lista de compras.`}>
+          {(id) => <OptionalNumber id={id} placeholder="Ex.: 0,5" value={d.estoqueMinimo ?? null} onChange={(v) => set({ estoqueMinimo: v })} />}
         </Field>
 
         <div className="span-2">

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { acharCliente, novoCliente } from '../core/clientes';
 import { contaFiado } from '../core/contas';
 import { CaixaBarra, CaixasAnteriores } from '../components/CaixaBarra';
@@ -8,7 +8,8 @@ import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import { Button, Empty, Indicadores, MoneyInput, Notice, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
-import { comDesconto, descontoDoTexto, diaLocal, fecharPdv, formasPdv, itemVenda, lerPedidoWhatsapp, qtdNoProduto, resumoVendas, unidadeDeVenda } from '../core/vendas';
+import { comDesconto, descontoDoTexto, diaLocal, fecharPdv, formasPdv, itemVenda, lerPedidoWhatsapp, moverEstoque, qtdNoProduto, qtdPorValor, resumoVendas, unidadeDeVenda } from '../core/vendas';
+import { clienteDaVenda, estoqueBaixo, linkWhatsapp, maisVendidos, porNaListaCompras, reciboTexto, resumoDiaTexto, semanaPassada, ultimaCompra, variacao } from '../core/pdvExtras';
 import { balancaDe, lerEtiquetaBalanca } from '../core/balanca';
 import { formatBRL, parseNumberBR } from '../core/money';
 import { norm, newId } from '../core/normalize';
@@ -84,6 +85,12 @@ export default function Pdv() {
   const [qtdTxt, setQtdTxt] = useState('');
   const [colar, setColar] = useState<string | null>(null);
   const [dia, setDia] = useState(diaLocal(new Date()));
+  /** venda pelo valor em R$ (em vez de gramas) no produto escolhido */
+  const [porValor, setPorValor] = useState(false);
+  /** data e hora de uma venda lançada depois (datetime-local); vazio = agora */
+  const [retro, setRetro] = useState('');
+  /** última venda finalizada: recibo pelo WhatsApp e aviso de estoque baixo */
+  const [feita, setFeita] = useState<{ venda: Venda; baixos: Product[] } | null>(null);
   const qtdRef = useRef<HTMLInputElement>(null);
   const buscaRef = useRef<HTMLInputElement>(null);
 
@@ -140,13 +147,18 @@ export default function Pdv() {
   function escolher(p: Product) {
     setSel(p);
     setQtdTxt('');
+    setPorValor(false);
     setTimeout(() => qtdRef.current?.focus(), 0);
   }
-  const qtdSel = parseNumberBR(qtdTxt);
-  const previaSel = sel && qtdSel ? itemVenda(sel, qtdSel) : null;
+  const numSel = parseNumberBR(qtdTxt);
+  const pv = sel && porValor && numSel ? qtdPorValor(sel, Math.round(numSel * 100)) : null;
+  const qtdSel = porValor ? (pv?.qtd ?? null) : numSel;
+  const calcSel = sel && qtdSel ? itemVenda(sel, qtdSel) : null;
+  const previaSel = calcSel && pv && numSel ? { ...calcSel, total: Math.round(numSel * 100) } : calcSel;
   function confirmarSel() {
     if (!sel || !previaSel) return;
-    adicionar(sel, qtdSel!);
+    if (pv && numSel) adicionar(sel, pv.qtd, pv.unidade, Math.round(numSel * 100));
+    else adicionar(sel, qtdSel!);
     setSel(null);
     setBusca('');
     setQtdTxt('');
@@ -207,9 +219,14 @@ export default function Pdv() {
     const fiado = pagamentos.pagamentos.filter((p) => p.forma === 'fiado').reduce((a, p) => a + p.valor, 0);
     if (fiado > 0 && !r.cliente.trim()) return toast('Para vender fiado, escreva o nome do cliente.', 'erro');
     const principal = [...pagamentos.pagamentos].sort((a, b) => b.valor - a.valor)[0] ?? { forma: 'pix', label: 'Pix' };
+    const agora = new Date();
+    const dataRetro = retro ? new Date(retro) : null;
+    if (dataRetro && (isNaN(dataRetro.getTime()) || dataRetro > agora)) return toast('A data da venda não pode ser no futuro.', 'erro');
+    const quando = dataRetro ?? agora;
     const venda: Venda = {
       id: newId(),
-      quando: new Date().toISOString(),
+      quando: quando.toISOString(),
+      ...(dataRetro ? { lancadaEm: agora.toISOString() } : {}),
       itens: itens.map((x) => x.it),
       desconto: pagamentos.desconto,
       total: pagamentos.total,
@@ -228,13 +245,16 @@ export default function Pdv() {
       const existente = (r.clienteId && clientes.find((c) => c.id === r.clienteId)) || acharCliente(clientes, { nome: r.cliente });
       const cli = existente || novoCliente({ nome: r.cliente });
       venda.clienteId = cli.id;
-      const conta = contaFiado(fiado, venda.id, cli.id, config.prazoFiado ?? 30);
+      const conta = contaFiado(fiado, venda.id, cli.id, config.prazoFiado ?? 30, quando);
       act.config((s) => ({ ...s, clientes: existente ? s.clientes ?? [] : [...(s.clientes ?? []), cli], contas: [...(s.contas ?? []), conta] }));
     }
     act.registrarVenda(venda);
+    setFeita({ venda, baixos: estoqueBaixo(moverEstoque(lista.produtos, venda.itens, -1), venda.itens.map((i) => i.produtoId)) });
     rascunho = null;
     setR(vazio());
-    setDia(diaLocal(new Date()));
+    setRetro('');
+    setDia(diaLocal(quando));
+    if (dataRetro) return toast(`Venda de ${quando.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} registrada: ${formatBRL(venda.total)}. Ela não entra no caixa de hoje.`);
     toast(pagamentos.troco > 0 ? `Venda registrada: ${formatBRL(venda.total)}. Troco: ${formatBRL(pagamentos.troco)}.` : `Venda registrada: ${formatBRL(venda.total)}.`);
     setTimeout(() => buscaRef.current?.focus(), 0);
   }
@@ -246,6 +266,58 @@ export default function Pdv() {
 
   const doDia = (config.vendas ?? []).filter((v) => diaLocal(v.quando) === dia);
   const res = resumoVendas(doDia);
+  const comp = semanaPassada(config.vendas ?? [], dia);
+  const pctSemana = variacao(res.total, comp.total);
+  const topo = useMemo(() => maisVendidos(config.vendas ?? [], lista.produtos), [config.vendas, lista.produtos]);
+  const ultima = r.cliente.trim() ? ultimaCompra(config.vendas ?? [], { id: r.clienteId, nome: r.cliente }) : null;
+
+  function abrirRecibo(v: Venda) {
+    window.open(linkWhatsapp(clienteDaVenda(config.clientes ?? [], v)?.telefone, reciboTexto(v, state.loja)), '_blank', 'noopener');
+  }
+  function repetir(v: Venda) {
+    v.itens.forEach((i) => {
+      const p = porId.get(i.produtoId);
+      if (p && p.venda) adicionar(p, i.qtd, i.unidade);
+    });
+    toast('Itens da última compra adicionados. Ajuste o que mudou.');
+  }
+  function mandarResumo() {
+    window.open(linkWhatsapp('', resumoDiaTexto(res, dia, state.loja, comp)), '_blank', 'noopener');
+  }
+  function porNaLista(ps: Product[]) {
+    act.compras(porNaListaCompras(config.compras, ps));
+    setFeita((f) => (f ? { ...f, baixos: [] } : f));
+    toast(`${ps.length} produto(s) na lista de compras.`);
+  }
+  function tocarRapido(p: Product) {
+    setBusca(p.nome);
+    escolher(p);
+  }
+
+  // atalhos de teclado (computador do balcão)
+  const atalhoRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  atalhoRef.current = (e: KeyboardEvent) => {
+    if (e.key === 'F2') {
+      e.preventDefault();
+      buscaRef.current?.focus();
+      buscaRef.current?.select();
+    } else if (e.key === 'F4') {
+      e.preventDefault();
+      if (itens.length) addPagamento('pix');
+    } else if (e.key === 'F8') {
+      e.preventDefault();
+      finalizar();
+    } else if (e.key === 'Escape' && (sel || busca)) {
+      setSel(null);
+      setBusca('');
+      buscaRef.current?.focus();
+    }
+  };
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => atalhoRef.current(e);
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
 
   return (
     <div className="page">
@@ -282,6 +354,18 @@ export default function Pdv() {
                 }}
               />
             </div>
+            {!busca.trim() && colar == null && topo.length > 0 && (
+              <div className="pdv-rapidos" aria-label="Mais vendidos">
+                {topo.map((p) => (
+                  <button key={p.id} type="button" className="pdv-rapido" onClick={() => tocarRapido(p)}>
+                    <strong>{p.nome}</strong>
+                    <small>
+                      {formatBRL(p.venda)}/{p.unidade}
+                    </small>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="pdv2-acoes">
               <Button variant="ghost" icon="file" onClick={() => setColar((c) => (c == null ? '' : null))} aria-expanded={colar != null}>
                 Pedido do WhatsApp
@@ -308,19 +392,36 @@ export default function Pdv() {
                     </button>
                     {sel?.id === p.id && (
                       <div className="pdv-qtd">
+                        <div className="pdv-modo" role="radiogroup" aria-label="Vender por">
+                          <button type="button" role="radio" aria-checked={!porValor} className={!porValor ? 'on' : ''} onClick={() => { setPorValor(false); setQtdTxt(''); qtdRef.current?.focus(); }}>
+                            {unidadeDeVenda(p) === 'g' ? 'Por peso' : 'Por quantidade'}
+                          </button>
+                          <button type="button" role="radio" aria-checked={porValor} className={porValor ? 'on' : ''} onClick={() => { setPorValor(true); setQtdTxt(''); qtdRef.current?.focus(); }}>
+                            Por valor (R$)
+                          </button>
+                        </div>
                         <div className="row-gap">
-                          <label htmlFor="pdv-q">Quantidade ({unidadeDeVenda(p)})</label>
-                          <input id="pdv-q" ref={qtdRef} inputMode="decimal" value={qtdTxt} onChange={(e) => setQtdTxt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmarSel()} autoComplete="off" />
+                          <label htmlFor="pdv-q">{porValor ? 'Valor (R$)' : `Quantidade (${unidadeDeVenda(p)})`}</label>
+                          <input id="pdv-q" ref={qtdRef} inputMode="decimal" value={qtdTxt} onChange={(e) => setQtdTxt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && confirmarSel()} autoComplete="off" placeholder={porValor ? '4,00' : ''} />
                         </div>
                         <div className="chips-add">
-                          {atalhos(unidadeDeVenda(p)).map((a) => (
-                            <button key={a} type="button" className="mini" onClick={() => setQtdTxt(String(a))}>
-                              {qtdTexto(a, unidadeDeVenda(p))}
-                            </button>
-                          ))}
+                          {porValor
+                            ? [2, 5, 10, 20].map((a) => (
+                                <button key={a} type="button" className="mini" onClick={() => setQtdTxt(String(a))}>
+                                  {formatBRL(a * 100)}
+                                </button>
+                              ))
+                            : atalhos(unidadeDeVenda(p)).map((a) => (
+                                <button key={a} type="button" className="mini" onClick={() => setQtdTxt(String(a))}>
+                                  {qtdTexto(a, unidadeDeVenda(p))}
+                                </button>
+                              ))}
                         </div>
                         <div className="row-gap pdv-qtd-fim">
-                          <strong>{previaSel ? formatBRL(previaSel.total) : '—'}</strong>
+                          <strong>
+                            {previaSel ? formatBRL(previaSel.total) : '—'}
+                            {pv && <small className="muted"> = {qtdTexto(pv.qtd, pv.unidade)}</small>}
+                          </strong>
                           <Button icon="plus" onClick={confirmarSel} disabled={!previaSel}>
                             Adicionar
                           </Button>
@@ -383,7 +484,7 @@ export default function Pdv() {
                           </td>
                           <td className="num pdv2-c-qtd">
                             {l.total != null ? (
-                              <span className="muted nowrap" title="Valor da etiqueta da balança">
+                              <span className="muted nowrap" title="Valor fechado (etiqueta da balança ou venda pelo valor)">
                                 {qtdTexto(l.qtd, l.unidade)}
                               </span>
                             ) : (
@@ -435,6 +536,16 @@ export default function Pdv() {
                 ))}
               </datalist>
             </label>
+            {ultima && (
+              <div className="pdv-ultima">
+                <span className="small">
+                  <strong>Última compra em {new Date(ultima.quando).toLocaleDateString('pt-BR')}:</strong> {ultima.itens.map((i) => `${i.nome} (${qtdTexto(i.qtd, i.unidade)})`).join(', ')} · {formatBRL(ultima.total)}
+                </span>
+                <Button variant="secondary" icon="plus" onClick={() => repetir(ultima)}>
+                  Repetir pedido
+                </Button>
+              </div>
+            )}
           </section>
 
           {pausadas.length > 0 && (
@@ -550,10 +661,56 @@ export default function Pdv() {
             </div>
           </details>
 
+          <details className="pdv2-descvenda" open={!!retro || undefined}>
+            <summary>Venda de outro dia</summary>
+            <div className="row-gap">
+              <input
+                type="datetime-local"
+                aria-label="Data e hora da venda"
+                value={retro}
+                max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                onChange={(e) => setRetro(e.target.value)}
+              />
+              {retro && (
+                <Button variant="ghost" onClick={() => setRetro('')}>
+                  Usar agora
+                </Button>
+              )}
+            </div>
+            <p className="muted small">Para lançar uma venda que não deu para registrar na hora. Ela fica no dia escolhido e não entra no caixa de hoje.</p>
+          </details>
+
           <Button icon="check" onClick={finalizar} disabled={!itens.length || (r.pagos.length > 0 && (fech.falta > 0 || fech.excesso > 0))} className="pdv-registrar">
             {r.pagos.length ? 'Finalizar venda' : `Finalizar no Pix · ${formatBRL(fech.total)}`}
+            {retro ? ` · ${new Date(retro).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}
           </Button>
           {!r.pagos.length && itens.length > 0 && <p className="muted small">Sem forma escolhida, a venda entra como Pix. Para outra forma ou para dividir, toque em “Receber em”.</p>}
+          {feita && (
+            <div className="pdv-feita" role="status">
+              <div className="row-gap pdv-feita-topo">
+                <strong>Venda registrada · {formatBRL(feita.venda.total)}</strong>
+                <button type="button" className="icon-btn" aria-label="Fechar aviso da venda" onClick={() => setFeita(null)}>
+                  <Icon name="x" />
+                </button>
+              </div>
+              <Button variant="secondary" icon="send" onClick={() => abrirRecibo(feita.venda)}>
+                Mandar recibo no WhatsApp
+              </Button>
+              {feita.baixos.length > 0 && (
+                <div className="pdv-baixo">
+                  <p className="small">
+                    <strong>Estoque baixo:</strong> {feita.baixos.map((p) => `${p.nome} (${String(p.estoque).replace('.', ',')} ${p.unidade})`).join(', ')}
+                  </p>
+                  <Button variant="ghost" icon="plus" onClick={() => porNaLista(feita.baixos)}>
+                    Pôr na lista de compras
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          <p className="muted small pdv-atalhos">
+            Atalhos: <kbd>F2</kbd> buscar, <kbd>F4</kbd> Pix, <kbd>F8</kbd> finalizar, <kbd>Esc</kbd> limpar.
+          </p>
         </aside>
       </div>
 
@@ -573,12 +730,22 @@ export default function Pdv() {
           <>
             <Indicadores
               itens={[
-                { rotulo: 'Faturado', valor: formatBRL(res.total), nota: `${res.vendas} venda(s)${res.canceladas ? ` · ${res.canceladas} cancelada(s)` : ''}` },
+                {
+                  rotulo: 'Faturado',
+                  valor: formatBRL(res.total),
+                  nota: `${res.vendas} venda(s)${res.canceladas ? ` · ${res.canceladas} cancelada(s)` : ''}${pctSemana != null ? ` · ${pctSemana >= 0 ? '+' : ''}${pctSemana}% vs. semana passada (${formatBRL(comp.total)})` : ''}`,
+                  tom: pctSemana == null ? undefined : pctSemana >= 0 ? 'ok' : 'warn',
+                },
                 { rotulo: 'Ticket médio', valor: formatBRL(res.ticketMedio), nota: 'Total ÷ número de vendas' },
                 { rotulo: 'Descontos dados', valor: formatBRL(res.descontos), nota: `${String(res.descontoPct).replace('.', ',')}% do preço de tabela`, tom: res.descontoPct > 10 ? 'warn' : 'neutro' },
                 { rotulo: 'Lucro bruto estimado', valor: formatBRL(res.lucroBruto), nota: 'Total − custo dos produtos − taxas (sem despesas fixas)', tom: res.lucroBruto > 0 ? 'ok' : 'warn' },
               ]}
             />
+            <div className="row-gap wrap">
+              <Button variant="secondary" icon="send" onClick={mandarResumo}>
+                Mandar resumo do dia no WhatsApp
+              </Button>
+            </div>
             <div className="pdv-fecha">
               <div>
                 <h3>Fechamento por forma de pagamento</h3>
@@ -629,6 +796,7 @@ export default function Pdv() {
                     <tr key={v.id} className={v.cancelada ? 'pdv-cancelada' : ''}>
                       <td className="nowrap">
                         {new Date(v.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        {v.lancadaEm && <small className="muted" title={`Lançada em ${new Date(v.lancadaEm).toLocaleString('pt-BR')}`}> · lançada depois</small>}
                         {v.por && <small className="muted"> · {v.por}</small>}
                       </td>
                       <td>
@@ -639,6 +807,11 @@ export default function Pdv() {
                       <td className="nowrap">{v.pagamentoLabel}</td>
                       <td className="num strong">{formatBRL(v.total)}</td>
                       <td className="c-actions">
+                        {!v.cancelada && (
+                          <button type="button" className="icon-btn" aria-label={`Mandar recibo da venda de ${formatBRL(v.total)} no WhatsApp`} title="Recibo no WhatsApp" onClick={() => abrirRecibo(v)}>
+                            <Icon name="send" />
+                          </button>
+                        )}
                         {!v.cancelada && (
                           <button type="button" className="icon-btn danger" aria-label={`Cancelar venda de ${formatBRL(v.total)}`} title="Cancelar venda" onClick={() => cancelar(v)}>
                             <Icon name="x" />

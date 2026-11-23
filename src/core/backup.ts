@@ -69,6 +69,7 @@ function lerProduto(v: unknown): Product | null {
     observacoes: str(v.observacoes),
   };
   if (v.estoque !== undefined) p.estoque = num(v.estoque);
+  if (num(v.estoqueMinimo) != null) p.estoqueMinimo = num(v.estoqueMinimo);
   if (v.conteudoQtd !== undefined) p.conteudoQtd = num(v.conteudoQtd);
   if (v.conteudoUnidade !== undefined) p.conteudoUnidade = typeof v.conteudoUnidade === 'string' ? v.conteudoUnidade : null;
   if (typeof v.plu === 'number' && Number.isInteger(v.plu) && v.plu > 0 && v.plu <= 999999) p.plu = v.plu;
@@ -171,6 +172,7 @@ function lerVenda(raw: unknown): Venda | null {
   }
   if (cent(raw.troco) > 0) v.troco = cent(raw.troco);
   if (typeof raw.cancelada === 'string') v.cancelada = raw.cancelada;
+  if (typeof raw.lancadaEm === 'string') v.lancadaEm = raw.lancadaEm;
   return v;
 }
 

@@ -37,6 +37,20 @@ export function itemVenda(produto: Product, qtd: number, unidade = unidadeDeVend
 }
 
 /**
+ * Venda pelo valor ("R$ 4 de páprica"): quantas gramas (ou unidades) esse valor compra, já com promoção.
+ * Gramas e ml saem inteiros; unidade com até 3 casas. Sem preço ou valor zero = null.
+ */
+export function qtdPorValor(produto: Product, centavos: number): { qtd: number; unidade: string } | null {
+  const unidade = unidadeDeVenda(produto);
+  const base = unidade === 'g' || unidade === 'ml' ? 1000 : 1;
+  const preco = itemVenda(produto, base, unidade)?.total;
+  if (!preco || !(centavos > 0)) return null;
+  const bruto = (centavos / preco) * base;
+  const qtd = base === 1000 ? Math.max(1, Math.round(bruto)) : Math.max(0.001, Math.round(bruto * 1000) / 1000);
+  return { qtd, unidade };
+}
+
+/**
  * Desconto de um item digitado no balcão: "10%" (percentual) ou "2,50" (reais).
  * Devolve o desconto em centavos, limitado ao valor do item. Texto vazio ou inválido = 0.
  */

@@ -4,6 +4,7 @@ import { norm } from './normalize';
 /** Dados opcionais do produto que não têm coluna própria na planilha: viajam na aba oculta de configurações do Excel. */
 export interface ProductExtra {
   estoque?: number | null;
+  estoqueMinimo?: number | null;
   conteudoQtd?: number | null;
   conteudoUnidade?: string | null;
   plu?: number | null;
@@ -30,6 +31,7 @@ export function buildExtras(produtos: Product[]): ExtrasMap {
   for (const p of produtos) {
     const e: ProductExtra = {};
     if (p.estoque != null) e.estoque = p.estoque;
+    if (p.estoqueMinimo != null) e.estoqueMinimo = p.estoqueMinimo;
     if (p.plu) e.plu = p.plu;
     if (p.nomeBalanca?.trim()) e.nomeBalanca = p.nomeBalanca;
     if (p.ingredientes?.trim()) e.ingredientes = p.ingredientes;
