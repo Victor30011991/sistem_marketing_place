@@ -180,6 +180,41 @@ export function ranking(vendas: Venda[], produtos: Product[]): { produtos: Linha
   return { produtos: lista, categorias: [...cats.values()].map(fechar).sort((a, b) => b.total - a.total) };
 }
 
+// ---------------------------------------------------------------- curva ABC
+
+export type ClasseABC = 'A' | 'B' | 'C';
+export interface CurvaABC {
+  classe: Map<string, ClasseABC>;
+  /** pelo que foi medido: lucro (com custo) ou faturado (sem custo cadastrado) */
+  base: 'lucro' | 'total';
+  resumo: Record<ClasseABC, { produtos: number; valor: number; parte: number }>;
+}
+
+/**
+ * Curva ABC: A são os produtos que juntos dão ~80% do lucro, B os próximos ~15%, C o resto.
+ * Sem custo cadastrado em nada, usa o faturado.
+ */
+export function curvaABC(linhas: LinhaRanking[]): CurvaABC {
+  const base: CurvaABC['base'] = linhas.some((l) => l.custo > 0) ? 'lucro' : 'total';
+  const val = (l: LinhaRanking) => Math.max(0, base === 'lucro' ? l.lucro : l.total);
+  const ord = [...linhas].sort((a, b) => val(b) - val(a));
+  const soma = ord.reduce((a, l) => a + val(l), 0);
+  const classe = new Map<string, ClasseABC>();
+  const resumo: CurvaABC['resumo'] = { A: { produtos: 0, valor: 0, parte: 0 }, B: { produtos: 0, valor: 0, parte: 0 }, C: { produtos: 0, valor: 0, parte: 0 } };
+  let antes = 0;
+  for (const l of ord) {
+    const v = val(l);
+    // a classe vem de onde o produto começa na soma: quem começa antes de 80% é A, antes de 95% é B
+    const c: ClasseABC = !soma || v <= 0 ? 'C' : antes / soma < 0.8 ? 'A' : antes / soma < 0.95 ? 'B' : 'C';
+    classe.set(l.chave, c);
+    resumo[c].produtos++;
+    resumo[c].valor += v;
+    antes += v;
+  }
+  for (const k of ['A', 'B', 'C'] as const) resumo[k].parte = soma ? Math.round((resumo[k].valor / soma) * 1000) / 10 : 0;
+  return { classe, base, resumo };
+}
+
 // ---------------------------------------------------------------- resultado
 
 export interface Resultado {

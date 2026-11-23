@@ -206,6 +206,25 @@ export interface Vitrine {
   visual?: VisualCardapio;
   /** kits, combos e ofertas do carrossel, na ordem em que aparecem */
   kits?: KitCardapio[];
+  /** cupons de desconto que o cliente digita no pedido */
+  cupons?: CupomCardapio[];
+}
+
+/** Cupom do cardápio: desconto nos produtos (a entrega não entra). */
+export interface CupomCardapio {
+  id: string;
+  /** o que o cliente digita (maiúsculas, sem espaço) */
+  codigo: string;
+  tipo: 'pct' | 'valor';
+  /** % (1 a 90) ou centavos */
+  valor: number;
+  /** compra mínima em centavos (0 = qualquer valor) */
+  minimo: number;
+  /** AAAA-MM-DD, último dia que vale */
+  ate?: string;
+  ativo: boolean;
+  /** para que serve (só no sistema), ex.: primeira compra */
+  nota?: string;
 }
 
 export type TipoKit = 'combo' | 'kit' | 'oferta' | 'novidade';
@@ -421,6 +440,8 @@ export interface VendaPausada {
   cliente: string;
   clienteId?: string;
   linhas: { produtoId: string; qtd: number; unidade: string; total?: number; desconto?: string }[];
+  /** desconto na venda inteira, em centavos (ex.: cupom do cardápio) */
+  desconto?: number;
 }
 
 export interface Venda {
@@ -586,6 +607,9 @@ export interface Pedido {
   situacao: SituacaoPedido;
   /** venda pausada criada a partir do pedido */
   vendaPausada?: string;
+  /** cupom usado e o desconto em centavos (vêm escritos nas observações do pedido) */
+  cupom?: string;
+  desconto?: number;
 }
 
 export interface MovimentoCaixa {

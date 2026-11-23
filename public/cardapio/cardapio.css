@@ -354,3 +354,14 @@ a.b { text-decoration: none; }
 .sug-arte .bola { width: 36px; height: 36px; }
 .sug:not(.sug-kit) { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; }
 .sug:not(.sug-kit) .b.sec { grid-column: 2; }
+
+/* cupom */
+.cupom-linha { display: flex; gap: 8px; align-items: stretch; }
+.cupom-linha input { flex: 1 1 auto; min-width: 0; text-transform: uppercase; letter-spacing: .04em; }
+.cupom-linha .b { flex: 0 0 auto; width: auto; min-height: 48px; padding: 0 18px; }
+.cupom-linha input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+.cupom-erro { color: var(--danger); font-size: .86rem; font-weight: 600; margin: 0; }
+.cupom-ok { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 12px; color: var(--ok); font-weight: 600; background: color-mix(in srgb, var(--ok) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
+.cupom-ok span { color: var(--ink); font-weight: 500; }
+.resumo .desc span:last-child { color: var(--ok); font-weight: 700; }
+.cupom-ok .nw { white-space: nowrap; color: var(--ok); }

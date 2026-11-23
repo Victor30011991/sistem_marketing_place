@@ -7,6 +7,7 @@ import { newId } from './normalize';
 import { counterBasis } from './units';
 import { LOGO_COLORS } from './defaults';
 import { kitsDe, kitsParaCardapio, type KitPublicado } from './kits';
+import { cuponsDe, cuponsParaCardapio, type CupomPublicado } from './cupons';
 
 export const VITRINE_PADRAO: Vitrine = {
   slogan: '',
@@ -96,6 +97,7 @@ export function vitrineDe(loja: Pick<StoreInfo, 'vitrine'> | null | undefined): 
     ...(entradaDe(v.entrada) ? { entrada: entradaDe(v.entrada) } : {}),
     ...(visualDe(v.visual) ? { visual: visualDe(v.visual) } : {}),
     ...(kitsDe(v.kits).length ? { kits: kitsDe(v.kits) } : {}),
+    ...(cuponsDe(v.cupons).length ? { cupons: cuponsDe(v.cupons) } : {}),
   };
 }
 
@@ -232,6 +234,8 @@ export interface CardapioArquivo {
     /** chave já formatada, nome e cidade (o cliente monta o copia e cola com o valor) */
     pix?: { k: string; n: string; c: string };
     endereco?: string;
+    /** cupons valendo hoje */
+    cup?: CupomPublicado[];
   };
   categorias: { nome: string; itens: ItemCardapio[] }[];
   mixes?: MixCardapio[];
@@ -363,6 +367,7 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
   }
 
   const kitsPub = kitsParaCardapio(v.kits ?? [], lista.produtos, new Set(porId.keys()), hoje);
+  const cupPub = cuponsParaCardapio(v.cupons ?? [], hoje);
   const cores = loja.cores ?? LOGO_COLORS;
   const vis = v.visual ?? {};
   const hs = v.horarios;
@@ -394,6 +399,7 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
         pesos: v.pesos ?? PESOS_PADRAO,
         ...(extras.pix ? { pix: { k: extras.pix.chave, n: extras.pix.nome, c: extras.pix.cidade } } : {}),
         ...(loja.endereco?.trim() ? { endereco: loja.endereco.trim().slice(0, 200) } : {}),
+        ...(cupPub.length ? { cup: cupPub } : {}),
       },
       categorias,
       ...(mixes.length ? { mixes } : {}),

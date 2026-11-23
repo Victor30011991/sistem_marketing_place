@@ -1,3 +1,4 @@
+import '../components/pacote.css';
 import { useEffect, useMemo, useState } from 'react';
 import { useNuvem } from '../nuvem/NuvemProvider';
 import { pagoNoPeriodo, saldo } from '../core/contas';
@@ -12,7 +13,7 @@ import { formatBRL } from '../core/money';
 import { CENARIO_PADRAO, potencialEstoque, type Cenario } from '../core/potencial';
 import { paymentOptions } from '../core/pricing';
 import CodigosBalanca from '../components/CodigosBalanca';
-import { compras, estoque, noPeriodo, painel, periodoAnterior, periodoDe, ranking, resultado, variacao, type Atalho, type LinhaRanking, type Periodo } from '../core/relatorios';
+import { compras, curvaABC, estoque, noPeriodo, painel, periodoAnterior, periodoDe, ranking, resultado, variacao, type Atalho, type ClasseABC, type LinhaRanking, type Periodo } from '../core/relatorios';
 
 type Aba = 'painel' | 'vendas' | 'resultado' | 'estoque' | 'potencial' | 'compras' | 'alteracoes' | 'codigos';
 const ATALHOS: { id: Atalho; rotulo: string }[] = [
@@ -96,6 +97,7 @@ export default function Relatorios() {
     }
     return [...m.values()].sort((a, b) => b.total - a.total);
   }, [vendas, periodo]);
+  const abc = useMemo(() => curvaABC(rk.produtos), [rk.produtos]);
   const produtosOrdenados = [...rk.produtos].sort((a, b) => (ordem === 'lucro' ? b.lucro - a.lucro : ordem === 'qtd' ? b.qtd - a.qtd : b.total - a.total));
 
   return (
@@ -190,7 +192,8 @@ export default function Relatorios() {
                   </select>
                 </label>
               </div>
-              <TabelaRanking linhas={produtosOrdenados} comCategoria />
+              <ResumoABC abc={abc} />
+              <TabelaRanking linhas={produtosOrdenados} comCategoria abc={abc.classe} />
             </section>
             <section className="card">
               <h2>Categorias</h2>
@@ -771,12 +774,43 @@ function Alteracoes() {
   );
 }
 
-function TabelaRanking({ linhas, comCategoria = false }: { linhas: LinhaRanking[]; comCategoria?: boolean }) {
+const ABC_TEXTO: Record<ClasseABC, string> = { A: 'Os que mais dão lucro: nunca deixe faltar', B: 'Bons de giro: mantenha o estoque em dia', C: 'Dão pouco: compre menos ou ponha num kit' };
+
+function ResumoABC({ abc }: { abc: ReturnType<typeof curvaABC> }) {
+  const r = abc.resumo;
+  if (!r.A.produtos) return null;
+  const medida = abc.base === 'lucro' ? 'do lucro' : 'do faturado';
+  return (
+    <div className="abc-resumo" aria-label="Curva ABC">
+      {(['A', 'B', 'C'] as const).map((k) => (
+        <div key={k} className={`abc-caixa abc-${k}`}>
+          <span className={`abc-letra abc-${k}`} aria-hidden="true">
+            {k}
+          </span>
+          <div>
+            <strong>
+              {r[k].produtos} produto{r[k].produtos === 1 ? '' : 's'} · {String(r[k].parte).replace('.', ',')}% {medida}
+            </strong>
+            <small className="muted">{ABC_TEXTO[k]}</small>
+          </div>
+        </div>
+      ))}
+      {abc.base === 'total' && <p className="muted small">Sem custo cadastrado, a curva usa o faturado. Cadastre o custo nos lotes para ver pelo lucro.</p>}
+    </div>
+  );
+}
+
+function TabelaRanking({ linhas, comCategoria = false, abc }: { linhas: LinhaRanking[]; comCategoria?: boolean; abc?: Map<string, ClasseABC> }) {
   return (
     <div className="table-scroll">
       <table className="table">
         <thead>
           <tr>
+            {abc && (
+              <th>
+                <abbr title="Curva ABC: A dá mais lucro, C dá menos">ABC</abbr>
+              </th>
+            )}
             <th>{comCategoria ? 'Produto' : 'Categoria'}</th>
             <th className="num">Quantidade</th>
             <th className="num">Faturado</th>
@@ -787,6 +821,11 @@ function TabelaRanking({ linhas, comCategoria = false }: { linhas: LinhaRanking[
         <tbody>
           {linhas.map((l) => (
             <tr key={l.chave}>
+              {abc && (
+                <td>
+                  <span className={`abc-letra abc-${abc.get(l.chave) ?? 'C'}`}>{abc.get(l.chave) ?? 'C'}</span>
+                </td>
+              )}
               <td>
                 {l.nome}
                 {comCategoria && <small className="muted"> · {l.categoria}</small>}

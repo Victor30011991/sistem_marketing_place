@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import '../components/pacote.css';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import { Button, Empty, Field, Indicadores, Modal, PageHeader } from '../ui/ui';
@@ -9,7 +11,8 @@ import { historico, mensagemSaudade, novoCliente } from '../core/clientes';
 import { aniversariantes, bolinhas, cartaoDe, FIDELIDADE_PADRAO, mensagemAniversario } from '../core/fidelidade';
 import { MoneyInput } from '../ui/ui';
 import { totaisOrcamento } from '../core/orcamentos';
-import { normalizarWhatsapp } from '../core/vitrine';
+import { linkCardapio, normalizarWhatsapp, vitrineDe } from '../core/vitrine';
+import { conviteCupom, cupomValendo, cuponsDe } from '../core/cupons';
 import type { Cliente } from '../types';
 
 const SUMIDO = 60;
@@ -44,6 +47,12 @@ export default function Clientes() {
   const [aniTxt, setAniTxt] = useState('');
   const [fidAberto, setFidAberto] = useState(!fid.ativo);
   const sumidos = linhas.filter((l) => l.h.diasSemComprar != null && l.h.diasSemComprar >= SUMIDO);
+  // "volte e ganhe": cupom escolhido entra na mensagem de saudade, com o link do cardápio
+  const cuponsValendo = cuponsDe(vitrineDe(state.loja).cupons).filter((c) => cupomValendo(c));
+  const [cupomVoltaId, setCupomVoltaId] = useState<string>('auto');
+  const cupomVolta = cupomVoltaId === 'auto' ? cuponsValendo.find((c) => c.codigo === 'VOLTEI') ?? cuponsValendo[0] ?? null : cuponsValendo.find((c) => c.id === cupomVoltaId) ?? null;
+  const linkVolta = linkCardapio(typeof window !== 'undefined' ? window.location.href : '', 'whatsapp');
+  const msgVolta = (c: Cliente, favorito?: string) => mensagemSaudade(c, state.loja.nomeFantasia, favorito) + conviteCupom(cupomVolta, linkVolta);
   const nunca = linhas.filter((l) => l.h.compras === 0);
   const doMes = linhas.filter((l) => l.h.ultima && l.h.ultima.slice(0, 7) === new Date().toISOString().slice(0, 7));
   const idsNiver = new Set(niver.map((n) => n.cliente.id));
@@ -143,6 +152,30 @@ export default function Clientes() {
           </div>
           <input type="search" aria-label="Buscar cliente por nome ou telefone" placeholder="Nome ou telefone" value={busca} onChange={(e) => setBusca(e.target.value)} style={{ maxWidth: 240 }} />
         </div>
+        {filtro === 'sumidos' && sumidos.length > 0 && (
+          <div className="volta-barra">
+            <p>
+              <strong>Volte e ganhe.</strong> Toque em “Convidar” para abrir o WhatsApp com a mensagem pronta e o link do cardápio.
+            </p>
+            {cuponsValendo.length ? (
+              <label className="volta-cupom">
+                <span>Cupom na mensagem</span>
+                <select value={cupomVolta ? cupomVolta.id : ''} onChange={(e) => setCupomVoltaId(e.target.value)}>
+                  <option value="">Sem cupom</option>
+                  {cuponsValendo.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.codigo}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p className="muted small">
+                Dica: crie um cupom em <Link to="/kits">Kits e ofertas</Link> para mandar junto.
+              </p>
+            )}
+          </div>
+        )}
         {clientes.length === 0 ? (
           <Empty icon="store" titulo="Nenhum cliente ainda" acoes={<Button onClick={importar}>Trazer das vendas e orçamentos</Button>}>
             Os pedidos do cardápio e os orçamentos com WhatsApp criam o cadastro sozinhos.
@@ -168,6 +201,18 @@ export default function Clientes() {
                       </button>
                       {fid.ativo && h.compras > 0 && <small className={`cli-cartao ${k.premioPronto ? 'pronto' : ''}`} title={`Cartão fidelidade: ${k.contadas} de ${k.meta}`}>{k.premioPronto ? '🎁 prêmio liberado' : bolinhas(k)}</small>}
                       {idsNiver.has(c.id) && <small className="cli-cartao"> 🎂 {ddmm(c.aniversario)}</small>}
+                      {filtro === 'sumidos' && normalizarWhatsapp(c.telefone) && (
+                        <a
+                          className="btn btn-secondary btn-sm volta-convidar"
+                          href={`https://wa.me/${normalizarWhatsapp(c.telefone)}?text=${encodeURIComponent(msgVolta(c, h.favoritos[0]?.nome))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Convidar ${c.nome} de volta pelo WhatsApp`}
+                        >
+                          <Icon name="send" /> Convidar
+                        </a>
+                      )}
                     </td>
                     <td>{c.telefone || <span className="muted">—</span>}</td>
                     <td className="num">{h.compras}</td>
@@ -298,7 +343,7 @@ export default function Clientes() {
                   </a>
                 )}
                 {hAberto && hAberto.compras > 0 && (
-                  <a className="btn btn-ghost" href={`https://wa.me/${wa}?text=${encodeURIComponent(mensagemSaudade(aberto, state.loja.nomeFantasia, hAberto.favoritos[0]?.nome))}`} target="_blank" rel="noopener noreferrer">
+                  <a className="btn btn-ghost" href={`https://wa.me/${wa}?text=${encodeURIComponent(msgVolta(aberto, hAberto.favoritos[0]?.nome))}`} target="_blank" rel="noopener noreferrer">
                     <Icon name="sparkle" /> Mandar mensagem de saudade
                   </a>
                 )}

@@ -3,6 +3,7 @@ import { acharCliente, novoCliente } from '../core/clientes';
 import { contaFiado } from '../core/contas';
 import { CaixaBarra, CaixasAnteriores } from '../components/CaixaBarra';
 import { LeitorCamera } from '../components/LeitorCamera';
+import { PixBalcao } from '../components/PixQr';
 import { useQuem } from '../nuvem/NuvemProvider';
 import { Link } from 'react-router-dom';
 import { useApp } from '../state/store';
@@ -114,6 +115,8 @@ export default function Pdv() {
     return p && it && base ? [{ l, p, it, tabela: base.total }] : [];
   });
   const fech = fecharPdv(itens.map((x) => x.it), r.desconto, r.pagos.map((pg) => ({ forma: pg.forma, valor: pg.valor ?? 0 })), config);
+  // valor do Pix: a parte lançada em Pix ou, sem forma escolhida, o total (a venda entra como Pix)
+  const valorPix = r.pagos.length ? r.pagos.filter((pg) => pg.forma === 'pix').reduce((a, pg) => a + (pg.valor ?? 0), 0) : fech.total;
   const formas = formasPdv(config);
   const pausadas = config.vendasPausadas ?? [];
 
@@ -207,7 +210,7 @@ export default function Pdv() {
   // ---------- pausar, retomar, cancelar ----------
   function pausar() {
     if (!r.linhas.length) return;
-    const p: VendaPausada = { id: newId(), quando: new Date().toISOString(), cliente: r.cliente.trim(), ...(r.clienteId ? { clienteId: r.clienteId } : {}), linhas: r.linhas.map(({ produtoId, qtd, unidade, total, desconto }) => ({ produtoId, qtd, unidade, ...(total != null ? { total } : {}), ...(desconto ? { desconto } : {}) })) };
+    const p: VendaPausada = { id: newId(), quando: new Date().toISOString(), cliente: r.cliente.trim(), ...(r.clienteId ? { clienteId: r.clienteId } : {}), linhas: r.linhas.map(({ produtoId, qtd, unidade, total, desconto }) => ({ produtoId, qtd, unidade, ...(total != null ? { total } : {}), ...(desconto ? { desconto } : {}) })), ...(r.desconto.tipo === 'valor' && r.desconto.valor ? { desconto: r.desconto.valor } : {}) };
     act.config((s) => ({ ...s, vendasPausadas: [...(s.vendasPausadas ?? []), p] }));
     rascunho = null;
     setR(vazio());
@@ -217,7 +220,13 @@ export default function Pdv() {
     if (r.linhas.length && !(await confirm({ titulo: 'Trocar a venda atual?', mensagem: 'A venda que está aberta agora será pausada para você retomar depois.', confirmar: 'Pausar e retomar a outra' }))) return;
     if (r.linhas.length) pausar();
     act.config((s) => ({ ...s, vendasPausadas: (s.vendasPausadas ?? []).filter((x) => x.id !== p.id) }));
-    const n: Rascunho = { ...vazio(), cliente: p.cliente, ...(p.clienteId ? { clienteId: p.clienteId } : {}), linhas: p.linhas.map((l) => ({ key: newId(), ...l })) };
+    const n: Rascunho = {
+      ...vazio(),
+      cliente: p.cliente,
+      ...(p.clienteId ? { clienteId: p.clienteId } : {}),
+      linhas: p.linhas.map((l) => ({ key: newId(), ...l })),
+      ...(p.desconto ? { desconto: { tipo: 'valor' as const, valor: p.desconto } } : {}),
+    };
     rascunho = n;
     setR(n);
   }
@@ -614,7 +623,7 @@ export default function Pdv() {
                     const it = prod ? itemVenda(prod, l.qtd, l.unidade) : null;
                     const t = l.total ?? it?.total ?? 0;
                     return a + t - descontoDoTexto(l.desconto, t);
-                  }, 0);
+                  }, -(p.desconto ?? 0));
                   return (
                     <li key={p.id}>
                       <span>
@@ -692,6 +701,13 @@ export default function Pdv() {
             {fech.taxa > 0 && <p className="muted small">Taxa da maquininha: {formatBRL(fech.taxa)} · você recebe {formatBRL(fech.liquido)}</p>}
             {fech.excesso > 0 && <p className="pdv2-aviso">Passou {formatBRL(fech.excesso)} da conta sem dinheiro para dar troco.</p>}
           </div>
+
+          {itens.length > 0 && valorPix > 0 && (
+            <details className="pdv2-descvenda pdv2-pix">
+              <summary>QR do Pix · {formatBRL(valorPix)}</summary>
+              <PixBalcao orcamentoCfg={config.orcamentoCfg} valor={valorPix} txid="PDV" />
+            </details>
+          )}
 
           <details className="pdv2-descvenda">
             <summary>Desconto na venda inteira</summary>

@@ -187,7 +187,7 @@ function lerPausada(raw: unknown): VendaPausada | null {
       : [],
   );
   if (!linhas.length) return null;
-  return { id: str(raw.id) || newKey(), quando: str(raw.quando), cliente: str(raw.cliente), ...(str(raw.clienteId) ? { clienteId: str(raw.clienteId) } : {}), linhas };
+  return { id: str(raw.id) || newKey(), quando: str(raw.quando), cliente: str(raw.cliente), ...(str(raw.clienteId) ? { clienteId: str(raw.clienteId) } : {}), linhas, ...(num(raw.desconto) != null && (raw.desconto as number) > 0 ? { desconto: Math.round(raw.desconto as number) } : {}) };
 }
 
 function lerCompras(raw: unknown): ListaCompras | null {
