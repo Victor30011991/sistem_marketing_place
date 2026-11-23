@@ -1,3 +1,4 @@
+import './balancaCodigos.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../state/store';
 import { useFeedback } from '../ui/feedback';
