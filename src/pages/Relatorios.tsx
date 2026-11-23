@@ -11,9 +11,10 @@ import { Barras } from '../components/Barras';
 import { formatBRL } from '../core/money';
 import { CENARIO_PADRAO, potencialEstoque, type Cenario } from '../core/potencial';
 import { paymentOptions } from '../core/pricing';
+import CodigosBalanca from '../components/CodigosBalanca';
 import { compras, estoque, noPeriodo, painel, periodoAnterior, periodoDe, ranking, resultado, variacao, type Atalho, type LinhaRanking, type Periodo } from '../core/relatorios';
 
-type Aba = 'painel' | 'vendas' | 'resultado' | 'estoque' | 'potencial' | 'compras' | 'alteracoes';
+type Aba = 'painel' | 'vendas' | 'resultado' | 'estoque' | 'potencial' | 'compras' | 'alteracoes' | 'codigos';
 const ATALHOS: { id: Atalho; rotulo: string }[] = [
   { id: 'hoje', rotulo: 'Hoje' },
   { id: '7d', rotulo: '7 dias' },
@@ -101,6 +102,7 @@ export default function Relatorios() {
     <div className="page">
       <PageHeader titulo="Relatórios" subtitulo="Como a loja está: vendas, lucro, estoque e compras, no período que você escolher." />
 
+      {aba !== 'codigos' && (
       <section className="card rel-periodo" aria-label="Período">
         <div className="rel-atalhos">
           {ATALHOS.map((a) => (
@@ -114,6 +116,7 @@ export default function Relatorios() {
           <Field label="Até">{(id) => <input id={id} type="date" value={periodo.ate} min={periodo.de} onChange={(e) => e.target.value && (setAtalho(null), setPeriodo({ ...periodo, ate: e.target.value }))} />}</Field>
         </div>
       </section>
+      )}
 
       <Tabs
         value={aba}
@@ -126,6 +129,7 @@ export default function Relatorios() {
           { id: 'potencial', label: 'Potencial do estoque' },
           { id: 'compras', label: 'Compras' },
           { id: 'alteracoes', label: 'Alterações' },
+          { id: 'codigos', label: 'Códigos da balança' },
         ]}
       />
 
@@ -340,6 +344,8 @@ export default function Relatorios() {
           </section>
         </>
       )}
+
+      {aba === 'codigos' && <CodigosBalanca />}
 
       {aba === 'potencial' && (
         <>

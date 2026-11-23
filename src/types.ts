@@ -419,14 +419,32 @@ export interface ListaCompras {
 export interface ConfigBalanca {
   /** wind = balança sem memória (UPX Wind D3: digita o preço, usa a tabela impressa); thunder = etiquetadora que recebe os produtos */
   modelo: 'wind' | 'thunder';
-  /** sequencial = 0001, 0002… em ordem alfabética; categoria = 101–199 na 1ª categoria, 201–299 na 2ª… */
-  numeracao: 'sequencial' | 'categoria';
+  /** sequencial = 0001, 0002… em ordem alfabética; categoria = 101–199 na 1ª categoria, 201–299 na 2ª…; prateleira = na ordem da loja */
+  numeracao: 'sequencial' | 'categoria' | 'prateleira';
+  /** ordem da prateleira e como numerar nela */
+  prateleira?: Prateleira;
   /** como o código de barras da etiqueta da balança foi configurado */
   etiqueta: 'codigo6-valor5' | 'codigo5-valor6' | 'codigo6-peso5' | 'codigo5-peso6';
   /** validade impressa na etiqueta, em dias (0 = não imprime) */
   validadeDias: number;
   /** setor/departamento da balança */
   setor: number;
+}
+
+/** Ordem em que os potes estão na loja, para numerar a balança na mesma ordem. */
+export interface Prateleira {
+  /** categorias, da primeira prateleira à última */
+  cats: string[];
+  /** ids dos produtos na ordem da prateleira */
+  itens: string[];
+  /** primeiro código */
+  inicio: number;
+  /** de quanto em quanto */
+  passo: number;
+  /** cada prateleira começa numa centena nova */
+  centena: boolean;
+  /** códigos de antes da última numeração (para desfazer) */
+  antes?: [string, number | null][];
 }
 
 /** Um item do orçamento, com o preço guardado como estava na hora (o cliente recebeu esse valor). */
