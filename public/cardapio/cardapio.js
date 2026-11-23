@@ -801,7 +801,7 @@
       nav,
       linhaEntrega(),
       lj.endereco ? h('p', { class: 'cv-end', text: lj.endereco }) : null,
-      h('details', { class: 'cv-horarios' }, h('summary', { text: 'Ver todos os horários' }), horariosTexto()));
+      horariosTexto() ? h('details', { class: 'cv-horarios' }, h('summary', { text: 'Ver todos os horários' }), horariosTexto()) : null);
   }
 
   // ---------- cartão fidelidade (#/fidelidade): só a regra, nada do cliente ----------
