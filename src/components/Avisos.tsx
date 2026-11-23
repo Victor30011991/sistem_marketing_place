@@ -6,6 +6,8 @@ import { vencendo } from '../core/validade';
 import { saldo } from '../core/contas';
 import { diaLocal } from '../core/vendas';
 import { Icon } from '../ui/icons';
+import { aniversariantes, cartaoDe, FIDELIDADE_PADRAO } from '../core/fidelidade';
+import { historico } from '../core/clientes';
 
 const br = (iso: string) => iso.split('-').reverse().slice(0, 2).join('/');
 
@@ -34,6 +36,28 @@ export function Avisos() {
       acao: 'Fazer promoção',
     });
   if (venc.length > 4) itens.push({ tom: 'info', texto: <>E mais {venc.length - 4} produto(s) perto da validade.</>, to: '/relatorios', acao: 'Ver todos' });
+  const clientes = state.config.clientes ?? [];
+  const vendas = state.config.vendas ?? [];
+  const niver = aniversariantes(clientes, new Date(), 7);
+  if (niver.length)
+    itens.push({
+      tom: 'info',
+      texto: (
+        <>
+          🎂 <strong>{niver.map((n) => `${n.cliente.nome.split(' ')[0]}${n.emDias === 0 ? ' (hoje)' : ''}`).join(', ')}</strong> {niver.length === 1 ? 'faz' : 'fazem'} aniversário esta semana.
+        </>
+      ),
+      to: '/clientes',
+      acao: 'Mandar parabéns',
+    });
+  const fid = state.config.fidelidade ?? FIDELIDADE_PADRAO;
+  const premios = fid.ativo ? clientes.filter((c) => cartaoDe(c, vendas, fid).premioPronto).length : 0;
+  if (premios) itens.push({ tom: 'info', texto: <>🎁 <strong>{premios} cliente(s)</strong> com o prêmio do cartão fidelidade liberado.</>, to: '/clientes', acao: 'Ver clientes' });
+  const sumidos = clientes.filter((c) => {
+    const d = historico(c, vendas).diasSemComprar;
+    return d != null && d >= 60;
+  }).length;
+  if (sumidos) itens.push({ tom: 'info', texto: <><strong>{sumidos} cliente(s)</strong> não compram há mais de 60 dias. Uma mensagem traz de volta.</>, to: '/clientes', acao: 'Ver sumidos' });
   if (semBackup) itens.push({ tom: 'info', texto: <>Faz tempo que não baixa um backup. Sem a nuvem, ele é a sua segurança.</>, to: '/excel', acao: 'Fazer backup' });
   if (!itens.length) return null;
   return (

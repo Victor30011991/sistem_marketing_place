@@ -49,7 +49,7 @@ export interface Historico {
   orcamentos: OrcamentoSalvo[];
 }
 
-const ehDele = (c: Cliente, v: { clienteId?: string; cliente: string }) => v.clienteId === c.id || (!v.clienteId && !!c.nome && norm(v.cliente) === norm(c.nome));
+export const ehDele = (c: Cliente, v: { clienteId?: string; cliente: string }) => v.clienteId === c.id || (!v.clienteId && !!c.nome && norm(v.cliente) === norm(c.nome));
 
 export function historico(c: Cliente, vendas: Venda[], orcamentos: OrcamentoSalvo[] = [], hoje = new Date()): Historico {
   const minhas = vendas.filter((v) => !v.cancelada && ehDele(c, v)).sort((a, b) => b.quando.localeCompare(a.quando));
@@ -87,7 +87,10 @@ export function clientesDe(raw: unknown): Cliente[] | undefined {
     if (!x || typeof x !== 'object') return [];
     const o = x as Record<string, unknown>;
     if (!s(o.nome).trim()) return [];
-    return [{ id: s(o.id) || newId(), nome: s(o.nome), telefone: s(o.telefone), endereco: s(o.endereco), obs: s(o.obs), criado: s(o.criado) }];
+    const c: Cliente = { id: s(o.id) || newId(), nome: s(o.nome), telefone: s(o.telefone), endereco: s(o.endereco), obs: s(o.obs), criado: s(o.criado) };
+    if (/^\d{2}-\d{2}$/.test(s(o.aniversario))) c.aniversario = s(o.aniversario);
+    if (Array.isArray(o.resgates)) c.resgates = o.resgates.filter((r): r is string => typeof r === 'string').slice(-200);
+    return [c];
   });
 }
 

@@ -16,7 +16,7 @@ export function linkWhatsapp(telefone: string | undefined, texto: string): strin
 }
 
 /** Recibo da venda para mandar ao cliente. */
-export function reciboTexto(v: Venda, loja: StoreInfo): string {
+export function reciboTexto(v: Venda, loja: StoreInfo, extra?: string): string {
   const nomeLoja = loja.nomeFantasia || 'nossa loja';
   const primeiro = v.cliente.trim().split(/\s+/)[0];
   const linhas = [
@@ -28,6 +28,7 @@ export function reciboTexto(v: Venda, loja: StoreInfo): string {
   if (v.desconto > 0) linhas.push(`Desconto: − ${formatBRL(v.desconto)}`);
   linhas.push('', `*Total: ${formatBRL(v.total)}*`, `Pagamento: ${v.pagamentoLabel}`);
   if (v.troco) linhas.push(`Troco: ${formatBRL(v.troco)}`);
+  if (extra) linhas.push('', extra);
   linhas.push('', 'Obrigado pela preferência! 💚');
   return linhas.join('\n');
 }

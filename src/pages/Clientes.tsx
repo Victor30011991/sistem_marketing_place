@@ -6,13 +6,24 @@ import { Icon } from '../ui/icons';
 import { formatBRL } from '../core/money';
 import { norm } from '../core/normalize';
 import { historico, mensagemSaudade, novoCliente } from '../core/clientes';
+import { aniversariantes, bolinhas, cartaoDe, FIDELIDADE_PADRAO, mensagemAniversario } from '../core/fidelidade';
+import { MoneyInput } from '../ui/ui';
 import { totaisOrcamento } from '../core/orcamentos';
 import { normalizarWhatsapp } from '../core/vitrine';
 import type { Cliente } from '../types';
 
 const SUMIDO = 60;
 const br = (iso: string | null) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '—');
-type Filtro = 'todos' | 'sumidos' | 'nunca';
+type Filtro = 'todos' | 'sumidos' | 'nunca' | 'premio' | 'aniversario';
+const ddmm = (a?: string) => (a ? a.split('-').reverse().join('/') : '');
+/** "25/12" ou "25-12" → "12-25"; inválido → undefined */
+function lerAniversario(t: string): string | undefined {
+  const m = t.trim().match(/^(\d{1,2})\D(\d{1,2})/);
+  if (!m) return undefined;
+  const d = Number(m[1]), mes = Number(m[2]);
+  if (d < 1 || d > 31 || mes < 1 || mes > 12) return undefined;
+  return `${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
 
 export default function Clientes() {
   useDocumentTitle('Clientes');
@@ -25,11 +36,18 @@ export default function Clientes() {
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [aberto, setAberto] = useState<Cliente | null>(null);
 
-  const linhas = useMemo(() => clientes.map((c) => ({ c, h: historico(c, vendas, orcamentos) })), [clientes, vendas, orcamentos]);
+  const fid = state.config.fidelidade ?? FIDELIDADE_PADRAO;
+  const mudarFid = (patch: Partial<typeof fid>) => act.config((s) => ({ ...s, fidelidade: { ...(s.fidelidade ?? FIDELIDADE_PADRAO), ...patch } }));
+  const linhas = useMemo(() => clientes.map((c) => ({ c, h: historico(c, vendas, orcamentos), k: cartaoDe(c, vendas, fid) })), [clientes, vendas, orcamentos, fid]);
+  const comPremio = fid.ativo ? linhas.filter((l) => l.k.premioPronto) : [];
+  const niver = aniversariantes(clientes);
+  const [aniTxt, setAniTxt] = useState('');
+  const [fidAberto, setFidAberto] = useState(!fid.ativo);
   const sumidos = linhas.filter((l) => l.h.diasSemComprar != null && l.h.diasSemComprar >= SUMIDO);
   const nunca = linhas.filter((l) => l.h.compras === 0);
   const doMes = linhas.filter((l) => l.h.ultima && l.h.ultima.slice(0, 7) === new Date().toISOString().slice(0, 7));
-  const visiveis = (filtro === 'sumidos' ? sumidos : filtro === 'nunca' ? nunca : linhas)
+  const idsNiver = new Set(niver.map((n) => n.cliente.id));
+  const visiveis = (filtro === 'sumidos' ? sumidos : filtro === 'nunca' ? nunca : filtro === 'premio' ? comPremio : filtro === 'aniversario' ? linhas.filter((l) => idsNiver.has(l.c.id)) : linhas)
     .filter((l) => !busca || norm(l.c.nome).includes(norm(busca)) || l.c.telefone.replace(/\D/g, '').includes(busca.replace(/\D/g, '') || '§'))
     .sort((a, b) => (filtro === 'sumidos' ? b.h.total - a.h.total : a.c.nome.localeCompare(b.c.nome, 'pt-BR')));
 
@@ -57,6 +75,13 @@ export default function Clientes() {
   }
 
   const hAberto = aberto ? historico(aberto, vendas, orcamentos) : null;
+  const kAberto = aberto ? cartaoDe(aberto, vendas, fid) : null;
+  function entregarPremio(c: Cliente) {
+    const novo = { ...c, resgates: [...(c.resgates ?? []), new Date().toISOString()] };
+    salvar(novo);
+    setAberto(novo);
+    toast('Prêmio entregue. O cartão começa de novo.');
+  }
   const wa = aberto ? normalizarWhatsapp(aberto.telefone) : '';
 
   return (
@@ -84,6 +109,22 @@ export default function Clientes() {
         ]}
       />
       <section className="card">
+        <details open={fidAberto} onToggle={(e) => setFidAberto(e.currentTarget.open)}>
+          <summary className="cli-fid-sum">
+            <strong>Cartão fidelidade</strong> <span className="muted small">{fid.ativo ? `ligado: a cada ${fid.compras} compras, ${fid.premio}` : 'desligado'}</span>
+          </summary>
+          <div className="form-grid">
+            <label className="check span-2">
+              <input type="checkbox" checked={fid.ativo} onChange={(e) => mudarFid({ ativo: e.target.checked })} /> Ligar o cartão fidelidade (conta sozinho pelas vendas do PDV de cada cliente)
+            </label>
+            <Field label="Compras para ganhar">{(id) => <input id={id} type="number" min={2} max={50} value={fid.compras} onChange={(e) => mudarFid({ compras: Math.min(50, Math.max(2, Number(e.target.value) || 10)) })} />}</Field>
+            <Field label="Compra mínima para contar" hint="Deixe em branco para contar qualquer compra.">{(id) => <MoneyInput id={id} value={fid.minimo || null} onChange={(v) => mudarFid({ minimo: v ?? 0 })} />}</Field>
+            <Field label="Prêmio" className="span-2">{(id) => <input id={id} value={fid.premio} onChange={(e) => mudarFid({ premio: e.target.value })} placeholder="Ex.: 100 g de tempero à escolha" />}</Field>
+          </div>
+        </details>
+      </section>
+
+      <section className="card">
         <div className="card-head">
           <div className="rel-atalhos">
             {(
@@ -91,6 +132,8 @@ export default function Clientes() {
                 ['todos', 'Todos'],
                 ['sumidos', `Sumidos (${sumidos.length})`],
                 ['nunca', 'Sem compras'],
+                ...(niver.length ? [['aniversario', `Aniversário esta semana (${niver.length})`]] : []),
+                ...(comPremio.length ? [['premio', `Prêmio liberado (${comPremio.length})`]] : []),
               ] as [Filtro, string][]
             ).map(([id, r]) => (
               <button key={id} type="button" className={`chip-btn ${filtro === id ? 'on' : ''}`} aria-pressed={filtro === id} onClick={() => setFiltro(id)}>
@@ -117,12 +160,14 @@ export default function Clientes() {
                 </tr>
               </thead>
               <tbody>
-                {visiveis.map(({ c, h }) => (
+                {visiveis.map(({ c, h, k }) => (
                   <tr key={c.id} className="linha-clicavel" onClick={() => setAberto(c)}>
                     <td>
                       <button type="button" className="link-btn" onClick={(e) => { e.stopPropagation(); setAberto(c); }}>
                         {c.nome}
                       </button>
+                      {fid.ativo && h.compras > 0 && <small className={`cli-cartao ${k.premioPronto ? 'pronto' : ''}`} title={`Cartão fidelidade: ${k.contadas} de ${k.meta}`}>{k.premioPronto ? '🎁 prêmio liberado' : bolinhas(k)}</small>}
+                      {idsNiver.has(c.id) && <small className="cli-cartao"> 🎂 {ddmm(c.aniversario)}</small>}
                     </td>
                     <td>{c.telefone || <span className="muted">—</span>}</td>
                     <td className="num">{h.compras}</td>
@@ -171,6 +216,24 @@ export default function Clientes() {
             <div className="form-grid">
               <Field label="Nome">{(id) => <input id={id} value={aberto.nome} onChange={(e) => setAberto({ ...aberto, nome: e.target.value })} />}</Field>
               <Field label="WhatsApp">{(id) => <input id={id} type="tel" value={aberto.telefone} onChange={(e) => setAberto({ ...aberto, telefone: e.target.value })} />}</Field>
+              <Field label="Aniversário (dia/mês)" hint="Ex.: 25/12. Aparece na lista da semana com a mensagem pronta.">
+                {(id) => (
+                  <input
+                    id={id}
+                    inputMode="numeric"
+                    placeholder="dd/mm"
+                    value={aniTxt || ddmm(aberto.aniversario)}
+                    onChange={(e) => setAniTxt(e.target.value)}
+                    onBlur={() => {
+                      if (!aniTxt) return;
+                      const a = lerAniversario(aniTxt);
+                      if (aniTxt.trim() && !a) toast('Escreva o aniversário como dia/mês, por exemplo 25/12.', 'erro');
+                      setAberto({ ...aberto, aniversario: a });
+                      setAniTxt('');
+                    }}
+                  />
+                )}
+              </Field>
               <Field label="Endereço" className="span-2">{(id) => <input id={id} value={aberto.endereco} onChange={(e) => setAberto({ ...aberto, endereco: e.target.value })} />}</Field>
               <Field label="Anotações" className="span-2" hint="Preferências, aniversário, como gosta de receber…">
                 {(id) => <textarea id={id} rows={2} value={aberto.obs} onChange={(e) => setAberto({ ...aberto, obs: e.target.value })} />}
@@ -186,6 +249,19 @@ export default function Clientes() {
                     { rotulo: 'Última', valor: br(hAberto.ultima), nota: hAberto.diasSemComprar != null ? `há ${hAberto.diasSemComprar} dia(s)` : undefined },
                   ]}
                 />
+                {fid.ativo && kAberto && (
+                  <div className="cli-fid">
+                    <span>
+                      <strong>Cartão fidelidade:</strong> <span className="cli-bolinhas" aria-label={`${kAberto.contadas} de ${kAberto.meta} compras`}>{bolinhas(kAberto)}</span> {kAberto.contadas} de {kAberto.meta}
+                      {kAberto.premios > 0 && <small className="muted"> · {kAberto.premios} prêmio(s) já entregue(s)</small>}
+                    </span>
+                    {kAberto.premioPronto && (
+                      <Button icon="check" onClick={() => entregarPremio(aberto)}>
+                        Marcar prêmio como entregue
+                      </Button>
+                    )}
+                  </div>
+                )}
                 {hAberto.favoritos.length > 0 && (
                   <p>
                     <strong>Mais compra:</strong> {hAberto.favoritos.map((f) => f.nome).join(', ')}
@@ -216,6 +292,11 @@ export default function Clientes() {
                 <a className="btn btn-secondary" href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer">
                   <Icon name="copy" /> Abrir WhatsApp
                 </a>
+                {aberto.aniversario && (
+                  <a className="btn btn-ghost" href={`https://wa.me/${wa}?text=${encodeURIComponent(mensagemAniversario(aberto, state.loja.nomeFantasia, fid.ativo ? fid.premio : undefined))}`} target="_blank" rel="noopener noreferrer">
+                    <Icon name="sparkle" /> Mandar parabéns
+                  </a>
+                )}
                 {hAberto && hAberto.compras > 0 && (
                   <a className="btn btn-ghost" href={`https://wa.me/${wa}?text=${encodeURIComponent(mensagemSaudade(aberto, state.loja.nomeFantasia, hAberto.favoritos[0]?.nome))}`} target="_blank" rel="noopener noreferrer">
                     <Icon name="sparkle" /> Mandar mensagem de saudade

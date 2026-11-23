@@ -5,6 +5,7 @@ import { norm } from './normalize';
 export interface ProductExtra {
   estoque?: number | null;
   estoqueMinimo?: number | null;
+  ean?: string;
   conteudoQtd?: number | null;
   conteudoUnidade?: string | null;
   plu?: number | null;
@@ -32,6 +33,7 @@ export function buildExtras(produtos: Product[]): ExtrasMap {
     const e: ProductExtra = {};
     if (p.estoque != null) e.estoque = p.estoque;
     if (p.estoqueMinimo != null) e.estoqueMinimo = p.estoqueMinimo;
+    if (p.ean) e.ean = p.ean;
     if (p.plu) e.plu = p.plu;
     if (p.nomeBalanca?.trim()) e.nomeBalanca = p.nomeBalanca;
     if (p.ingredientes?.trim()) e.ingredientes = p.ingredientes;
