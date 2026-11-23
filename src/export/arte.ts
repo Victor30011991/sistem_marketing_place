@@ -92,7 +92,8 @@ export async function garantirFontes(fontes: FonteSalva[]): Promise<void> {
       /* letra inválida: fica a padrão */
     }
   }
-  await Promise.all(FAMILIAS_ARTE.map((f) => document.fonts.load(`${f.peso} 60px ${f.css}`).catch(() => undefined)));
+  // só as letras base; as outras são baixadas quando escolhidas (carregarLetras)
+  await Promise.all(FAMILIAS_ARTE.filter((f) => f.base).map((f) => document.fonts.load(`${f.peso} 60px ${f.css}`).catch(() => undefined)));
 }
 
 // ----------------------------------------------------------------------- caminhos

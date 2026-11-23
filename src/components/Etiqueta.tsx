@@ -1,6 +1,6 @@
 import type { CSSProperties, KeyboardEvent, PointerEvent, ReactNode } from 'react';
 import type { ConfigBalanca, ModeloEtiqueta, PecaEtiqueta, Product, StoreInfo } from '../types';
-import { FAMILIAS, PECAS, SELOS, areaDe, codigoEtiqueta, corDe, linhasNutricao, textoPeca, type DadosImpressao } from '../core/etiquetas';
+import { FAMILIAS, PECAS, cssFamilia, SELOS, areaDe, codigoEtiqueta, corDe, linhasNutricao, textoPeca, type DadosImpressao } from '../core/etiquetas';
 import { ean13, modulosEan13 } from '../core/ean';
 
 export interface EdicaoEtiqueta {
@@ -202,7 +202,7 @@ function Peca({ p, produto, loja, logo, dados, balanca, edicao, colorida }: { p:
     justifyContent: JUSTIFICA[p.alinhar],
     fontSize: `${p.fonte}pt`,
     fontWeight: p.negrito ? 700 : 400,
-    fontFamily: FAMILIAS.find((f) => f.id === (p.familia ?? 'sans'))!.css,
+    fontFamily: cssFamilia(p.familia),
     textTransform: p.maiusculas ? 'uppercase' : undefined,
     letterSpacing: p.familia === 'forte' ? '0.04em' : undefined,
     color: corTexto,

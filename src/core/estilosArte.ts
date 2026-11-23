@@ -1,3 +1,4 @@
+import { LETRAS, cssLetra, letraDe } from './letras';
 /** Estilos de arte do Posta Aí: camadas em frações da arte (0–1), cores pelos papéis da loja. */
 import type { CamadaArte, CorArte, EstiloArte, FonteSalva, StoreInfo } from '../types';
 import { newId } from './normalize';
@@ -8,22 +9,16 @@ export const FORMATOS_ARTE = {
 } as const;
 export type FormatoArte = keyof typeof FORMATOS_ARTE;
 
-export const FAMILIAS_ARTE: { id: string; rotulo: string; css: string; peso: number }[] = [
-  { id: 'manuscrita', rotulo: 'Manuscrita', css: '"Caveat Variable", cursive', peso: 700 },
-  { id: 'script', rotulo: 'Cursiva elegante', css: '"Dancing Script Variable", cursive', peso: 700 },
-  { id: 'gorda', rotulo: 'Serifada gorda', css: '"Fraunces Variable", Georgia, serif', peso: 800 },
-  { id: 'elegante', rotulo: 'Elegante', css: '"Playfair Display Variable", Georgia, serif', peso: 700 },
-  { id: 'forte', rotulo: 'Forte condensada', css: '"Bebas Neue", Impact, sans-serif', peso: 400 },
-  { id: 'simples', rotulo: 'Simples', css: '"DM Sans Variable", Arial, sans-serif', peso: 600 },
-];
+/** Todas as letras da biblioteca (src/core/letras.ts), no formato das artes. */
+export const FAMILIAS_ARTE: { id: string; rotulo: string; css: string; peso: number; base?: boolean }[] = LETRAS.map((x) => ({ id: x.id, rotulo: x.nome, css: cssLetra(x), peso: x.peso, base: x.base }));
 
 export function familiaCss(id: string | undefined, fontes: FonteSalva[] = []): { css: string; peso: number } {
   if (id?.startsWith('f:')) {
     const f = fontes.find((x) => `f:${x.id}` === id);
     if (f) return { css: `"${nomeFonte(f)}", sans-serif`, peso: 400 };
   }
-  const f = FAMILIAS_ARTE.find((x) => x.id === id) ?? FAMILIAS_ARTE[5];
-  return { css: f.css, peso: f.peso };
+  const f = letraDe(id) ?? letraDe('simples')!;
+  return { css: cssLetra(f), peso: f.peso };
 }
 /** Nome interno da letra salva (evita conflito com as do sistema). */
 export const nomeFonte = (f: FonteSalva) => `PA ${f.id}`;

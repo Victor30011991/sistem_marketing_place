@@ -104,7 +104,8 @@ export interface PecaEtiqueta {
   /** cor própria (#rrggbb) quando cor = 'livre' */
   corLivre?: string;
   /** família da letra */
-  familia?: 'sans' | 'serif' | 'elegante' | 'manuscrita' | 'forte';
+  /** id da letra (src/core/letras.ts); antigos: sans, serif */
+  familia?: string;
   /** fundo da peça (#rrggbb); na peça "forma" é a cor da forma */
   fundo?: string;
   /** cantos arredondados, em mm (forma redonda: 999) */
