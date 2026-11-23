@@ -170,7 +170,10 @@
     var out = ['pix', 'cartao', 'dinheiro'].filter(function (k) { return p[k]; });
     return out.length ? out : ['pix', 'cartao', 'dinheiro'];
   }
-  function taxa() { var e = entrega(); return form.modo === 'entrega' && e.taxa === 'fixa' && e.valor > 0 ? e.valor : 0; }
+  /** Entrega grátis: vale quando os produtos chegam no valor que a loja escolheu. */
+  function gratisAcima() { var e = entrega(); return e.ativa && e.gratisAcima > 0 ? e.gratisAcima : 0; }
+  function entregaGratis(sub) { var g = gratisAcima(); return form.modo === 'entrega' && g > 0 && sub >= g; }
+  function taxa(sub) { var e = entrega(); if (sub != null && entregaGratis(sub)) return 0; return form.modo === 'entrega' && e.taxa === 'fixa' && e.valor > 0 ? e.valor : 0; }
   function addKit(kt) { carrinho[kt.chave] = (carrinho[kt.chave] || 0) + 1; guardar(); avisar(kt.n + ' no pedido'); }
   function add(chave, g, silencioso) {
     carrinho[chave] = (carrinho[chave] || 0) + g; guardar();
@@ -517,7 +520,7 @@
   function linhaEntrega() {
     var e = entrega(); var p = [];
     if (e.retirada) p.push(h('span', null, icone('loja', 16), 'Retirada na loja'));
-    if (e.ativa) p.push(h('span', null, icone('moto', 16), e.taxa === 'fixa' && e.valor > 0 ? 'Entrega · ' + L.brl(e.valor) : 'Entrega · taxa a combinar'));
+    if (e.ativa) p.push(h('span', null, icone('moto', 16), (e.taxa === 'fixa' && e.valor > 0 ? 'Entrega · ' + L.brl(e.valor) : 'Entrega · taxa a combinar') + (e.gratisAcima > 0 ? ' · grátis acima de ' + L.brl(e.gratisAcima) : '')));
     return p.length ? h('p', { class: 'entrega-info' }, p[0], p[1] || null) : null;
   }
 
@@ -909,6 +912,33 @@
     botao.addEventListener('click', function () { var g = valor(); if (!g || g < min()) return; add(chave, g); ui.outro = ''; history.length > 1 ? history.back() : ir(''); });
     atualizar();
 
+    // pedir por valor: "quero 10 reais de páprica"
+    var modoSeg = seg('Como escolher', [{ id: 'peso', rotulo: 'Por peso' }, { id: 'valor', rotulo: 'Por valor' }], ui.porValor ? 'valor' : 'peso', function (m) { ui.porValor = m === 'valor'; desenhar(true); });
+    var gradeV = h('div', { class: 'grade-pesos', role: 'radiogroup', 'aria-label': 'Valor' });
+    var campoV = h('input', { id: 'valor', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: 'Outro valor (R$)', value: ui.valorTxt || '' });
+    var infoV = h('p', { class: 'por-valor', role: 'status' });
+    var botaoV = h('button', { class: 'b', type: 'button' });
+    function centsV() {
+      var t = String(ui.valorTxt || '').trim();
+      if (t) { var n = Number(t.replace(/[^\d,.]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')); return isFinite(n) && n > 0 ? Math.round(n * 100) : 0; }
+      return ui.valorEsc || 1000;
+    }
+    function gramasV(c) { return Math.floor((c * 1000) / it.pk); }
+    function atualizarV() {
+      var c = centsV(), g = gramasV(c), ok = c > 0 && g >= min();
+      infoV.textContent = ok ? L.brl(c) + ' dá ' + L.fmtGramas(g) + ' de ' + it.n.charAt(0).toLowerCase() + it.n.slice(1) + '.' : c ? 'O mínimo é ' + L.fmtGramas(min()) + ' (' + L.brl(L.precoItem(min(), it.pk)) + ').' : 'Digite um valor, por exemplo 10.';
+      botaoV.disabled = !ok;
+      botaoV.textContent = ok ? 'Pôr no pedido · ' + L.fmtGramas(g) + ' · ' + L.brl(L.precoItem(g, it.pk)) : 'Pôr no pedido';
+      Array.prototype.forEach.call(gradeV.children, function (b) { var on = !String(ui.valorTxt || '').trim() && Number(b.getAttribute('data-c')) === (ui.valorEsc || 1000); b.className = 'peso-g' + (on ? ' on' : ''); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    }
+    [500, 1000, 1500, 2000].forEach(function (c) {
+      gradeV.appendChild(h('button', { type: 'button', role: 'radio', 'data-c': String(c), onclick: function () { ui.valorEsc = c; ui.valorTxt = ''; campoV.value = ''; atualizarV(); } },
+        h('b', { text: L.brl(c).replace(',00', '') }), h('span', { text: L.fmtGramas(gramasV(c)) })));
+    });
+    campoV.addEventListener('input', function () { ui.valorTxt = campoV.value; atualizarV(); });
+    botaoV.addEventListener('click', function () { var g = gramasV(centsV()); if (!g || g < min()) return; add(chave, g); ui.valorTxt = ''; history.length > 1 ? history.back() : ir(''); });
+    atualizarV();
+
     var junto = (it.j || []).map(function (id) { return mapa['i:' + id]; }).filter(Boolean);
     var hero = h('div', { class: 'hero-prod' + (it.f ? '' : ' sem'), style: it.f ? null : 'background:radial-gradient(70% 70% at 50% 45%, ' + misturaHex(corDe(it), '#ffffff', .55) + ', ' + misturaHex(corDe(it), '#000000', .15) + ')' }, it.f ? h('img', { class: 'hero-fundo', src: it.f, alt: '' }) : null, foto(it, 'hero-img', true),
       h('button', { class: 'voltar-flut', type: 'button', 'aria-label': 'Voltar', onclick: function () { history.length > 1 ? history.back() : ir(''); } }, icone('voltar')));
@@ -926,10 +956,11 @@
         tags,
         info.length ? h('div', { class: 'det-info' }, info[0], info[1]) : null,
         rot.length ? h('div', { class: 'rotulo' }, rot.reduce(function (f, el, i) { if (i) f.appendChild(h('br')); f.appendChild(el); return f; }, document.createDocumentFragment())) : null,
-        h('h3', { text: 'Quanto você quer?' }), grade,
-        h('label', { class: 'sr', for: 'outro', text: 'Outra quantidade em gramas' }), outro, erro,
+        h('h3', { text: 'Quanto você quer?' }), modoSeg,
+        ui.porValor ? h('div', { class: 'escolha' }, gradeV, h('label', { class: 'sr', for: 'valor', text: 'Outro valor em reais' }), campoV, infoV)
+          : h('div', { class: 'escolha' }, grade, h('label', { class: 'sr', for: 'outro', text: 'Outra quantidade em gramas' }), outro, erro),
         tem ? h('p', { class: 'no-ped' }, icone('check', 14), 'Você já tem ' + L.fmtGramas(tem) + ' no pedido. ', h('button', { class: 'link', type: 'button', onclick: function () { delete carrinho[chave]; guardar(); desenhar(); } }, 'Tirar')) : null,
-        botao,
+        ui.porValor ? botaoV : botao,
         junto.length ? h('section', { class: 'junto' }, h('h3', { text: 'Quem levou também levou' }),
           junto.reduce(function (d, x) { d.appendChild(cartao(x)); return d; }, h('div', { class: 'trilho' }))) : null));
   }
@@ -958,7 +989,7 @@
     }
     var ms = modos(); if (ms.indexOf(form.modo) < 0) form.modo = ms[0];
     var ps = pagamentos(); if (ps.indexOf(form.pagamento) < 0) form.pagamento = ps[0];
-    var sub = L.subtotal(its), tx = taxa();
+    var sub = L.subtotal(its), tx = taxa(sub), gratis = entregaGratis(sub);
     var e = entrega();
     var pg = h('div', { class: 'pg' });
     if (form.enviadoEm) {
@@ -1007,12 +1038,15 @@
     });
     pg.appendChild(bloco('Itens (' + its.length + ')', h('div', null, lista,
       h('button', { class: 'link-add', type: 'button', onclick: function () { ir(''); } }, icone('mais', 16), 'Adicionar mais produtos'))));
+    var sug = sugestoesCarrinho();
+    if (sug) pg.appendChild(sug);
 
     // 2. como receber
     var receber = h('div', { class: 'bloco-in' });
     if (ms.length > 1) receber.appendChild(seg('Como receber', [{ id: 'retirada', rotulo: 'Retirar na loja', icone: 'loja' }, { id: 'entrega', rotulo: 'Entrega', icone: 'moto' }], form.modo, function (m) { form.modo = m; guardar(); desenhar(true); }));
-    var dicaReceber = form.modo === 'retirada' ? 'Avisamos pelo WhatsApp quando estiver pronto para retirar.' : (tx ? 'Taxa de entrega: ' + L.brl(tx) + '.' : 'A taxa de entrega é combinada com a gente pelo WhatsApp.');
+    var dicaReceber = form.modo === 'retirada' ? 'Avisamos pelo WhatsApp quando estiver pronto para retirar.' : gratis ? 'Entrega grátis neste pedido.' : (tx ? 'Taxa de entrega: ' + L.brl(tx) + '.' : 'A taxa de entrega é combinada com a gente pelo WhatsApp.');
     receber.appendChild(h('p', { class: 'dica-bloco', text: dicaReceber }));
+    if (form.modo === 'entrega' && gratisAcima() && !gratis) receber.appendChild(barraGratis(sub));
     pg.appendChild(bloco('Como receber', receber));
 
     // 3. seus dados
@@ -1041,7 +1075,7 @@
       if (pix) {
         var cod = h('code', { class: 'pix-cod', text: pix });
         pag.appendChild(h('div', { class: 'pix' },
-          h('p', { text: (form.modo === 'entrega' && !tx ? 'Valor dos produtos (a entrega é combinada à parte). ' : '') + 'Pague no app do seu banco e mande o comprovante no WhatsApp.' }),
+          h('p', { text: (form.modo === 'entrega' && !tx && !gratis ? 'Valor dos produtos (a entrega é combinada à parte). ' : '') + 'Pague no app do seu banco e mande o comprovante no WhatsApp.' }),
           cod,
           h('button', { class: 'b sec', type: 'button', onclick: function () {
             (navigator.clipboard ? navigator.clipboard.writeText(pix) : Promise.reject()).then(function () { avisar('Código Pix copiado'); }, function () {
@@ -1060,8 +1094,8 @@
     pg.appendChild(h('section', { class: 'bloco resumo-bloco' },
       h('div', { class: 'resumo' },
         h('div', null, h('span', { text: 'Produtos' }), h('span', { text: L.brl(sub) })),
-        form.modo === 'entrega' ? h('div', null, h('span', { text: 'Entrega' }), h('span', { text: tx ? L.brl(tx) : 'a combinar' })) : h('div', null, h('span', { text: 'Retirada na loja' }), h('span', { text: 'grátis' })),
-        h('div', { class: 'total' }, h('span', { text: 'Total' }), h('span', { text: L.brl(sub + tx) + (form.modo === 'entrega' && !tx ? ' + entrega' : '') }))),
+        form.modo === 'entrega' ? h('div', null, h('span', { text: 'Entrega' }), h('span', { text: gratis ? 'grátis' : tx ? L.brl(tx) : 'a combinar' })) : h('div', null, h('span', { text: 'Retirada na loja' }), h('span', { text: 'grátis' })),
+        h('div', { class: 'total' }, h('span', { text: 'Total' }), h('span', { text: L.brl(sub + tx) + (form.modo === 'entrega' && !tx && !gratis ? ' + entrega' : '') }))),
       st && !st.aberto ? h('p', { class: 'aviso fechado', text: 'Estamos fechados agora (' + st.texto.replace(/^Fechado · /, '') + '). Pode mandar: respondemos assim que abrirmos.' }) : null,
       erroEl,
       h('button', { class: 'b enviar', type: 'button', onclick: finalizar }, icone('whatsapp'), 'Enviar pedido pelo WhatsApp'),
@@ -1081,7 +1115,8 @@
     if (form.modo === 'entrega' && !form.endereco.trim()) falta.push('o endereço');
     if (falta.length) { ui.erro = 'Preencha ' + falta.join(', ').replace(/, ([^,]*)$/, ' e $1') + '.'; desenhar(true); return; }
     if (!dados.loja.whatsapp) { ui.erro = 'O WhatsApp da loja ainda não foi configurado.'; desenhar(true); return; }
-    var base = { itens: its, nome: form.nome, telefone: form.telefone, endereco: form.endereco, obs: form.obs, origem: ORIGEM, modo: form.modo, taxa: taxa(), pagamento: form.pagamento, troco: form.troco };
+    var sub0 = L.subtotal(its);
+    var base = { itens: its, nome: form.nome, telefone: form.telefone, endereco: form.endereco, obs: form.obs, origem: ORIGEM, modo: form.modo, taxa: taxa(sub0), gratis: entregaGratis(sub0), pagamento: form.pagamento, troco: form.troco };
     var texto = L.montarMensagem(Object.assign({ loja: dados.loja.nome, abertura: dados.loja.abertura, fechamento: dados.loja.fechamento }, base));
     // o pedido também cai na tela "Pedidos" da loja; não segura o WhatsApp se falhar
     if (!PREVIEW) try {
@@ -1102,6 +1137,46 @@
       kt.partes.forEach(function (x, i) { out.push({ i: x.it.i, n: x.it.n + ' (' + kt.n + ')', g: x.g * it.g, total: partes[i] }); });
     });
     return out;
+  }
+  /** Sugestões opcionais no pedido: completar um kit ou um produto que costuma ir junto. Nada é marcado sozinho. */
+  function sugestoesCarrinho() {
+    var cards = [];
+    for (var a = 0; a < kits.length; a++) {
+      var kt = kits[a]; if (carrinho[kt.chave] || kt.partes.length < 2) continue;
+      var tem = kt.partes.filter(function (x) { return carrinho[x.it.chave]; });
+      var falta = kt.partes.filter(function (x) { return !carrinho[x.it.chave]; });
+      if (falta.length !== 1 || !tem.length) continue;
+      (function (kt, tem, falta) {
+        cards.push(h('div', { class: 'sug sug-kit' },
+          h('p', null, h('b', { text: 'Falta só ' + falta.it.n.charAt(0).toLowerCase() + falta.it.n.slice(1) }), ' para virar o ' + kt.n + '. O kit sai por ' + L.brl(kt.p) + ' (' + descKit(kt) + ').'),
+          h('button', { class: 'b sec', type: 'button', onclick: function () { tem.forEach(function (x) { delete carrinho[x.it.chave]; }); carrinho[kt.chave] = 1; guardar(); avisar(kt.n + ' no pedido'); desenhar(true); } }, 'Trocar pelo kit')));
+      })(kt, tem, falta[0]);
+      break;
+    }
+    var ids = Object.keys(carrinho).filter(function (k) { return k.indexOf('i:') === 0 && mapa[k]; });
+    outer: for (var i = 0; i < ids.length; i++) {
+      var de = mapa[ids[i]];
+      for (var j = 0; j < (de.j || []).length; j++) {
+        var x = mapa['i:' + de.j[j]];
+        if (x && !carrinho[x.chave]) {
+          (function (de, x) {
+            var g = pesoPadrao(x.chave);
+            cards.push(h('div', { class: 'sug' },
+              h('span', { class: 'sug-arte' }, bolinha(x)),
+              h('p', null, 'Quem levou ' + de.n.charAt(0).toLowerCase() + de.n.slice(1) + ' também levou ', h('b', { text: x.n.charAt(0).toLowerCase() + x.n.slice(1) }), '.'),
+              h('button', { class: 'b sec', type: 'button', onclick: function () { add(x.chave, g); desenhar(true); } }, 'Pôr ' + L.fmtGramas(g) + ' · ' + L.brl(L.precoItem(g, x.pk)))));
+          })(de, x);
+          break outer;
+        }
+      }
+    }
+    return cards.length ? h('section', { class: 'bloco sugestoes', 'aria-label': 'Sugestões' }, h('h2', { text: 'Para completar' }), cards[0], cards[1] || null) : null;
+  }
+  function barraGratis(sub) {
+    var g = gratisAcima(), pct = Math.max(4, Math.min(100, Math.round((sub / g) * 100)));
+    return h('div', { class: 'gratis' },
+      h('p', null, 'Faltam ', h('b', { text: L.brl(g - sub) }), ' para a entrega grátis'),
+      h('span', { class: 'gratis-trilho', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(g), 'aria-valuenow': String(sub), 'aria-label': 'Quanto falta para a entrega grátis' }, h('i', { style: 'width:' + pct + '%' })));
   }
   function novoPedido() { carrinho = {}; form.enviadoEm = 0; form.obs = ''; ui.tentou = false; guardar(); ir(''); }
 
@@ -1185,16 +1260,41 @@
     return j && j.v === 1 && j.loja && typeof j.loja.nome === 'string' && Array.isArray(j.categorias);
   }
 
+  /** Dados da loja no formato que o Google e os assistentes de IA leem (schema.org). */
+  function dadosEstruturados() {
+    if (PREVIEW) return;
+    var lj = dados.loja;
+    var ld = { '@context': 'https://schema.org', '@type': 'Store', name: lj.nome, url: location.origin + location.pathname };
+    if (lj.slogan) ld.description = lj.slogan;
+    try { ld.image = /^https?:/.test(lj.logo || '') ? lj.logo : new URL('../logo.jpg', location.href).href; } catch (e) { /* ignora */ }
+    if (lj.endereco) ld.address = { '@type': 'PostalAddress', streetAddress: lj.endereco, addressCountry: 'BR' };
+    if (lj.whatsapp) ld.telephone = '+' + lj.whatsapp;
+    var mesmo = [lj.instagram, lj.facebook].filter(function (u) { return /^https:\/\//.test(u || ''); });
+    if (mesmo.length) ld.sameAs = mesmo;
+    var dias = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    if (Array.isArray(lj.horarios) && lj.horarios.length === 7) {
+      ld.openingHoursSpecification = lj.horarios.map(function (x, i) { return x ? { '@type': 'OpeningHoursSpecification', dayOfWeek: 'https://schema.org/' + dias[i], opens: x[0], closes: x[1] } : null; }).filter(Boolean);
+    }
+    ld.hasOfferCatalog = { '@type': 'OfferCatalog', name: 'Cardápio', itemListElement: todosItens().slice(0, 80).map(function (it) {
+      return { '@type': 'Offer', itemOffered: { '@type': 'Product', name: it.n, category: it.cat }, price: (Math.round(it.pk / 10) / 100).toFixed(2), priceCurrency: 'BRL', eligibleQuantity: { '@type': 'QuantitativeValue', value: 100, unitCode: 'GRM' } };
+    }) };
+    var el = document.getElementById('ld-loja') || document.head.appendChild(h('script', { id: 'ld-loja', type: 'application/ld+json' }));
+    el.textContent = JSON.stringify(ld);
+    var desc = document.querySelector('meta[name="description"]');
+    if (desc) desc.setAttribute('content', (lj.slogan ? lj.slogan + '. ' : '') + 'Cardápio de ' + lj.nome + (lj.endereco ? ', ' + lj.endereco : '') + '. Peça pelo WhatsApp.');
+  }
+
   function iniciar(j) {
     if (!validar(j)) return indisponivel('O cardápio não está disponível agora. Tente de novo em instantes.');
     dados = j;
     if (!Array.isArray(dados.mixes)) dados.mixes = [];
     indexar();
     indexarKits();
-    document.title = 'Cardápio · ' + j.loja.nome;
+    document.title = 'Cardápio e pedidos · ' + j.loja.nome;
     aplicarCores(j.loja.cores);
     aplicarLetra(j.loja.letra);
     recuperar();
+    dadosEstruturados();
     desenhar();
   }
 
