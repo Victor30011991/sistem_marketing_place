@@ -40,8 +40,20 @@ export default function LinksCurtos() {
       <h3 className="vit-sub">Links curtos com o nome da loja</h3>
       <div className="lc-campo">
         <Field label="Endereço curto" hint="O site só com os atalhos, ex.: temperei.github.io" erro={erro}>
-          {(id) => <input id={id} value={texto} placeholder="temperei.github.io" inputMode="url" autoCapitalize="off" spellCheck={false} onChange={(e) => setTexto(e.target.value)} onBlur={salvar} onKeyDown={(e) => e.key === 'Enter' && salvar()} />}
+          {(id) => <input id={id} value={texto} placeholder="Ex.: temperei.github.io" inputMode="url" autoCapitalize="off" spellCheck={false} onChange={(e) => setTexto(e.target.value)} onBlur={salvar} onKeyDown={(e) => e.key === 'Enter' && salvar()} />}
         </Field>
+        {!dominio && (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              act.loja({ vitrine: { ...v, linkCurto: 'temperei.github.io' } });
+              setTexto('temperei.github.io');
+              toast('Endereço curto salvo.');
+            }}
+          >
+            Usar temperei.github.io
+          </Button>
+        )}
       </div>
       {dominio ? (
         <ul className="lc-lista">
