@@ -4,6 +4,8 @@ import { contaFiado } from '../core/contas';
 import { CaixaBarra, CaixasAnteriores } from '../components/CaixaBarra';
 import { LeitorCamera } from '../components/LeitorCamera';
 import { PixBalcao } from '../components/PixQr';
+import VendaOutroDia, { conferir } from '../components/VendaOutroDia';
+import { caixaAberto, vendasDoCaixa } from '../core/caixa';
 import { useQuem } from '../nuvem/NuvemProvider';
 import { Link } from 'react-router-dom';
 import { useApp } from '../state/store';
@@ -92,6 +94,9 @@ export default function Pdv() {
   const [porValor, setPorValor] = useState(false);
   /** data e hora de uma venda lançada depois (datetime-local); vazio = agora */
   const [retro, setRetro] = useState('');
+  /** venda de outro dia: valor anotado no caderno (para conferir) e manter a data nas próximas */
+  const [esperado, setEsperado] = useState<number | null>(null);
+  const [manterData, setManterData] = useState(false);
   /** última venda finalizada: recibo pelo WhatsApp e aviso de estoque baixo */
   const [camera, setCamera] = useState(false);
   const [feita, setFeita] = useState<{ venda: Venda; baixos: Product[] } | null>(null);
@@ -237,14 +242,28 @@ export default function Pdv() {
     setR(vazio());
   }
 
-  function finalizar() {
+  async function finalizar() {
     if (itens.length === 0) return toast('Adicione ao menos um produto.', 'erro');
+    if (retro && !r.pagos.length) return toast('Escolha em “Receber em” como essa venda foi paga.', 'erro');
     // sem pagamento lançado: assume que veio tudo na primeira forma escolhida (Pix)
     const pagamentos = r.pagos.length ? fech : fecharPdv(itens.map((x) => x.it), r.desconto, [{ forma: 'pix', valor: fech.total }], config);
     if (r.pagos.length && fech.falta > 0) return toast(`Ainda falta receber ${formatBRL(fech.falta)}.`, 'erro');
     if (r.pagos.length && fech.excesso > 0) return toast(`O pagamento passou ${formatBRL(fech.excesso)} da conta e não há dinheiro para dar troco. Ajuste os valores.`, 'erro');
     const fiado = pagamentos.pagamentos.filter((p) => p.forma === 'fiado').reduce((a, p) => a + p.valor, 0);
     if (fiado > 0 && !r.cliente.trim()) return toast('Para vender fiado, escreva o nome do cliente.', 'erro');
+    const conf = retro ? conferir(pagamentos.total, esperado) : null;
+    if (conf && (conf.estado === 'falta' || conf.estado === 'passou')) {
+      const ok = await confirm({
+        titulo: `O total ${conf.estado === 'falta' ? 'ficou abaixo' : 'passou'} do caderno`,
+        mensagem: (
+          <p>
+            Lançado {formatBRL(pagamentos.total)}, anotado {formatBRL(esperado as number)}: {conf.estado === 'falta' ? 'falta' : 'sobra'} {formatBRL(conf.diferenca)}. Registrar assim mesmo?
+          </p>
+        ),
+        confirmar: 'Registrar assim mesmo',
+      });
+      if (!ok) return;
+    }
     const principal = [...pagamentos.pagamentos].sort((a, b) => b.valor - a.valor)[0] ?? { forma: 'pix', label: 'Pix' };
     const agora = new Date();
     const dataRetro = retro ? new Date(retro) : null;
@@ -279,9 +298,16 @@ export default function Pdv() {
     setFeita({ venda, baixos: estoqueBaixo(moverEstoque(lista.produtos, venda.itens, -1), venda.itens.map((i) => i.produtoId)) });
     rascunho = null;
     setR(vazio());
-    setRetro('');
+    if (!manterData) setRetro('');
+    setEsperado(null);
     setDia(diaLocal(quando));
-    if (dataRetro) return toast(`Venda de ${quando.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} registrada: ${formatBRL(venda.total)}. Ela não entra no caixa de hoje.`);
+    if (dataRetro) {
+      const cx = caixaAberto(config.caixas ?? []);
+      const noCaixa = !!cx && vendasDoCaixa(cx, [venda]).length > 0;
+      return toast(
+        `Venda de ${quando.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} registrada: ${formatBRL(venda.total)}. ${noCaixa ? 'Ela entrou no caixa aberto de hoje.' : 'Ela não entra em nenhum caixa.'}${manterData ? ' A data continua para a próxima.' : ''}`,
+      );
+    }
     toast(pagamentos.troco > 0 ? `Venda registrada: ${formatBRL(venda.total)}. Troco: ${formatBRL(pagamentos.troco)}.` : `Venda registrada: ${formatBRL(venda.total)}.`);
     setTimeout(() => buscaRef.current?.focus(), 0);
   }
@@ -366,6 +392,8 @@ export default function Pdv() {
       <PageHeader titulo="Vendas (PDV)" subtitulo="Busque ou passe o código de barras, ajuste quantidades e descontos e receba em uma ou mais formas de pagamento. O estoque baixa sozinho." />
 
       <CaixaBarra />
+
+      <VendaOutroDia retro={retro} setRetro={setRetro} esperado={esperado} setEsperado={setEsperado} manter={manterData} setManter={setManterData} total={fech.total} itens={itens.length} />
 
       {vendaveis.length === 0 && (
         <Notice tone="info">
@@ -662,6 +690,17 @@ export default function Pdv() {
               <dd>{formatBRL(fech.total)}</dd>
             </div>
           </dl>
+          {retro && esperado ? (
+            (() => {
+              const c = conferir(fech.total, esperado);
+              return (
+                <p className={`pdv2-caderno ${c.estado}`} role="status">
+                  <span>Caderno: {formatBRL(esperado)}</span>
+                  <strong>{c.estado === 'confere' ? 'Confere' : c.estado === 'falta' ? `Falta ${formatBRL(c.diferenca)}` : `Passou ${formatBRL(c.diferenca)}`}</strong>
+                </p>
+              );
+            })()
+          ) : null}
           <div className="pdv2-pagofalta">
             <div>
               <span>Pago</span>
@@ -702,7 +741,7 @@ export default function Pdv() {
             {fech.excesso > 0 && <p className="pdv2-aviso">Passou {formatBRL(fech.excesso)} da conta sem dinheiro para dar troco.</p>}
           </div>
 
-          {itens.length > 0 && valorPix > 0 && (
+          {itens.length > 0 && valorPix > 0 && !retro && (
             <section className="pdv2-pix" aria-label={`Pix de ${formatBRL(valorPix)}`}>
               <h3>Pix · {formatBRL(valorPix)}</h3>
               <PixBalcao orcamentoCfg={config.orcamentoCfg} valor={valorPix} txid="PDV" />
@@ -733,30 +772,11 @@ export default function Pdv() {
             </div>
           </details>
 
-          <details className="pdv2-descvenda" open={!!retro || undefined}>
-            <summary>Venda de outro dia</summary>
-            <div className="row-gap">
-              <input
-                type="datetime-local"
-                aria-label="Data e hora da venda"
-                value={retro}
-                max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
-                onChange={(e) => setRetro(e.target.value)}
-              />
-              {retro && (
-                <Button variant="ghost" onClick={() => setRetro('')}>
-                  Usar agora
-                </Button>
-              )}
-            </div>
-            <p className="muted small">Para lançar uma venda que não deu para registrar na hora. Ela fica no dia escolhido e não entra no caixa de hoje.</p>
-          </details>
-
-          <Button icon="check" onClick={finalizar} disabled={!itens.length || (r.pagos.length > 0 && (fech.falta > 0 || fech.excesso > 0))} className="pdv-registrar">
-            {r.pagos.length ? 'Finalizar venda' : `Finalizar no Pix · ${formatBRL(fech.total)}`}
+          <Button icon="check" onClick={finalizar} disabled={!itens.length || (!!retro && !r.pagos.length) || (r.pagos.length > 0 && (fech.falta > 0 || fech.excesso > 0))} className="pdv-registrar">
+            {r.pagos.length ? 'Finalizar venda' : retro ? 'Escolha como foi pago' : `Finalizar no Pix · ${formatBRL(fech.total)}`}
             {retro ? ` · ${new Date(retro).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}
           </Button>
-          {!r.pagos.length && itens.length > 0 && <p className="muted small">Sem forma escolhida, a venda entra como Pix. Para outra forma ou para dividir, toque em “Receber em”.</p>}
+          {!r.pagos.length && itens.length > 0 && !retro && <p className="muted small">Sem forma escolhida, a venda entra como Pix. Para outra forma ou para dividir, toque em “Receber em”.</p>}
           {feita && (
             <div className="pdv-feita" role="status">
               <div className="row-gap pdv-feita-topo">
