@@ -1,4 +1,4 @@
-/* Página de entrada da loja (link da bio). Lê o cardápio público e a configuração da entrada publicados pelo sistema. */
+/* Página de entrada da loja (link da bio). Lê o catálogo público e a configuração da entrada publicados pelo sistema. */
 (function () {
   'use strict';
   var L = window.CardapioLib;
@@ -100,7 +100,8 @@
     x.fillStyle = base; monte(); x.fill();
     x.save(); monte(); x.clip();
     var pal = [tom, mh(tom, '#000000', .25), mh(tom, '#ffffff', .2), mh(tom, '#000000', .45), mh(tom, '#ffffff', .4)];
-    var n = Math.round(px * px / (tipo === 'graos' ? 14 : 6)), gr = Math.max(.7, px / (tipo === 'graos' ? 110 : 260));
+    // limite de grãos: acima disso o desenho trava celular fraco; os grãos crescem para cobrir igual
+    var nIdeal = px * px / (tipo === 'graos' ? 14 : 6), n = Math.round(Math.min(nIdeal, 9000)), gr = Math.max(.7, px / (tipo === 'graos' ? 110 : 260)) * Math.sqrt(nIdeal / n);
     for (var i = 0; i < n; i++) {
       var gx = cx - irx + r() * irx * 2, gy = pico + r() * (topo + iry - pico);
       x.globalAlpha = .55 + r() * .45; x.fillStyle = pal[Math.floor(r() * pal.length)];
@@ -138,9 +139,10 @@
   function desenharMontes() { montes.forEach(function (m) { monte(m[0], m[1]); }); }
 
   // ---------- grãos flutuando na abertura ----------
-  var anim = 0;
+  var anim = 0, aoRedimensionar = null, vigia = null;
   function graos(cv, tons) {
     cancelAnimationFrame(anim);
+    if (vigia) vigia.disconnect();
     var ctx = cv.getContext('2d'), gs = [], W, H;
     function tam() { W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
     function semear() {
@@ -148,6 +150,9 @@
       var n = Math.round(Math.min(140, W * H / 5200));
       for (var i = 0; i < n; i++) gs.push({ x: Math.random() * W, y: Math.random() * H, r: 1 + Math.random() * 3.4, vy: .15 + Math.random() * .45, vx: (Math.random() - .5) * .25, a: Math.random() * 6.28, t: Math.floor(Math.random() * tons.length) });
     }
+    // só anima com a abertura na tela e a aba visível; na prévia do sistema, para depois de uns segundos
+    var visivel = true, fim = PREVIEW ? Date.now() + 6000 : Infinity;
+    function rodando() { return !reduzir && visivel && !document.hidden && Date.now() < fim && cv.isConnected; }
     function quadro() {
       ctx.clearRect(0, 0, W, H);
       gs.forEach(function (g) {
@@ -159,10 +164,19 @@
         ctx.fill();
       });
       ctx.globalAlpha = 1;
-      if (!reduzir) anim = requestAnimationFrame(quadro);
+      if (rodando()) anim = requestAnimationFrame(quadro);
     }
+    function retomar() { cancelAnimationFrame(anim); if (rodando()) anim = requestAnimationFrame(quadro); }
     tam(); semear(); quadro();
-    window.addEventListener('resize', function () { tam(); semear(); if (reduzir) quadro(); });
+    if ('IntersectionObserver' in window) {
+      vigia = new IntersectionObserver(function (es) { visivel = es[0].isIntersecting; retomar(); });
+      vigia.observe(cv);
+    }
+    document.onvisibilitychange = retomar;
+    // um só ouvinte de tamanho, trocado a cada desenho (antes acumulava um por atualização)
+    if (aoRedimensionar) window.removeEventListener('resize', aoRedimensionar);
+    aoRedimensionar = function () { tam(); semear(); quadro(); };
+    window.addEventListener('resize', aoRedimensionar);
   }
 
   // ---------- página ----------
@@ -221,11 +235,11 @@
         h('h2', { class: 'titulo', text: 'Pedir é simples' }),
         h('p', { class: 'lead', text: 'Do jeito que você preferir: pelo celular ou no balcão.' }),
         h('ol', { class: 'passos' },
-          h('li', null, h('h3', { text: 'Você escolhe' }), h('p', { text: 'No cardápio, a quantidade que precisa: a partir de ' + L.fmtGramas(Math.max(lj.min || 50, pesos[0])) + '. Ou um mix pronto da receita.' })),
+          h('li', null, h('h3', { text: 'Você escolhe' }), h('p', { text: 'No catálogo, a quantidade que precisa: a partir de ' + L.fmtGramas(Math.max(lj.min || 50, pesos[0])) + '. Ou um mix pronto da receita.' })),
           h('li', null, h('h3', { text: 'A gente pesa na hora' }), h('p', { text: 'Separamos e embalamos o seu pedido fresquinho, na quantidade certa.' })),
           h('li', null, h('h3', { text: en.ativa ? 'Retire ou receba' : 'Retire na loja' }), h('p', { text: receber + (formas.length ? ' Pague com ' + formas.join(', ').replace(/, ([^,]*)$/, ' ou $1') + '.' : '') }))))));
 
-    // destaques do cardápio
+    // destaques do catálogo
     var vistos = {}, cards = [];
     (cardapio && Array.isArray(cardapio.categorias) ? cardapio.categorias : []).forEach(function (cat) {
       if (['Ofertas', 'Mais vendidos', 'Chegou agora'].indexOf(cat.nome) < 0) return;
@@ -278,7 +292,7 @@
     app.appendChild(h('footer', { class: 'rodape', 'data-cor': cores.f }, h('div', { class: 'in', text: lj.nome || '' })));
 
     // barra fixa
-    var barra = h('div', { class: 'barra-in' }, h('a', { href: CARDAPIO }, 'Ver cardápio e pedir'));
+    var barra = h('div', { class: 'barra-in' }, h('a', { href: CARDAPIO }, 'Ver catálogo e pedir'));
     if (lj.whatsapp) {
       var wa = h('a', { class: 'wa', href: L.urlWhatsapp(lj.whatsapp, 'Olá, ' + (lj.nome || '') + '! Vim pela página da loja.'), target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'WhatsApp' });
       wa.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.3-4.2A8 8 0 1112 20a8 8 0 01-3.9-1z"/><path d="M9 9c0 3 3 6 6 6l1-1.5-2-1-1 .7c-.8-.4-1.6-1.2-2-2l.7-1-1-2z"/></svg>'; // ícone fixo do próprio arquivo
@@ -300,7 +314,10 @@
   if (PREVIEW) {
     window.addEventListener('message', function (ev) {
       if (ev.origin !== location.origin || !ev.data || ev.data.tipo !== 'entrada-previa') return;
-      desenhar(ev.data.cardapio, ev.data.entrada);
+      // várias mudanças seguidas (digitando) viram um desenho só
+      clearTimeout(desenhar.t);
+      var d = ev.data;
+      desenhar.t = setTimeout(function () { desenhar.feito = true; desenhar(d.cardapio, d.entrada); }, desenhar.feito ? 250 : 0);
     });
     if (window.parent !== window) window.parent.postMessage({ tipo: 'entrada-pronta' }, location.origin);
   } else {

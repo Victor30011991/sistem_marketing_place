@@ -72,7 +72,7 @@ describe('vitrine: configuração', () => {
     expect(normalizarInstagram('www.instagram.com/temperei_/?igsh=abc')).toBe('https://www.instagram.com/temperei_/?igsh=abc');
   });
 
-  it('monta o link do cardápio a partir do endereço do sistema', () => {
+  it('monta o link do catálogo a partir do endereço do sistema', () => {
     expect(linkCardapio('https://victor30011991.github.io/temperei_sistem/#/pagina')).toBe('https://victor30011991.github.io/temperei_sistem/cardapio/');
     expect(linkCardapio('https://victor30011991.github.io/temperei_sistem/index.html#/x', 'instagram')).toBe('https://victor30011991.github.io/temperei_sistem/cardapio/?o=instagram');
   });
@@ -122,7 +122,7 @@ describe('vitrine: arquivo publicado', () => {
 });
 
 describe('vitrine: backup', () => {
-  it('a configuração do cardápio sobrevive ao backup .txt', () => {
+  it('a configuração do catálogo sobrevive ao backup .txt', () => {
     const loja = { ...defaultStore(), vitrine: { ...VITRINE_PADRAO, instagram: '@temperei', minGramas: 100, ocultos: ['a'], abertura: 'Oi {loja}!' } };
     const txt = criarBackup(lista(), loja, defaultSettings());
     const r = lerBackup(txt);
@@ -220,13 +220,13 @@ describe('botões do cartão (link na bio)', () => {
     }
   });
 
-  it('o arquivo do cardápio leva os botões ativos, na ordem, com o texto escolhido', () => {
+  it('o arquivo do catálogo leva os botões ativos, na ordem, com o texto escolhido', () => {
     const botoes = [b('whatsapp'), { ...b('cardapio'), rotulo: 'Fazer pedido' }, { ...b('site', 'temperei.com.br'), ativo: false }, b('facebook'), b('maps', 'Parnaíba')];
     const r = montarCardapio({ nome: 'L', categorias: [], produtos: [] }, { ...defaultStore(), vitrine: { ...v, botoes } }, null);
     expect(r.arquivo.loja.botoes.map((x) => [x.t, x.r])).toEqual([['whatsapp', 'WhatsApp'], ['cardapio', 'Fazer pedido'], ['maps', 'Como chegar']]);
   });
 
-  it('sem botões escolhidos usa o padrão (Cardápio, Instagram, Facebook, WhatsApp) e sobrevive ao backup', () => {
+  it('sem botões escolhidos usa o padrão (Catálogo, Instagram, Facebook, WhatsApp) e sobrevive ao backup', () => {
     expect(botoesPadrao().map((x) => x.tipo)).toEqual(['cardapio', 'instagram', 'facebook', 'whatsapp']);
     const loja2 = { ...defaultStore(), vitrine: { ...v, botoes: [{ ...b('maps', 'Parnaíba'), rotulo: 'Onde estamos' }] } };
     const r = lerBackup(criarBackup({ nome: 'L', produtos: [], categorias: [] }, loja2, defaultSettings()));

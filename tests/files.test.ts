@@ -98,7 +98,7 @@ describe('exportação e reimportação do Excel', () => {
     expect(res.categorias).toEqual(['Especiarias', 'Óleos']);
   });
 
-  it('abrir o Excel salvo numa lista vazia mantém os IDs (vendas, lotes, compras e cardápio continuam ligados)', async () => {
+  it('abrir o Excel salvo numa lista vazia mantém os IDs (vendas, lotes, compras e catálogo continuam ligados)', async () => {
     const { read } = await roundTrip();
     const sheet = read.sheets[0];
     const h = detectHeaderRow(sheet.rows)!;

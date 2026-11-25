@@ -1,4 +1,4 @@
-/* Funções puras do cardápio (sem tela). Também são testadas no projeto, em tests/vitrine.test.ts. */
+/* Funções puras do catálogo (sem tela). Também são testadas no projeto, em tests/vitrine.test.ts. */
 (function (root) {
   'use strict';
 

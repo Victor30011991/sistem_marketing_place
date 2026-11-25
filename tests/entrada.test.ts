@@ -31,7 +31,7 @@ describe('página de entrada', () => {
     expect(JSON.stringify(arquivo).length).toBeLessThan(LIMITE_FOTOS_ENTRADA + 20_000);
     expect(imagensSoltas(loja.vitrine.entrada, [...imagens, { id: 'z', nome: '', dados: foto(1) }])).toEqual(['z']);
   });
-  it('link ao lado do cardápio', () => {
+  it('link ao lado do catálogo', () => {
     expect(linkEntrada('https://x.github.io/sistema/#/pagina')).toBe('https://x.github.io/sistema/loja/');
     expect(linkEntrada('https://x.github.io/sistema/index.html', 'instagram')).toBe('https://x.github.io/sistema/loja/?o=instagram');
   });

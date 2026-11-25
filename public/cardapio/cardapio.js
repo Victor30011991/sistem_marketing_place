@@ -1,4 +1,4 @@
-/* Página pública do cardápio. Não conhece o sistema de precificação: só lê o cardápio publicado (nome, categoria e preço). */
+/* Página pública do catálogo. Não conhece o sistema de precificação: só lê o catálogo publicado (nome, categoria e preço). */
 (function () {
   'use strict';
   var L = window.CardapioLib;
@@ -77,7 +77,7 @@
     s.setAttribute('width', String(tam || 22)); s.setAttribute('height', String(tam || 22)); s.setAttribute('viewBox', '0 0 24 24');
     s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '1.9');
     s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.setAttribute('aria-hidden', 'true');
-    s.innerHTML = ICONES[nome] || ''; // textos fixos do próprio arquivo, nunca dados do cardápio
+    s.innerHTML = ICONES[nome] || ''; // textos fixos do próprio arquivo, nunca dados do catálogo
     return s;
   }
   function avisar(texto) {
@@ -148,12 +148,12 @@
       if (k.indexOf('k:') === 0) {
         var kt = kitDe(k), q = Math.round(carrinho[k]);
         if (kt && q > 0) out.push({ chave: k, kit: true, n: kt.n, g: q, total: kt.p * q, desc: descKit(kt) });
-        else delete carrinho[k]; // kit que saiu do cardápio
+        else delete carrinho[k]; // kit que saiu do catálogo
         return;
       }
       var it = mapa[k];
       if (it) out.push({ chave: k, i: it.i, n: it.n, g: carrinho[k], total: L.precoItem(carrinho[k], it.pk) });
-      else delete carrinho[k]; // item que saiu do cardápio
+      else delete carrinho[k]; // item que saiu do catálogo
     });
     return out;
   }
@@ -252,7 +252,7 @@
     var paleta = [tom, misturaHex(tom, '#000000', .25), misturaHex(tom, '#ffffff', .22), misturaHex(tom, '#000000', .1)];
     var seed = 11; function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
     x.fillStyle = 'rgba(43,29,23,.16)'; x.beginPath(); x.ellipse(px / 2, px * .76, px * .4, px * .085, 0, 0, 6.28); x.fill();
-    var n = Math.round(px * px / 28), gr = Math.max(1.2, px / 110);
+    var n = Math.round(Math.min(px * px / 28, 6000)), gr = Math.max(1.2, px / 110) * Math.sqrt(px * px / 28 / n);
     for (var i = 0; i < n; i++) {
       var ang = rnd() * Math.PI, rr = Math.sqrt(rnd());
       var cx = px / 2 + Math.cos(ang) * rr * px * .38, cy = px * .74 - Math.sin(ang) * rr * px * .44 * (1 - Math.abs(Math.cos(ang)) * .25);
@@ -286,7 +286,7 @@
     x.fillStyle = misturaHex(tom, '#000000', .2); x.fillRect(0, 0, px, px);
     var pal = [tom, misturaHex(tom, '#000000', .3), misturaHex(tom, '#ffffff', .25), misturaHex(tom, '#000000', .12)];
     var seed = 5; function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
-    var n = Math.round(px * px / 9), gr = Math.max(1.3, px / 90);
+    var n = Math.round(Math.min(px * px / 9, 6000)), gr = Math.max(1.3, px / 90) * Math.sqrt(px * px / 9 / n);
     for (var i = 0; i < n; i++) { x.fillStyle = pal[Math.floor(rnd() * 4)]; x.fillRect(cx - r2 + rnd() * r2 * 2, cy - r2 + rnd() * r2 * 2, gr + rnd() * gr, gr + rnd() * gr); }
     var luz = x.createRadialGradient(cx - r2 * .35, cy - r2 * .4, 0, cx - r2 * .35, cy - r2 * .4, r2 * 1.2);
     luz.addColorStop(0, 'rgba(255,255,255,.28)'); luz.addColorStop(1, 'rgba(0,0,0,.18)');
@@ -373,7 +373,8 @@
         x.restore();
       });
     } else {
-      var n = Math.round(px * px / (tipo === 'graos' ? 14 : 6)), gr = Math.max(.7, px / (tipo === 'graos' ? 110 : 260));
+      // limite de grãos: acima disso o desenho trava celular fraco; os grãos crescem para cobrir igual
+    var nIdeal = px * px / (tipo === 'graos' ? 14 : 6), n = Math.round(Math.min(nIdeal, 9000)), gr = Math.max(.7, px / (tipo === 'graos' ? 110 : 260)) * Math.sqrt(nIdeal / n);
       for (var i = 0; i < n; i++) {
         var gx2 = cx - irx + r() * irx * 2, gy2 = pico + r() * (topo + iry - pico);
         x.globalAlpha = .55 + r() * .45; x.fillStyle = pal[Math.floor(r() * pal.length)];
@@ -512,7 +513,7 @@
       tem[b.t] = 1;
       nav.appendChild(botaoLink(ICONES[b.t] ? b.t : 'site', b.r, b.u));
     });
-    if (!tem.whatsapp && lj.whatsapp) nav.insertBefore(botaoLink('whatsapp', 'WhatsApp', L.urlWhatsapp(lj.whatsapp, 'Olá, ' + lj.nome + '! Vim pelo cardápio.')), nav.firstChild);
+    if (!tem.whatsapp && lj.whatsapp) nav.insertBefore(botaoLink('whatsapp', 'WhatsApp', L.urlWhatsapp(lj.whatsapp, 'Olá, ' + lj.nome + '! Vim pelo catálogo.')), nav.firstChild);
     if (!tem.instagram && lj.instagram) nav.appendChild(botaoLink('instagram', 'Instagram', lj.instagram));
     if (!tem.maps && lj.endereco) nav.appendChild(botaoLink('maps', 'Como chegar', 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(lj.endereco)));
     return nav.childNodes.length ? nav : null;
@@ -538,7 +539,7 @@
     var topoLoja = h('header', { class: 'topo-loja' },
       h('a', { class: 'topo-logo', href: '#/loja', 'aria-label': 'Sobre a ' + lj.nome }, logoEl('logo-mini')),
       h('div', { class: 'topo-tx' }, h('h1', { text: lj.nome }), st ? h('p', { class: 'topo-st' + (st.aberto ? ' aberto' : '') }, h('i'), st.texto) : lj.slogan ? h('p', { class: 'topo-st', text: lj.slogan }) : null),
-      lj.whatsapp ? h('a', { class: 'topo-wa', href: L.urlWhatsapp(lj.whatsapp, 'Olá, ' + lj.nome + '! Vim pelo cardápio.'), target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'Falar no WhatsApp' }, icone('whatsapp', 22)) : null);
+      lj.whatsapp ? h('a', { class: 'topo-wa', href: L.urlWhatsapp(lj.whatsapp, 'Olá, ' + lj.nome + '! Vim pelo catálogo.'), target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'Falar no WhatsApp' }, icone('whatsapp', 22)) : null);
     var busca = h('input', { class: 'busca', type: 'search', placeholder: 'Buscar tempero, chá, kit…', value: ui.busca, id: 'busca', autocomplete: 'off', enterkeyhint: 'search' });
     busca.addEventListener('input', function () { ui.busca = busca.value; desenharConteudo(); });
     return h('div', { class: 'wrap' }, topoLoja,
@@ -605,7 +606,10 @@
     (dados.mixes || []).slice(0, 3).forEach(function (m) {
       var its = m.i.map(function (id) { return mapa['i:' + id]; }).filter(Boolean); if (its.length < 2) return;
       var tot = 0; its.forEach(function (y) { tot += L.precoItem(m.g, y.pk); });
-      slides.push({ selo: 'Mix pronto', titulo: m.n, linha: its.length + ' itens · ' + L.fmtGramas(m.g) + ' de cada', por: L.brl(tot), cor: 'p', arte: bolinhasSlide(its.map(corDe)), mix: m, bt: 'Levar o mix' });
+      // diz o que vem no mix: o cliente entende que leva os temperos, não o prato
+      var nomesT = (m.t && m.t.length ? m.t : its.map(function (y) { return y.n; }));
+      var leva = nomesT.length > 1 ? nomesT.slice(0, -1).join(', ') + ' e ' + nomesT[nomesT.length - 1] : nomesT[0];
+      slides.push({ selo: 'Mix de temperos', titulo: m.n, linha: 'Leva ' + leva, sub: L.fmtGramas(m.g) + ' de cada' + (m.d ? ' · ' + m.d : ''), por: L.brl(tot), cor: 'p', arte: bolinhasSlide(its.map(corDe)), mix: m, bt: 'Levar tudo', compacto: true });
     });
     if (!slides.length) return null;
     var trilho = h('div', { class: 'banner-trilho', role: 'region', 'aria-label': 'Ofertas e mixes' });
@@ -614,11 +618,11 @@
       var bt = sl.kit
         ? h('button', { class: 'banner-bt', type: 'button', onclick: function () { addKit(sl.kit); desenhar(true); } }, sl.bt)
         : sl.mix
-        ? h('button', { class: 'banner-bt', type: 'button', onclick: function () { var its = sl.mix.i.map(function (id) { return mapa['i:' + id]; }).filter(Boolean); its.forEach(function (y) { add(y.chave, sl.mix.g, true); }); avisar(sl.mix.n + ' no pedido'); desenhar(true); } }, sl.bt)
+        ? h('button', { class: 'banner-bt', type: 'button', onclick: function () { var its = sl.mix.i.map(function (id) { return mapa['i:' + id]; }).filter(Boolean); its.forEach(function (y) { add(y.chave, sl.mix.g, true); }); avisar('Temperos de ' + sl.mix.n.replace(/^temperos para /i, '') + ' no pedido'); desenhar(true); } }, sl.bt)
         : h('a', { class: 'banner-bt', href: sl.href }, sl.bt);
       var corHex = /^#/.test(sl.cor) ? sl.cor : '';
-      trilho.appendChild(h('article', { class: 'banner-slide c-' + (corHex ? 'x' : sl.cor), style: corHex ? 'background:' + corHex + ';color:' + (lumHex(corHex) > 0.4 ? '#2b1d17' : '#ffffff') : null },
-        h('div', { class: 'banner-tx' }, h('em', { text: sl.selo }), h('strong', { text: sl.titulo }), sl.linha ? h('span', { text: sl.linha }) : null,
+      trilho.appendChild(h('article', { class: 'banner-slide c-' + (corHex ? 'x' : sl.cor) + (sl.compacto ? ' compacto' : ''), style: corHex ? 'background:' + corHex + ';color:' + (lumHex(corHex) > 0.4 ? '#2b1d17' : '#ffffff') : null },
+        h('div', { class: 'banner-tx' }, h('em', { text: sl.selo }), h('strong', { text: sl.titulo }), sl.linha ? h('span', { text: sl.linha }) : null, sl.sub ? h('small', { class: 'banner-sub', text: sl.sub }) : null,
           h('span', { class: 'banner-preco' }, sl.de ? h('s', { text: sl.de }) : null, h('b', { text: sl.por })), bt),
         sl.arte));
       pontos.appendChild(h('i', { class: i ? '' : 'on' }));
@@ -754,7 +758,7 @@
     } else {
       var b = banner(); if (b) main.appendChild(b);
       var abas = abasInicio();
-      if (!abas.length) { main.appendChild(h('p', { class: 'vazio', text: 'O cardápio está sem produtos no momento.' })); if (manter) window.scrollTo(0, y); return; }
+      if (!abas.length) { main.appendChild(h('p', { class: 'vazio', text: 'O catálogo está sem produtos no momento.' })); if (manter) window.scrollTo(0, y); return; }
       if (!abas.some(function (a) { return a.chave === ui.cat; })) ui.cat = abas[0].chave;
       var atual = abas.filter(function (a) { return a.chave === ui.cat; })[0];
       main.appendChild(quadradinhos(abas, ui.cat));
@@ -774,7 +778,7 @@
     var st = L.statusHorario(lj.horarios, new Date());
     var resumo = resumoHorario();
     var nav = h('nav', { class: 'cv-botoes', 'aria-label': 'Fale com a loja' });
-    var tem = {}, ordem = Array.isArray(lj.botoes) && lj.botoes.length ? lj.botoes : [{ t: 'cardapio', r: 'Ver cardápio e pedir', u: '#cardapio' }];
+    var tem = {}, ordem = Array.isArray(lj.botoes) && lj.botoes.length ? lj.botoes : [{ t: 'cardapio', r: 'Ver catálogo e pedir', u: '#cardapio' }];
     function bt(tipo, texto, href, cls) {
       var a = h('a', { class: 'cv-bt ' + cls, href: href }, icone(ICONES[tipo] ? tipo : tipo === 'cardapio' ? 'cesta' : 'site', 20), h('span', { text: texto }));
       if (/^https?:/i.test(href)) { a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener noreferrer'); }
@@ -783,13 +787,13 @@
     var primeiro = true;
     ordem.forEach(function (b) {
       if (!b || typeof b.u !== 'string') return;
-      if (b.t === 'cardapio') { nav.appendChild(bt('cardapio', !b.r || b.r === 'Cardápio' ? 'Ver cardápio e pedir' : b.r, '#/', 'cv-p')); tem.cardapio = 1; return; }
+      if (b.t === 'cardapio') { nav.appendChild(bt('cardapio', !b.r || b.r === 'Catálogo' || b.r === 'Cardápio' ? 'Ver catálogo e pedir' : b.r, '#/', 'cv-p')); tem.cardapio = 1; return; }
       if (!/^(https?:|tel:)/i.test(b.u)) return;
       tem[b.t] = 1;
       nav.appendChild(bt(b.t, b.r, b.u, b.t === 'whatsapp' && primeiro ? 'cv-d' : 'cv-o'));
       if (b.t === 'whatsapp') primeiro = false;
     });
-    if (!tem.cardapio) nav.insertBefore(bt('cardapio', 'Ver cardápio e pedir', '#/', 'cv-p'), nav.firstChild);
+    if (!tem.cardapio) nav.insertBefore(bt('cardapio', 'Ver catálogo e pedir', '#/', 'cv-p'), nav.firstChild);
     if (!tem.whatsapp && lj.whatsapp) nav.appendChild(bt('whatsapp', 'WhatsApp', L.urlWhatsapp(lj.whatsapp, 'Olá, ' + lj.nome + '! Vim pelo cartão da loja.'), 'cv-d'));
     if (!tem.instagram && lj.instagram) nav.appendChild(bt('instagram', 'Instagram', lj.instagram, 'cv-o'));
     if (!tem.maps && lj.endereco) nav.appendChild(bt('maps', 'Como chegar', 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(lj.endereco), 'cv-o'));
@@ -842,7 +846,7 @@
     var reais = categoriasReais();
     var pos = 0; reais.forEach(function (x, i) { if (x.idx === idx) pos = i; });
     var atual = reais[pos];
-    if (!atual) return h('div', { class: 'wrap' }, topo('Categoria', ''), h('p', { class: 'vazio', text: 'Esta categoria não está mais no cardápio.' }));
+    if (!atual) return h('div', { class: 'wrap' }, topo('Categoria', ''), h('p', { class: 'vazio', text: 'Esta categoria não está mais no catálogo.' }));
     var c = atual.c, tom = tomCategoria(c);
     var escuro = lumHex(tom) > 0.42;
     var abas = h('nav', { class: 'cat-abas', 'aria-label': 'Categorias' });
@@ -855,7 +859,7 @@
       reais.length > 1 ? h('p', { class: 'cat-dica', text: '‹ arraste para o lado para trocar de categoria ›' }) : null);
     var raiz = h('div', { class: 'wrap cat-tela' + (escuro ? ' cat-clara' : ''), style: '--tom:' + tom },
       h('header', { class: 'cat-top' },
-        h('button', { class: 'voltar-cat', type: 'button', onclick: function () { if (ui.veioDoInicio) history.back(); else ir(''); } }, icone('voltar', 18), 'Cardápio'),
+        h('button', { class: 'voltar-cat', type: 'button', onclick: function () { if (ui.veioDoInicio) history.back(); else ir(''); } }, icone('voltar', 18), 'Catálogo'),
         h('div', { class: 'cat-top-in' },
           h('div', null, h('h1', { text: c.nome }), h('p', { text: c.itens.length + (c.itens.length === 1 ? ' produto' : ' produtos') + ' · pesados na hora' })),
           h('img', { class: 'cat-monte', src: poteURL(tom, 260, 'transparente', tipoCategoria(c)), alt: '' })),
@@ -883,7 +887,7 @@
   // ---------- produto ----------
   function telaProduto(chave) {
     var it = mapa[chave];
-    if (!it) return h('div', { class: 'wrap' }, topo('Produto', ''), h('p', { class: 'vazio', text: 'Este produto não está mais no cardápio.' }));
+    if (!it) return h('div', { class: 'wrap' }, topo('Produto', ''), h('p', { class: 'vazio', text: 'Este produto não está mais no catálogo.' }));
     var escolhido = pesoPadrao(chave);
     var tags = h('div', { class: 'tags' });
     if (it.s) tags.appendChild(h('span', { class: 'tag p', text: it.s }));
@@ -967,7 +971,7 @@
 
   function topo(titulo, voltarPara) {
     return h('header', { class: 'topo' },
-      h('button', { class: 'voltar', type: 'button', onclick: function () { ir(voltarPara); } }, icone('voltar'), 'Cardápio'),
+      h('button', { class: 'voltar', type: 'button', onclick: function () { ir(voltarPara); } }, icone('voltar'), 'Catálogo'),
       h('h1', { text: titulo }));
   }
 
@@ -984,7 +988,7 @@
     var its = itensDoPedido();
     var raiz = h('div', { class: 'wrap' }, topo('Seu pedido', ''));
     if (!its.length) {
-      raiz.appendChild(h('div', { class: 'pg' }, h('p', { class: 'vazio', text: 'Seu pedido está vazio. Volte ao cardápio e escolha os produtos.' }), h('button', { class: 'b', type: 'button', onclick: function () { ir(''); } }, 'Ver o cardápio')));
+      raiz.appendChild(h('div', { class: 'pg' }, h('p', { class: 'vazio', text: 'Seu pedido está vazio. Volte ao catálogo e escolha os produtos.' }), h('button', { class: 'b', type: 'button', onclick: function () { ir(''); } }, 'Ver o catálogo')));
       return raiz;
     }
     var ms = modos(); if (ms.indexOf(form.modo) < 0) form.modo = ms[0];
@@ -1232,10 +1236,10 @@
       icone('cesta', 26), its.length ? h('b', { class: 'nav-qtd', text: String(its.length) }) : null);
     var quarto = lj.fid
       ? item('Cartão', 'cartao', tl === 'fidelidade', function () { ir('fidelidade'); })
-      : lj.whatsapp ? h('a', { class: 'nav-it', href: L.urlWhatsapp(lj.whatsapp, 'Olá, ' + lj.nome + '! Vim pelo cardápio.'), target: '_blank', rel: 'noopener noreferrer' }, icone('whatsapp', 22), h('span', { text: 'Contato' })) : h('span');
+      : lj.whatsapp ? h('a', { class: 'nav-it', href: L.urlWhatsapp(lj.whatsapp, 'Olá, ' + lj.nome + '! Vim pelo catálogo.'), target: '_blank', rel: 'noopener noreferrer' }, icone('whatsapp', 22), h('span', { text: 'Contato' })) : h('span');
     app.appendChild(h('nav', { class: 'nav', id: 'barra', 'aria-label': 'Navegação' }, h('div', { class: 'nav-in' },
       item('Início', 'casa', tl === 'inicio', function () { if (tl === 'inicio') window.scrollTo({ top: 0, behavior: 'smooth' }); else ir(''); }),
-      item('Cardápio', 'grade', tl === 'categoria', irCategorias),
+      item('Catálogo', 'grade', tl === 'categoria', irCategorias),
       h('div', { class: 'nav-meio' }, carrinhoBt, h('small', { text: its.length ? L.brl(L.subtotal(its)) : 'Pedido' })),
       quarto,
       item('Loja', 'maps', tl === 'loja', function () { ir('loja'); }))));
@@ -1309,22 +1313,22 @@
     if (Array.isArray(lj.horarios) && lj.horarios.length === 7) {
       ld.openingHoursSpecification = lj.horarios.map(function (x, i) { return x ? { '@type': 'OpeningHoursSpecification', dayOfWeek: 'https://schema.org/' + dias[i], opens: x[0], closes: x[1] } : null; }).filter(Boolean);
     }
-    ld.hasOfferCatalog = { '@type': 'OfferCatalog', name: 'Cardápio', itemListElement: todosItens().slice(0, 80).map(function (it) {
+    ld.hasOfferCatalog = { '@type': 'OfferCatalog', name: 'Catálogo', itemListElement: todosItens().slice(0, 80).map(function (it) {
       return { '@type': 'Offer', itemOffered: { '@type': 'Product', name: it.n, category: it.cat }, price: (Math.round(it.pk / 10) / 100).toFixed(2), priceCurrency: 'BRL', eligibleQuantity: { '@type': 'QuantitativeValue', value: 100, unitCode: 'GRM' } };
     }) };
     var el = document.getElementById('ld-loja') || document.head.appendChild(h('script', { id: 'ld-loja', type: 'application/ld+json' }));
     el.textContent = JSON.stringify(ld);
     var desc = document.querySelector('meta[name="description"]');
-    if (desc) desc.setAttribute('content', (lj.slogan ? lj.slogan + '. ' : '') + 'Cardápio de ' + lj.nome + (lj.endereco ? ', ' + lj.endereco : '') + '. Peça pelo WhatsApp.');
+    if (desc) desc.setAttribute('content', (lj.slogan ? lj.slogan + '. ' : '') + 'Catálogo de ' + lj.nome + (lj.endereco ? ', ' + lj.endereco : '') + '. Peça pelo WhatsApp.');
   }
 
   function iniciar(j) {
-    if (!validar(j)) return indisponivel('O cardápio não está disponível agora. Tente de novo em instantes.');
+    if (!validar(j)) return indisponivel('O catálogo não está disponível agora. Tente de novo em instantes.');
     dados = j;
     if (!Array.isArray(dados.mixes)) dados.mixes = [];
     indexar();
     indexarKits();
-    document.title = 'Cardápio e pedidos · ' + j.loja.nome;
+    document.title = 'Catálogo e pedidos · ' + j.loja.nome;
     aplicarCores(j.loja.cores);
     aplicarLetra(j.loja.letra);
     recuperar();
@@ -1336,11 +1340,14 @@
     indisponivel('Montando a prévia…');
     window.addEventListener('message', function (e) {
       if (e.origin !== location.origin || !e.data || e.data.tipo !== 'cardapio-previa') return;
-      iniciar(e.data.dados);
+      // várias mudanças seguidas (digitando no sistema) viram um desenho só
+      var novos = e.data.dados;
+      clearTimeout(iniciar.t);
+      iniciar.t = setTimeout(function () { iniciar.feito = true; iniciar(novos); }, iniciar.feito ? 250 : 0);
     });
     if (window.parent !== window) window.parent.postMessage({ tipo: 'cardapio-pronto' }, location.origin);
   } else {
-    // 1º: o cardápio ao vivo, publicado pelo sistema na nuvem; 2º: o arquivo cardapio.json (publicação manual)
+    // 1º: o catálogo ao vivo, publicado pelo sistema na nuvem; 2º: o arquivo cardapio.json (publicação manual)
     var NUVEM = 'https://firestore.googleapis.com/v1/projects/temperei/databases/(default)/documents/publico/cardapio?key=AIzaSyBIe_OH9xytji9DKWT_5-Pd-p8PyNk0lUE';
     var json = function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); };
     fetch(NUVEM, { cache: 'no-store' })
@@ -1348,6 +1355,6 @@
       .then(function (d) { return JSON.parse(d.fields.json.stringValue); })
       .catch(function () { return fetch('./cardapio.json?t=' + Date.now(), { cache: 'no-store' }).then(json); })
       .then(iniciar)
-      .catch(function () { indisponivel('O cardápio ainda não foi publicado. Volte em instantes.'); });
+      .catch(function () { indisponivel('O catálogo ainda não foi publicado. Volte em instantes.'); });
   }
 })();

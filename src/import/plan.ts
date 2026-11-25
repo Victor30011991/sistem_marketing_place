@@ -173,7 +173,7 @@ function newProductFrom(d: NonNullable<ParsedRow['data']>, defaultUnit: string):
   const unidade = d.unidade ?? defaultUnit;
   const prop = d.base && compatibleUnits(unidade).includes(d.base.unidade) ? { qtd: d.base.qtd, unidade: d.base.unidade } : defaultProportional(unidade);
   return {
-    // mantém o ID do arquivo salvo por este sistema: vendas, lotes, lista de compras e cardápio apontam para ele
+    // mantém o ID do arquivo salvo por este sistema: vendas, lotes, lista de compras e catálogo apontam para ele
     id: d.id && /^[A-Za-z0-9_-]{4,40}$/.test(d.id) ? d.id : newId(),
     nome: d.nome,
     categoria: d.categoria ?? '',

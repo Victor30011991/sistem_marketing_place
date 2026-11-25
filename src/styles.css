@@ -462,7 +462,7 @@ ul.plain { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
 .kpi.ok dd { color: var(--ok); }
 @media (max-width: 860px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* ---------- Página da loja (cardápio do cliente) ---------- */
+/* ---------- Página da loja (catálogo do cliente) ---------- */
 .vit-grid { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 22px; align-items: start; }
 .vit-forms { display: grid; gap: 22px; min-width: 0; }
 .vit-preview { position: sticky; top: 16px; display: grid; gap: 8px; }
@@ -1128,7 +1128,7 @@ input[type='color'] { width: 44px; min-width: 44px; height: 40px; padding: 2px; 
 .pot-range input { width: 100%; accent-color: var(--primary); }
 .pot-faltam { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 
-/* aparência do cardápio (Vitrine) */
+/* aparência do catálogo (Vitrine) */
 .vit-cores { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin: 10px 0 14px; }
 .vit-cor { display: flex; gap: 12px; align-items: flex-start; }
 .vit-cor > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

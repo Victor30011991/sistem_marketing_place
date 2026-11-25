@@ -381,7 +381,7 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
         )}
 
         <fieldset className="span-2 pf-extra">
-          <legend>Cardápio e promoção</legend>
+          <legend>Catálogo e promoção</legend>
           <div className="pf-foto">
             {d.foto ? <img src={d.foto} alt={`Foto de ${d.nome || 'produto'}`} /> : <span className="pf-foto-vazia" aria-hidden="true">sem foto</span>}
             <div className="row-gap wrap">
@@ -414,11 +414,11 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
           {!d.foto && (
             <div className="pf-cor">
               <label className="vit-cor-amostra" style={{ background: d.cor ?? '#d9cbb8' }}>
-                <span className="sr-only">Cor da bolinha no cardápio</span>
+                <span className="sr-only">Cor da bolinha no catálogo</span>
                 <input type="color" value={(d.cor ?? '#d9cbb8').toLowerCase()} onChange={(e) => set({ cor: e.target.value.toUpperCase() })} />
               </label>
               <div>
-                <strong>Cor no cardápio</strong>
+                <strong>Cor no catálogo</strong>
                 <small className="muted">
                   {d.cor ? 'Escolhida por você. ' : 'Automática, pelo nome do produto. '}
                   Aparece na bolinha enquanto o produto não tem foto.
@@ -440,8 +440,8 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
                 {(id) => <MoneyInput id={id} value={d.promo!.preco || null} onChange={(v) => set({ promo: { ...d.promo!, preco: v ?? 0 } })} />}
               </Field>
               <Field label="Até quando" hint="Vazio = até você tirar.">{(id) => <input id={id} type="date" value={d.promo!.ate} onChange={(e) => set({ promo: { ...d.promo!, ate: e.target.value } })} />}</Field>
-              <Field label="Selo no cardápio" className="span-2">{(id) => <input id={id} value={d.promo!.selo} maxLength={24} onChange={(e) => set({ promo: { ...d.promo!, selo: e.target.value } })} placeholder="Ex.: Oferta da semana" />}</Field>
-              <p className="muted small span-2">Enquanto ativa, a promoção vale no cardápio, no PDV e nos orçamentos. Na balança, gere o arquivo de novo.</p>
+              <Field label="Selo no catálogo" className="span-2">{(id) => <input id={id} value={d.promo!.selo} maxLength={24} onChange={(e) => set({ promo: { ...d.promo!, selo: e.target.value } })} placeholder="Ex.: Oferta da semana" />}</Field>
+              <p className="muted small span-2">Enquanto ativa, a promoção vale no catálogo, no PDV e nos orçamentos. Na balança, gere o arquivo de novo.</p>
             </div>
           )}
         </fieldset>

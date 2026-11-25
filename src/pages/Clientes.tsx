@@ -47,7 +47,7 @@ export default function Clientes() {
   const [aniTxt, setAniTxt] = useState('');
   const [fidAberto, setFidAberto] = useState(!fid.ativo);
   const sumidos = linhas.filter((l) => l.h.diasSemComprar != null && l.h.diasSemComprar >= SUMIDO);
-  // "volte e ganhe": cupom escolhido entra na mensagem de saudade, com o link do cardápio
+  // "volte e ganhe": cupom escolhido entra na mensagem de saudade, com o link do catálogo
   const cuponsValendo = cuponsDe(vitrineDe(state.loja).cupons).filter((c) => cupomValendo(c));
   const [cupomVoltaId, setCupomVoltaId] = useState<string>('auto');
   const cupomVolta = cupomVoltaId === 'auto' ? cuponsValendo.find((c) => c.codigo === 'VOLTEI') ?? cuponsValendo[0] ?? null : cuponsValendo.find((c) => c.id === cupomVoltaId) ?? null;
@@ -97,7 +97,7 @@ export default function Clientes() {
     <div className="page">
       <PageHeader
         titulo="Clientes"
-        subtitulo="Quem compra, quanto e do quê. O cadastro se completa sozinho com os pedidos do cardápio e os orçamentos."
+        subtitulo="Quem compra, quanto e do quê. O cadastro se completa sozinho com os pedidos do catálogo e os orçamentos."
         acoes={
           <>
             <Button variant="ghost" icon="upload" onClick={importar}>
@@ -155,7 +155,7 @@ export default function Clientes() {
         {filtro === 'sumidos' && sumidos.length > 0 && (
           <div className="volta-barra">
             <p>
-              <strong>Volte e ganhe.</strong> Toque em “Convidar” para abrir o WhatsApp com a mensagem pronta e o link do cardápio.
+              <strong>Volte e ganhe.</strong> Toque em “Convidar” para abrir o WhatsApp com a mensagem pronta e o link do catálogo.
             </p>
             {cuponsValendo.length ? (
               <label className="volta-cupom">
@@ -178,7 +178,7 @@ export default function Clientes() {
         )}
         {clientes.length === 0 ? (
           <Empty icon="store" titulo="Nenhum cliente ainda" acoes={<Button onClick={importar}>Trazer das vendas e orçamentos</Button>}>
-            Os pedidos do cardápio e os orçamentos com WhatsApp criam o cadastro sozinhos.
+            Os pedidos do catálogo e os orçamentos com WhatsApp criam o cadastro sozinhos.
           </Empty>
         ) : (
           <div className="table-scroll">

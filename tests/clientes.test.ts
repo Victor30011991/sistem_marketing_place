@@ -36,13 +36,13 @@ describe('clientes', () => {
   });
 });
 
-describe('pedidos do cardápio', () => {
+describe('pedidos do catálogo', () => {
   const lib = (() => {
     const m: { exports: Record<string, (...a: unknown[]) => unknown> } = { exports: {} };
     new Function('module', readFileSync('public/cardapio/lib.js', 'utf8'))(m);
     return m.exports;
   })();
-  it('o cardápio público leva o id do produto', () => {
+  it('o catálogo público leva o id do produto', () => {
     const r = montarCardapio({ nome: 'L', categorias: ['Temperos'], produtos: [prod('a', 'Açafrão')] }, defaultStore(), null);
     expect(r.arquivo.categorias[0].itens[0]).toEqual({ i: 'a', n: 'Açafrão', pk: 4400 });
   });

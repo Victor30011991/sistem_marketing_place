@@ -194,7 +194,7 @@ export default function Pdv() {
   function lerColado() {
     if (!colar) return;
     const ped = lerPedidoWhatsapp(colar, lista.produtos);
-    if (ped.itens.length === 0) return toast('Não achei itens do cardápio neste texto. Cole a mensagem inteira do pedido.', 'erro');
+    if (ped.itens.length === 0) return toast('Não achei itens do catálogo neste texto. Cole a mensagem inteira do pedido.', 'erro');
     ped.itens.forEach((i) => adicionar(porId.get(i.produtoId)!, i.qtd, i.unidade));
     if (ped.cliente && !r.cliente) atualizar((x) => ({ ...x, cliente: ped.cliente }));
     setColar(null);
@@ -510,8 +510,8 @@ export default function Pdv() {
             {busca.trim() && !pareceEtiqueta(busca) && achados.length === 0 && <p className="muted small">Nenhum produto com esse nome.</p>}
             {colar != null && (
               <div className="lote-colar">
-                <label htmlFor="pdv-colar">Mensagem do pedido (do cardápio)</label>
-                <textarea id="pdv-colar" rows={5} value={colar} onChange={(e) => setColar(e.target.value)} placeholder="Cole aqui a mensagem que o cliente mandou pelo cardápio." />
+                <label htmlFor="pdv-colar">Mensagem do pedido (do catálogo)</label>
+                <textarea id="pdv-colar" rows={5} value={colar} onChange={(e) => setColar(e.target.value)} placeholder="Cole aqui a mensagem que o cliente mandou pelo catálogo." />
                 <div className="row-gap">
                   <Button icon="check" onClick={lerColado} disabled={!colar.trim()}>
                     Adicionar itens do pedido

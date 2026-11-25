@@ -247,7 +247,7 @@ export function resumoVendas(vendas: Venda[]): ResumoVendas {
   };
 }
 
-// ---------- pedido que chegou pelo WhatsApp (mensagem do cardápio) ----------
+// ---------- pedido que chegou pelo WhatsApp (mensagem do catálogo) ----------
 
 export interface PedidoLido {
   itens: { produtoId: string; qtd: number; unidade: string }[];
@@ -263,7 +263,7 @@ function gramas(t: string): number | null {
   return Math.round(m[2] === 'kg' ? n * 1000 : n);
 }
 
-/** Lê a mensagem que o cardápio monta (nome numa linha, "  250 g   R$ 7,48" na seguinte) e acha os produtos. */
+/** Lê a mensagem que o catálogo monta (nome numa linha, "  250 g   R$ 7,48" na seguinte) e acha os produtos. */
 export function lerPedidoWhatsapp(texto: string, produtos: Product[]): PedidoLido {
   const linhas = texto.replace(/\r/g, '').split('\n');
   const itens: PedidoLido['itens'] = [];

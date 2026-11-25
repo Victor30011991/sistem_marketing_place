@@ -46,10 +46,10 @@ export default function Pedidos() {
 
   return (
     <div className="page">
-      <PageHeader titulo="Pedidos" subtitulo="Os pedidos feitos no cardápio chegam aqui na hora, com um bip. Separe, avise o cliente e leve para o PDV para receber." />
+      <PageHeader titulo="Pedidos" subtitulo="Os pedidos feitos no catálogo chegam aqui na hora, com um bip. Separe, avise o cliente e leve para o PDV para receber." />
       {!ativo ? (
         <Empty icon="cloud" titulo="Os pedidos chegam pela nuvem" acoes={fase === 'desligado' || fase === 'negado' ? <Button icon="cloud" onClick={entrar}>Entrar na nuvem</Button> : undefined}>
-          {fase === 'sincronizando' || fase === 'carregando' ? 'Conectando…' : 'Entre na nuvem com o e-mail da loja para receber os pedidos do cardápio aqui.'}
+          {fase === 'sincronizando' || fase === 'carregando' ? 'Conectando…' : 'Entre na nuvem com o e-mail da loja para receber os pedidos do catálogo aqui.'}
         </Empty>
       ) : (
         <>
@@ -63,7 +63,7 @@ export default function Pedidos() {
           </div>
           {lista.length === 0 ? (
             <Empty icon="cart" titulo={aba === 'novo' ? 'Nenhum pedido novo' : 'Nada aqui'}>
-              {aba === 'novo' ? 'Quando um cliente finalizar no cardápio, o pedido aparece aqui. Mostramos os últimos 30 dias.' : 'Os pedidos passam por aqui conforme vocês avançam.'}
+              {aba === 'novo' ? 'Quando um cliente finalizar no catálogo, o pedido aparece aqui. Mostramos os últimos 30 dias.' : 'Os pedidos passam por aqui conforme vocês avançam.'}
             </Empty>
           ) : (
             <div className="ped-grade">

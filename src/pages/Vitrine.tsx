@@ -107,7 +107,7 @@ export default function Vitrine() {
     }
   }
 
-  // ---------- aparência do cardápio ----------
+  // ---------- aparência do catálogo ----------
   const visual: VisualCardapio = v.visual ?? {};
   const coresLoja = loja.cores ?? LOGO_COLORS;
   const setVisual = (patch: Partial<VisualCardapio>) => {
@@ -162,7 +162,7 @@ export default function Vitrine() {
   }
 
   function baixar() {
-    if (resultado.total === 0) return toast('Nenhum produto pode entrar no cardápio ainda. Veja os avisos abaixo.', 'erro');
+    if (resultado.total === 0) return toast('Nenhum produto pode entrar no catálogo ainda. Veja os avisos abaixo.', 'erro');
     downloadBlob(new Blob([JSON.stringify(resultado.arquivo)], { type: 'application/json' }), 'cardapio.json', 'application/json');
     toast('Arquivo cardapio.json baixado. Agora envie para o GitHub (passo a passo abaixo).');
   }
@@ -178,21 +178,21 @@ export default function Vitrine() {
     <div className="page">
       <PageHeader
         titulo="Página da loja"
-        subtitulo="O cardápio e a página de entrada que o seu cliente abre pelo link do Instagram, Facebook ou WhatsApp. Só nome, categoria e preço vão para o site: custos, margens e estoque ficam só com você."
+        subtitulo="O catálogo e a página de entrada que o seu cliente abre pelo link do Instagram, Facebook ou WhatsApp. Só nome, categoria e preço vão para o site: custos, margens e estoque ficam só com você."
       />
 
       <div className="vit-grid">
         <div className="vit-forms">
           <section className="card">
             <div className="card-head">
-              <h2>Aparência do cardápio</h2>
+              <h2>Aparência do catálogo</h2>
               {v.visual && (
                 <Button variant="ghost" onClick={() => set({ visual: undefined })}>
                   Voltar ao padrão
                 </Button>
               )}
             </div>
-            <p className="muted small">Cada cor muda o cardápio e o cartão de visitas na hora, na prévia ao lado. Sem escolher, valem as cores da Minha loja e o fundo claro.</p>
+            <p className="muted small">Cada cor muda o catálogo e o cartão de visitas na hora, na prévia ao lado. Sem escolher, valem as cores da Minha loja e o fundo claro.</p>
             <div className="vit-cores">
               {CORES_VISUAL.map((c) => {
                 const atual = visual[c.k] ?? c.padrao;
@@ -234,7 +234,7 @@ export default function Vitrine() {
                 </select>
               )}
             </Field>
-            <p className="muted small">A cor da bolinha de cada produto (quando ele não tem foto) se escolhe no cadastro do produto, em “Cardápio e promoção”.</p>
+            <p className="muted small">A cor da bolinha de cada produto (quando ele não tem foto) se escolhe no cadastro do produto, em “Catálogo e promoção”.</p>
           </section>
 
           <section className="card">
@@ -401,7 +401,7 @@ export default function Vitrine() {
                   )}
                 </Field>
               )}
-              {!entrega.ativa && !entrega.retirada && <Notice tone="warn">Marque pelo menos uma opção. Sem nenhuma, o cardápio mostra entrega.</Notice>}
+              {!entrega.ativa && !entrega.retirada && <Notice tone="warn">Marque pelo menos uma opção. Sem nenhuma, o catálogo mostra entrega.</Notice>}
             </fieldset>
 
             <fieldset className="vt-grupo">
@@ -428,7 +428,7 @@ export default function Vitrine() {
             <fieldset className="vt-grupo">
               <legend>Horário de funcionamento</legend>
               <label className="check">
-                <input type="checkbox" checked={!!v.horarios} onChange={(e) => set({ horarios: e.target.checked ? HORARIOS_PADRAO : undefined })} /> Mostrar “Aberto agora” / “Fechado” no cardápio
+                <input type="checkbox" checked={!!v.horarios} onChange={(e) => set({ horarios: e.target.checked ? HORARIOS_PADRAO : undefined })} /> Mostrar “Aberto agora” / “Fechado” no catálogo
               </label>
               {v.horarios && (
                 <div className="vt-horarios">
@@ -478,16 +478,16 @@ export default function Vitrine() {
 
           <section className="card">
             <div className="card-head">
-              <h2>Itens do cardápio</h2>
+              <h2>Itens do catálogo</h2>
               <span className="muted small">
                 {resultado.total} de {lista.produtos.length} aparecem
               </span>
             </div>
-            {lista.produtos.length === 0 && <Notice tone="info">Cadastre ou importe produtos para montar o cardápio.</Notice>}
+            {lista.produtos.length === 0 && <Notice tone="info">Cadastre ou importe produtos para montar o catálogo.</Notice>}
             {(faltaSemPreco > 0 || faltaNaoPeso > 0) && (
               <Notice tone="warn">
                 {faltaSemPreco > 0 && <>{faltaSemPreco} produto(s) sem preço de venda ficam de fora. </>}
-                {faltaNaoPeso > 0 && <>{faltaNaoPeso} produto(s) não são vendidos por peso (a venda do cardápio é por grama) e ficam de fora.</>}
+                {faltaNaoPeso > 0 && <>{faltaNaoPeso} produto(s) não são vendidos por peso (a venda do catálogo é por grama) e ficam de fora.</>}
               </Notice>
             )}
             <label className="check vit-auto">
@@ -535,7 +535,7 @@ export default function Vitrine() {
             <label className="check">
               <input type="checkbox" checked={v.destaques !== false} onChange={(e) => set({ destaques: e.target.checked })} />
               <span>
-                Mostrar no cardápio: <strong>Ofertas</strong>, <strong>Mais vendidos</strong> (30 dias) e <strong>Chegou agora</strong> (lotes dos últimos 15 dias)
+                Mostrar no catálogo: <strong>Ofertas</strong>, <strong>Mais vendidos</strong> (30 dias) e <strong>Chegou agora</strong> (lotes dos últimos 15 dias)
               </span>
             </label>
             <label className="check">
@@ -545,8 +545,8 @@ export default function Vitrine() {
               </span>
             </label>
             {resultado.arquivo.mixes?.length ? <p className="muted small">Mixes agora: {resultado.arquivo.mixes.map((m) => m.n).join(', ')}.</p> : null}
-            <p className="muted small">Fotos e promoções se colocam em cada produto (Produtos → editar → Cardápio e promoção).</p>
-            {resultado.semFoto > 0 && <Notice tone="warn">{resultado.semFoto} foto(s) ficaram de fora do cardápio para ele continuar leve. Tire fotos de produtos que vendem menos.</Notice>}
+            <p className="muted small">Fotos e promoções se colocam em cada produto (Produtos → editar → Catálogo e promoção).</p>
+            {resultado.semFoto > 0 && <Notice tone="warn">{resultado.semFoto} foto(s) ficaram de fora do catálogo para ele continuar leve. Tire fotos de produtos que vendem menos.</Notice>}
             <div className="row-gap wrap">
               <Button icon="download" onClick={baixarLista} disabled={resultado.total === 0 || gerandoLista}>
                 {gerandoLista ? 'Gerando…' : 'Lista de preços em imagem'}
@@ -558,18 +558,18 @@ export default function Vitrine() {
             <h2>Publicar e divulgar</h2>
             {naNuvem ? (
               <Notice tone="ok">
-                O cardápio <strong>se atualiza sozinho</strong>: mudou preço, estoque ou ocultou um item, em poucos segundos o cliente já vê. Só vão para lá nome, categoria e preço; os custos ficam protegidos.
+                O catálogo <strong>se atualiza sozinho</strong>: mudou preço, estoque ou ocultou um item, em poucos segundos o cliente já vê. Só vão para lá nome, categoria e preço; os custos ficam protegidos.
               </Notice>
             ) : (
               <>
                 <Notice tone="warn">
-                  Para o cardápio se atualizar sozinho, clique em <strong>Entrar na nuvem</strong> (no menu) com o e-mail da loja. Sem a nuvem, é preciso baixar o arquivo e enviar ao GitHub a cada mudança. Nunca envie o Excel nem o backup .txt: eles têm os seus custos.
+                  Para o catálogo se atualizar sozinho, clique em <strong>Entrar na nuvem</strong> (no menu) com o e-mail da loja. Sem a nuvem, é preciso baixar o arquivo e enviar ao GitHub a cada mudança. Nunca envie o Excel nem o backup .txt: eles têm os seus custos.
                 </Notice>
                 <details className="vit-manual">
                   <summary>Publicar sem a nuvem (arquivo manual)</summary>
                   <ol className="vit-passos">
                     <li>
-                      Baixe o arquivo do cardápio: <Button icon="download" onClick={baixar} disabled={resultado.total === 0}>Baixar cardapio.json</Button>
+                      Baixe o arquivo do catálogo: <Button icon="download" onClick={baixar} disabled={resultado.total === 0}>Baixar cardapio.json</Button>
                     </li>
                     <li>
                       No GitHub, abra o repositório, depois as pastas <code>public</code> e <code>cardapio</code>.
@@ -607,7 +607,7 @@ export default function Vitrine() {
           <div className="seg-mini" role="group" aria-label="Tela da prévia">
             {(
               [
-                ['', 'Cardápio'],
+                ['', 'Catálogo'],
                 ['loja', 'Cartão de visitas'],
                 ['fidelidade', 'Fidelidade'],
               ] as const

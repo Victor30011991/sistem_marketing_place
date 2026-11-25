@@ -249,7 +249,7 @@ export function NuvemProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [fase, act]);
 
-  // o cardápio do cliente se atualiza sozinho (só nome, categoria e preço)
+  // o catálogo do cliente se atualiza sozinho (só nome, categoria e preço)
   useEffect(() => {
     if (fase !== 'conectado') return;
     const t = setTimeout(() => {

@@ -122,7 +122,7 @@ export async function gravar(ops: Op[]): Promise<void> {
   await Promise.all(envios);
 }
 
-/** Pedidos feitos no cardápio desde a data (ISO), ao vivo. */
+/** Pedidos feitos no catálogo desde a data (ISO), ao vivo. */
 export function ouvirPedidos(desde: string, cb: (lista: Pedido[]) => void, erro: (e: Error) => void): () => void {
   return onSnapshot(
     query(collection(db, 'pedidos'), where('criado', '>=', desde)),
@@ -173,7 +173,7 @@ export async function lerCopia(id: string): Promise<string | null> {
 }
 export const apagarCopia = (id: string) => deleteDoc(doc(db, 'lojas', LOJA_ID, 'copias', id));
 
-/** Publica o cardápio que o cliente vê (só nome, categoria e preço; nunca custos). */
+/** Publica o catálogo que o cliente vê (só nome, categoria e preço; nunca custos). */
 export function publicarCardapio(json: string): Promise<void> {
   return setDoc(doc(db, 'publico', 'cardapio'), { json, atualizado: new Date().toISOString() });
 }

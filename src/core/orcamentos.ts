@@ -192,7 +192,7 @@ export function chavePix(tipo: ConfigOrcamento['pixTipo'], chave: string): strin
   }
 }
 
-/** Chave, nome e cidade prontos para o cardápio montar o Pix com o valor do pedido. */
+/** Chave, nome e cidade prontos para o catálogo montar o Pix com o valor do pedido. */
 export function dadosPix(cfg: ConfigOrcamento): { chave: string; nome: string; cidade: string } | null {
   const chave = chavePix(cfg.pixTipo, cfg.pixChave);
   const nome = ascii(cfg.pixNome).slice(0, 25);

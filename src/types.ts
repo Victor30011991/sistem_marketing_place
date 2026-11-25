@@ -31,9 +31,9 @@ export interface Product {
   ingredientes?: string;
   /** informação nutricional por 100 g (opcional; só para o rótulo) */
   nutricao?: InfoNutricional | null;
-  /** foto pequena para o cardápio (data URL, ~120 px) */
+  /** foto pequena para o catálogo (data URL, ~120 px) */
   foto?: string;
-  /** cor da bolinha no cardápio quando não há foto (hex); sem ela, o cardápio escolhe pelo nome */
+  /** cor da bolinha no catálogo quando não há foto (hex); sem ela, o catálogo escolhe pelo nome */
   cor?: string;
   /** rótulo: glúten (obrigatório no rótulo de alimento embalado) */
   gluten?: 'contem' | 'nao-contem';
@@ -163,11 +163,11 @@ export interface StoreInfo {
   /** data URL da logo enviada; null = logo padrão do projeto */
   logo: string | null;
   cores: Colors;
-  /** cardápio público (opcional; arquivos antigos não têm) */
+  /** catálogo público (opcional; arquivos antigos não têm) */
   vitrine?: Vitrine;
 }
 
-/** Configuração do cardápio que o cliente abre pelo link (Instagram, Facebook, WhatsApp). */
+/** Configuração do catálogo que o cliente abre pelo link (Instagram, Facebook, WhatsApp). */
 export interface Vitrine {
   /** frase curta abaixo do nome; vazio = usa "Informações adicionais" da loja */
   slogan: string;
@@ -184,13 +184,13 @@ export interface Vitrine {
   fechamento: string;
   /** menor quantidade que o cliente pode pedir, em gramas */
   minGramas: number;
-  /** ids dos produtos que NÃO aparecem no cardápio */
+  /** ids dos produtos que NÃO aparecem no catálogo */
   ocultos: string[];
   /** esconde sozinho o produto com estoque controlado que chegou a zero */
   ocultarSemEstoque: boolean;
-  /** mostra "Mais vendidos" e "Chegou agora" no topo do cardápio (padrão: sim) */
+  /** mostra "Mais vendidos" e "Chegou agora" no topo do catálogo (padrão: sim) */
   destaques?: boolean;
-  /** botões do cartão, na ordem em que aparecem (sem isto: Cardápio, Instagram, Facebook e WhatsApp) */
+  /** botões do cartão, na ordem em que aparecem (sem isto: Catálogo, Instagram, Facebook e WhatsApp) */
   botoes?: BotaoCartao[];
   /** entrega e retirada (sem isto: entrega com taxa a combinar e retirada na loja) */
   entrega?: EntregaCardapio;
@@ -200,11 +200,13 @@ export interface Vitrine {
   horarios?: HorarioDia[];
   /** atalhos de peso nos produtos, em gramas (sem isto: 50, 100, 250 e 500) */
   pesos?: number[];
-  /** mostra os mixes prontos no cardápio (padrão: sim) */
+  /** mostra os mixes prontos no catálogo (padrão: sim) */
   mixes?: boolean;
+  /** ajustes de cada mix automático, pela id da receita: esconder, nome, descrição e gramas */
+  mixesCfg?: Record<string, AjusteMix>;
   /** página de entrada (a "primeira impressão" do link da bio) */
   entrada?: ConfigEntrada;
-  /** cores e letra do cardápio (sem isto: cores da Minha loja e fundo claro) */
+  /** cores e letra do catálogo (sem isto: cores da Minha loja e fundo claro) */
   visual?: VisualCardapio;
   /** kits, combos e ofertas do carrossel, na ordem em que aparecem */
   kits?: KitCardapio[];
@@ -212,7 +214,15 @@ export interface Vitrine {
   cupons?: CupomCardapio[];
 }
 
-/** Cupom do cardápio: desconto nos produtos (a entrega não entra). */
+/** Ajuste de um mix automático (receita em que a loja tem todos os temperos). */
+export interface AjusteMix {
+  ativo?: boolean;
+  nome?: string;
+  desc?: string;
+  g?: number;
+}
+
+/** Cupom do catálogo: desconto nos produtos (a entrega não entra). */
 export interface CupomCardapio {
   id: string;
   /** o que o cliente digita (maiúsculas, sem espaço) */
@@ -252,7 +262,7 @@ export interface KitCardapio {
   ate?: string;
 }
 
-/** Aparência do cardápio público. Cada cor vazia usa a da Minha loja. */
+/** Aparência do catálogo público. Cada cor vazia usa a da Minha loja. */
 export interface VisualCardapio {
   /** fundo da página */
   fundo?: string;
@@ -442,7 +452,7 @@ export interface VendaPausada {
   cliente: string;
   clienteId?: string;
   linhas: { produtoId: string; qtd: number; unidade: string; total?: number; desconto?: string }[];
-  /** desconto na venda inteira, em centavos (ex.: cupom do cardápio) */
+  /** desconto na venda inteira, em centavos (ex.: cupom do catálogo) */
   desconto?: number;
 }
 
@@ -593,7 +603,7 @@ export interface ConfigFidelidade {
 
 export type SituacaoPedido = 'novo' | 'separando' | 'pronto' | 'entregue' | 'cancelado';
 
-/** Pedido feito pelo cliente no cardápio (fica na nuvem, fora do Excel). */
+/** Pedido feito pelo cliente no catálogo (fica na nuvem, fora do Excel). */
 export interface Pedido {
   id: string;
   /** ISO */
@@ -602,7 +612,7 @@ export interface Pedido {
   telefone: string;
   endereco: string;
   obs: string;
-  /** i = id do produto (cardápios antigos não têm), n = nome, g = gramas, t = valor em centavos */
+  /** i = id do produto (catálogos antigos não têm), n = nome, g = gramas, t = valor em centavos */
   itens: { i?: string; n: string; g: number; t: number }[];
   total: number;
   origem: string;

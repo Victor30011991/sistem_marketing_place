@@ -22,7 +22,7 @@ export function Avisos() {
   const semBackup =
     fase !== 'conectado' && state.lista.produtos.length > 0 && (!state.config.ultimoDownload || Date.now() - Date.parse(state.config.ultimoDownload) > 30 * 86400000);
   const itens: { tom: 'bad' | 'warn' | 'info'; texto: React.ReactNode; to: string; acao: string }[] = [];
-  if (novos) itens.push({ tom: 'warn', texto: <><strong>{novos} pedido(s) novo(s)</strong> do cardápio esperando.</>, to: '/pedidos', acao: 'Ver pedidos' });
+  if (novos) itens.push({ tom: 'warn', texto: <><strong>{novos} pedido(s) novo(s)</strong> do catálogo esperando.</>, to: '/pedidos', acao: 'Ver pedidos' });
   if (contas.length) itens.push({ tom: 'bad', texto: <><strong>{contas.length} conta(s) a pagar</strong> vencida(s) ou vencendo hoje.</>, to: '/contas', acao: 'Ver contas' });
   for (const v of venc.slice(0, 4))
     itens.push({

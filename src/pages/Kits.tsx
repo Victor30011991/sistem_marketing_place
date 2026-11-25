@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp } from '../state/store';
 import { useDocumentTitle, useFeedback } from '../ui/feedback';
 import CuponsCardapio from '../components/CuponsCardapio';
+import MixesCatalogo from '../components/MixesCatalogo';
 import { Button, Empty, Field, MoneyInput, Notice, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
 import { fotoProduto } from '../ui/foto';
@@ -16,7 +17,7 @@ const hoje = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-/** Aba para montar kits, combos e ofertas do carrossel do cardápio. */
+/** Aba para montar kits, combos e ofertas do carrossel do catálogo. */
 export default function Kits() {
   useDocumentTitle('Kits e ofertas');
   const { state, act } = useApp();
@@ -51,7 +52,7 @@ export default function Kits() {
     if (!k.ativo) return { texto: 'Desligado', tom: 'muted' };
     if (!k.itens.length) return { texto: 'Sem itens', tom: 'warn' };
     if (k.preco <= 0) return { texto: 'Falta o preço', tom: 'warn' };
-    if (c.faltando.length) return { texto: 'Item fora do cardápio', tom: 'warn' };
+    if (c.faltando.length) return { texto: 'Item fora do catálogo', tom: 'warn' };
     if (k.ate && k.ate < hoje()) return { texto: 'Venceu', tom: 'muted' };
     return { texto: k.carrossel ? 'No carrossel' : 'Só na lista de kits', tom: 'ok' };
   }
@@ -70,7 +71,7 @@ export default function Kits() {
     salvar(n);
   }
   async function excluir(k: KitCardapio) {
-    if (!(await confirm({ titulo: `Excluir ${k.nome}?`, mensagem: <p>Ele sai do cardápio na próxima atualização. Os pedidos já feitos não mudam.</p>, confirmar: 'Excluir kit', perigo: true }))) return;
+    if (!(await confirm({ titulo: `Excluir ${k.nome}?`, mensagem: <p>Ele sai do catálogo na próxima atualização. Os pedidos já feitos não mudam.</p>, confirmar: 'Excluir kit', perigo: true }))) return;
     const n = kits.filter((x) => x.id !== k.id);
     salvar(n);
     setSelId(n[0]?.id ?? null);
@@ -90,7 +91,7 @@ export default function Kits() {
     <div className="page">
       <PageHeader
         titulo="Kits e ofertas"
-        subtitulo="Monte kits e combos com preço próprio e crie cupons de desconto. Os kits aparecem no carrossel do cardápio; os cupons, na tela do pedido."
+        subtitulo="Monte kits e combos com preço próprio e crie cupons de desconto. Os kits aparecem no carrossel do catálogo; os cupons, na tela do pedido."
         acoes={
           <Button icon="plus" onClick={criar}>
             Novo kit
@@ -209,7 +210,7 @@ export default function Kits() {
                   )}
                   {busca.trim() && !achados.length && <p className="muted small">Nenhum produto vendido por peso com esse nome.</p>}
                 </div>
-                {conta.faltando.length > 0 && <Notice tone="warn">Algum item não está mais no cadastro ou não vende por peso. O kit fica fora do cardápio até você tirar esse item.</Notice>}
+                {conta.faltando.length > 0 && <Notice tone="warn">Algum item não está mais no cadastro ou não vende por peso. O kit fica fora do catálogo até você tirar esse item.</Notice>}
 
                 <div className="kit-precos">
                   <div>
@@ -230,7 +231,7 @@ export default function Kits() {
                   </p>
                 )}
 
-                <Field label="Descrição" hint="Aparece na lista de kits do cardápio.">
+                <Field label="Descrição" hint="Aparece na lista de kits do catálogo.">
                   {(id) => <textarea id={id} rows={2} maxLength={200} value={sel.descricao} onChange={(e) => mudar({ descricao: e.target.value })} />}
                 </Field>
                 <Field label="Frase do carrossel" hint="Use uma das sugestões ao lado ou escreva a sua.">
@@ -294,7 +295,7 @@ export default function Kits() {
 
                 <div className="kit-opcoes">
                   <label className="check">
-                    <input type="checkbox" checked={sel.ativo} onChange={(e) => mudar({ ativo: e.target.checked })} /> Ligado (aparece no cardápio)
+                    <input type="checkbox" checked={sel.ativo} onChange={(e) => mudar({ ativo: e.target.checked })} /> Ligado (aparece no catálogo)
                   </label>
                   <label className="check">
                     <input type="checkbox" checked={sel.carrossel} onChange={(e) => mudar({ carrossel: e.target.checked })} /> Mostrar no carrossel
@@ -306,7 +307,7 @@ export default function Kits() {
                     <Field label="Último dia">{(id) => <input id={id} type="date" value={sel.ate} min={hoje()} onChange={(e) => mudar({ ate: e.target.value || undefined })} />}</Field>
                   )}
                 </div>
-                <p className="muted small">O kit sai do cardápio sozinho se algum item ficar sem estoque, sem preço ou for escondido.</p>
+                <p className="muted small">O kit sai do catálogo sozinho se algum item ficar sem estoque, sem preço ou for escondido.</p>
                 <div className="row-gap">
                   <Button variant="danger" icon="trash" onClick={() => excluir(sel)}>
                     Excluir kit
@@ -358,6 +359,7 @@ export default function Kits() {
           )}
         </div>
       )}
+      <MixesCatalogo />
       <CuponsCardapio />
     </div>
   );

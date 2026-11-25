@@ -22,7 +22,7 @@ const cupom = (o: Partial<CupomCardapio>): CupomCardapio => ({ id: 'x', codigo: 
 const itens = [{ i: 'p1', n: 'Orégano', g: 200, total: 2000 }, { i: 'p2', n: 'Páprica', g: 100, total: 1500 }];
 
 describe('cupons', () => {
-  it('limpa o código igual no sistema e no cardápio', () => {
+  it('limpa o código igual no sistema e no catálogo', () => {
     for (const c of ['primeira 10', 'Voltéi!', '  ab-c ']) expect(L.limparCodigo(c)).toBe(limparCodigo(c));
     expect(limparCodigo('Voltéi!')).toBe('VOLTEI');
   });
@@ -35,7 +35,7 @@ describe('cupons', () => {
     expect(pub).toEqual([{ c: 'PRIMEIRA10', t: 'p', v: 10, m: 0 }, { c: 'VOLTEI', t: 'v', v: 500, m: 3000 }]);
   });
 
-  it('a conta do cardápio é a mesma do sistema', () => {
+  it('a conta do catálogo é a mesma do sistema', () => {
     const pub = cuponsParaCardapio([cupom({}), cupom({ id: 'e', codigo: 'VOLTEI', tipo: 'valor', valor: 500, minimo: 3000 }), cupom({ id: 'f', codigo: 'TUDO', tipo: 'valor', valor: 99999 })], '2026-11-23');
     for (const [cod, sub] of [['primeira10', 3500], ['VOLTEI', 3500], ['VOLTEI', 2999], ['NADA', 3500], ['TUDO', 1200], ['', 100]] as const) {
       const a = avaliarCupom(pub, cod, sub, '2026-11-23');
@@ -49,7 +49,7 @@ describe('cupons', () => {
     expect(avaliarCupom(pub, 'VOLTEI', 2999, '2026-11-23')).toMatchObject({ ok: false });
   });
 
-  it('cupom vencido no cardápio aberto desde ontem', () => {
+  it('cupom vencido no catálogo aberto desde ontem', () => {
     expect(avaliarCupom([{ c: 'X', t: 'p', v: 10, m: 0, a: '2026-11-22' }], 'X', 1000, '2026-11-23')).toEqual({ ok: false, erro: 'Esse cupom já venceu.' });
   });
 
@@ -110,7 +110,7 @@ describe('pedido com cupom', () => {
 
   it('convite de volta com cupom e link', () => {
     expect(conviteCupom(cupom({ codigo: 'VOLTEI', tipo: 'valor', valor: 500, minimo: 3000 }), 'https://x/cardapio/')).toBe(
-      '\n\nPara matar a saudade: use o cupom *VOLTEI* no pedido e ganhe R$ 5,00 de desconto em pedidos a partir de R$ 30,00.\nNosso cardápio: https://x/cardapio/',
+      '\n\nPara matar a saudade: use o cupom *VOLTEI* no pedido e ganhe R$ 5,00 de desconto em pedidos a partir de R$ 30,00.\nNosso catálogo: https://x/cardapio/',
     );
     expect(conviteCupom(null, '')).toBe('');
   });
