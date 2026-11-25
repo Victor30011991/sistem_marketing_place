@@ -599,7 +599,7 @@
     var slides = [];
     kits.filter(function (k) { return k.r; }).forEach(function (kt) {
       slides.push({ selo: ROTULO_KIT[kt.t] || 'Kit', titulo: kt.n, linha: kt.ch || kt.d || descKit(kt), de: kt.s ? L.brl(kt.s) : '', por: L.brl(kt.p), cor: kt.c || 'p',
-        arte: kt.f ? h('img', { class: 'slide-foto', src: kt.f, alt: '' }) : bolinhasSlide(kt.partes.map(function (x) { return corDe(x.it); })), kit: kt, bt: kt.t === 'combo' ? 'Quero o combo' : kt.t === 'oferta' ? 'Quero a oferta' : 'Quero o kit' });
+        arte: kt.f ? h('img', { class: 'slide-foto', src: kt.f, alt: '' }) : bolinhasSlide(kt.partes.map(function (x) { return corDe(x.it); })), kit: kt, bt: kt.t === 'combo' ? 'Adicionar combo' : kt.t === 'oferta' ? 'Adicionar oferta' : 'Adicionar kit' });
     });
     var ofertas = dados.categorias.filter(function (c) { return c.nome === 'Ofertas'; })[0];
     (ofertas ? ofertas.itens : []).slice(0, 4).forEach(function (it) {
@@ -612,7 +612,7 @@
       // diz o que vem no mix: o cliente entende que leva os temperos, não o prato
       var nomesT = (m.t && m.t.length ? m.t : its.map(function (y) { return y.n; }));
       var leva = nomesT.length > 1 ? nomesT.slice(0, -1).join(', ') + ' e ' + nomesT[nomesT.length - 1] : nomesT[0];
-      slides.push({ selo: 'Mix de temperos', titulo: m.n, linha: 'Leva ' + leva, sub: L.fmtGramas(m.g) + ' de cada' + (m.d ? ' · ' + m.d : ''), por: L.brl(tot), cor: 'p', arte: bolinhasSlide(its.map(corDe)), mix: m, bt: 'Levar tudo', compacto: true });
+      slides.push({ selo: 'Mix de temperos', titulo: m.n, linha: 'Leva ' + leva, sub: L.fmtGramas(m.g) + ' de cada' + (m.d ? ' · ' + m.d : ''), por: L.brl(tot), cor: 'p', arte: bolinhasSlide(its.map(corDe)), mix: m, bt: 'Adicionar combo', compacto: true });
     });
     if (!slides.length) return null;
     var trilho = h('div', { class: 'banner-trilho', role: 'region', 'aria-label': 'Ofertas e mixes' });
