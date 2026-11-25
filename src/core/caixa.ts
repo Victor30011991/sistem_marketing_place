@@ -13,9 +13,14 @@ export function movimento(tipo: MovimentoCaixa['tipo'], valor: number, motivo: s
   return { id: newId(), quando: new Date().toISOString(), tipo, valor: Math.max(0, Math.round(valor)), motivo: motivo.trim(), por };
 }
 
-/** Vendas que entram neste caixa: do mesmo dia, depois da abertura e (se fechado) até o fechamento. */
+/**
+ * Vendas que entram neste caixa: do mesmo dia, depois da abertura e (se fechado) até o fechamento.
+ * Venda lançada depois só entra se também foi lançada com este caixa aberto: esquecer de registrar
+ * uma venda de hoje entra (o dinheiro está na gaveta); lançar hoje uma venda de ontem não mexe no caixa de ontem.
+ */
 export function vendasDoCaixa(c: Caixa, vendas: Venda[]): Venda[] {
-  return vendas.filter((v) => diaLocal(v.quando) === c.dia && v.quando >= c.abertoEm && (!c.fechadoEm || v.quando <= c.fechadoEm));
+  const dentro = (t: string) => t >= c.abertoEm && (!c.fechadoEm || t <= c.fechadoEm);
+  return vendas.filter((v) => diaLocal(v.quando) === c.dia && dentro(v.quando) && (!v.lancadaEm || dentro(v.lancadaEm)));
 }
 
 /** Dinheiro em espécie que ficou com a loja (o troco já foi descontado na venda). */

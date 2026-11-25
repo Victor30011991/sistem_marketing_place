@@ -26,6 +26,7 @@ const PATHS: Record<string, string> = {
   columns: 'M4 4h16v16H4zM9 4v16M15 4v16',
   truck: 'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
   cart: 'M3 4h2l2.4 11h10.2L20 7H6.2M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z',
+  calendar: 'M4 6a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1zM4 10h16M8 3v4M16 3v4',
   list: 'M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2',
   scale: 'M4 20h16M6 20l2-9h8l2 9M12 11V5M8 5h8M9 15h6',
   barcode: 'M4 5v14M7 5v14M10 5v14M14 5v14M17 5v14M20 5v14',
