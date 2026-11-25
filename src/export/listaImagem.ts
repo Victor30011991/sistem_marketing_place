@@ -1,6 +1,6 @@
 /**
  * Lista de preços em imagem (1080 × 1350, formato do feed e bom no status do WhatsApp).
- * Usa o mesmo conteúdo do cardápio: só produtos à venda, preço por 100 g e por kg, ofertas marcadas.
+ * Usa o mesmo conteúdo do catálogo: só produtos à venda, preço por 100 g e por kg, ofertas marcadas.
  * Quando não cabe numa imagem, divide em várias.
  */
 import type { CardapioArquivo } from '../core/vitrine';

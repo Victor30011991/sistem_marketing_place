@@ -1,4 +1,4 @@
-/** Foto do produto para o cardápio: quadrada, 120 px, JPEG leve (uns 5 KB). */
+/** Foto do produto para o catálogo: quadrada, 120 px, JPEG leve (uns 5 KB). */
 export async function fotoProduto(file: File, lado = 120, quadrado = true): Promise<string> {
   const url = URL.createObjectURL(file);
   try {

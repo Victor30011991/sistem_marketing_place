@@ -36,7 +36,7 @@ export const ENTRADA_PADRAO: ConfigEntrada = {
   fotos: [],
 };
 
-/** Paletas prontas: mudam as cores da loja (cardápio e entrada) de uma vez. */
+/** Paletas prontas: mudam as cores da loja (catálogo e entrada) de uma vez. */
 export const PALETAS: { nome: string; primaria: string; destaque: string; fundo: string; escuro: string }[] = [
   { nome: 'Terracota', primaria: '#B03818', destaque: '#64703A', fundo: '#EFDFC6', escuro: '#2B1D17' },
   { nome: 'Sálvia', primaria: '#4F7A63', destaque: '#B5793A', fundo: '#EEF0E6', escuro: '#1E2A24' },
@@ -123,7 +123,7 @@ export function montarEntrada(loja: Pick<StoreInfo, 'vitrine'>, imagens: ImagemS
   return { arquivo: { v: 1, frase: e.frase, texto: e.texto, escuro: e.escuro, capitulos, fotos }, semFoto };
 }
 
-/** Endereço da página de entrada, ao lado do cardápio. */
+/** Endereço da página de entrada, ao lado do catálogo. */
 export function linkEntrada(baseDoSistema: string, origem?: string): string {
   const base = baseDoSistema.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
   return `${base}loja/${origem ? `?o=${origem}` : ''}`;

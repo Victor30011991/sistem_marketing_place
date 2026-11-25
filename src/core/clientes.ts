@@ -95,7 +95,7 @@ export function clientesDe(raw: unknown): Cliente[] | undefined {
   });
 }
 
-// ---------------------------------------------------------------- pedidos do cardápio
+// ---------------------------------------------------------------- pedidos do catálogo
 
 export const SITUACOES_PEDIDO: { id: SituacaoPedido; rotulo: string; acao?: string }[] = [
   { id: 'novo', rotulo: 'Novos', acao: 'Começar a separar' },

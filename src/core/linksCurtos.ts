@@ -1,6 +1,6 @@
 /**
  * Links curtos com o nome da loja (ex.: temperei.github.io/insta).
- * O endereço curto é um site à parte, só com páginas que levam ao cardápio ou ao WhatsApp.
+ * O endereço curto é um site à parte, só com páginas que levam ao catálogo ou ao WhatsApp.
  */
 import { linkCardapio, type Origem } from './vitrine';
 
@@ -16,7 +16,7 @@ export const ATALHOS: Atalho[] = [
   { caminho: '', rotulo: 'Cartão de visitas', dica: 'Para a bio, panfleto e etiqueta', tipo: 'cartao' },
   { caminho: 'insta', rotulo: 'Instagram', dica: 'Link da bio e stories: conta os pedidos do Instagram', origem: 'instagram', tipo: 'cartao' },
   { caminho: 'face', rotulo: 'Facebook', dica: 'Página e posts do Facebook', origem: 'facebook', tipo: 'cartao' },
-  { caminho: 'pedir', rotulo: 'Cardápio direto', dica: 'Para mandar no WhatsApp: abre já no cardápio', origem: 'whatsapp', tipo: 'cardapio' },
+  { caminho: 'pedir', rotulo: 'Catálogo direto', dica: 'Para mandar no WhatsApp: abre já no catálogo', origem: 'whatsapp', tipo: 'cardapio' },
   { caminho: 'zap', rotulo: 'WhatsApp da loja', dica: 'Abre a conversa com vocês', tipo: 'whatsapp' },
 ];
 

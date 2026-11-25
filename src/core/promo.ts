@@ -1,4 +1,4 @@
-/** Promoções: o preço que vale hoje (PDV, orçamento, cardápio) é o da promoção enquanto ela estiver ativa. */
+/** Promoções: o preço que vale hoje (PDV, orçamento, catálogo) é o da promoção enquanto ela estiver ativa. */
 import type { Product } from '../types';
 
 const hojeLocal = () => {

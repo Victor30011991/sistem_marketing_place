@@ -4,6 +4,7 @@
 @font-face { font-family: 'Figtree'; src: url(./fontes/figtree.woff2) format('woff2'); font-weight: 300 900; font-display: swap; }
 @font-face { font-family: 'DM Sans'; src: url(./fontes/dmsans.woff2) format('woff2'); font-weight: 100 1000; font-display: swap; }
 :root {
+  color-scheme: only light;
   --p: #b03818;
   --on-p: #ffffff;
   --p-dark: #6e2210;
@@ -236,7 +237,11 @@ img { display: block; }
 .banner-tx { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
 .banner-tx em { font-style: normal; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; background: var(--card); color: var(--ink); padding: 3px 10px; border-radius: 999px; }
 .banner-tx strong { font: 700 1.45rem/1.05 var(--serif); }
-.banner-tx > span { font-size: .84rem; opacity: .9; }
+.banner-tx > span { font-size: .84rem; opacity: .95; line-height: 1.3; }
+.banner-sub { font-size: .78rem; opacity: .85; }
+.banner-tx em { white-space: nowrap; }
+.banner-slide.compacto .banner-tx strong { font-size: 1.2rem; line-height: 1.1; }
+.banner-slide.compacto .banner-tx > span, .banner-slide.compacto .banner-sub { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .banner-preco { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .banner-preco s { font-size: .85rem; opacity: .8; }
 .banner-preco b { font-size: 1.25rem; }

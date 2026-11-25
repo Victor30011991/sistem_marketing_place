@@ -30,7 +30,7 @@ const lista: ListState = {
 };
 const venda = (ids: string[]): Venda => ({ id: ids.join(''), quando: new Date().toISOString(), itens: ids.map((produtoId) => ({ produtoId, nome: produtoId, quantidade: 100, unidade: 'g', total: 470 })), total: 940 } as unknown as Venda);
 
-describe('cardápio novo: arquivo publicado', () => {
+describe('catálogo novo: arquivo publicado', () => {
   const loja = { ...defaultStore(), endereco: 'Av. Dr. João Silva Filho, 2360', vitrine: { ...vitrineDe(defaultStore()), horarios: HORARIOS_PADRAO, entrega: { ativa: true, taxa: 'fixa' as const, valor: 500, retirada: true }, pagamentos: { pix: true, cartao: false, dinheiro: true }, pesos: [50, 100, 250, 500] } };
   const pix = dadosPix({ ...cfgOrcamento({}), pixTipo: 'celular', pixChave: '(86) 99999-0000', pixNome: 'Temperei', pixCidade: 'Parnaíba' });
   const { arquivo } = montarCardapio(lista, loja, null, new Date(), { vendas: [venda(['p', 'a']), venda(['p', 'a', 'o'])], pix });
@@ -62,8 +62,8 @@ describe('cardápio novo: arquivo publicado', () => {
   });
 });
 
-describe('cardápio novo: página do cliente', () => {
-  it('Pix do cardápio é igual ao do sistema', () => {
+describe('catálogo novo: página do cliente', () => {
+  it('Pix do catálogo é igual ao do sistema', () => {
     const cfg = { ...cfgOrcamento({}), pixTipo: 'celular' as const, pixChave: '86999990000', pixNome: 'Temperei', pixCidade: 'Parnaíba' };
     const d = dadosPix(cfg)!;
     expect(L.pixCopiaECola({ k: d.chave, n: d.nome, c: d.cidade }, 3230, 'CARDAPIO')).toBe(pixCopiaECola(cfg, 3230, 'CARDAPIO'));
@@ -107,7 +107,7 @@ describe('cardápio novo: página do cliente', () => {
   });
 });
 
-describe('cardápio: aparência, cor do produto e fidelidade', () => {
+describe('catálogo: aparência, cor do produto e fidelidade', () => {
   it('sem escolha: cores da Minha loja, fundo claro e letra de serifa quadrada', () => {
     const { arquivo } = montarCardapio(lista, defaultStore(), null);
     const c = defaultStore().cores;
@@ -140,7 +140,7 @@ describe('cardápio: aparência, cor do produto e fidelidade', () => {
   });
 });
 
-describe('kits no cardápio', () => {
+describe('kits no catálogo', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Lx = L as any;
   it('a mensagem mostra o kit numa linha só, com os itens embaixo', () => {

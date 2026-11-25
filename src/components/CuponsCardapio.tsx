@@ -12,7 +12,7 @@ const SUGESTOES: Omit<CupomCardapio, 'id'>[] = [
   { codigo: 'VOLTEI', tipo: 'valor', valor: 500, minimo: 3000, ativo: true, nota: 'Para quem sumiu' },
 ];
 
-/** Cupons que o cliente digita no pedido do cardápio. */
+/** Cupons que o cliente digita no pedido do catálogo. */
 export default function CuponsCardapio() {
   const { state, act } = useApp();
   const { confirm } = useFeedback();
@@ -24,7 +24,7 @@ export default function CuponsCardapio() {
   const repetido = (c: CupomCardapio) => !!c.codigo && cupons.some((x) => x.id !== c.id && x.codigo === c.codigo);
 
   async function excluir(c: CupomCardapio) {
-    if (await confirm({ titulo: `Excluir o cupom ${c.codigo || 'sem código'}?`, mensagem: <p>Quem tentar usar esse código no cardápio vai ver que ele não existe.</p>, confirmar: 'Excluir cupom', perigo: true }))
+    if (await confirm({ titulo: `Excluir o cupom ${c.codigo || 'sem código'}?`, mensagem: <p>Quem tentar usar esse código no catálogo vai ver que ele não existe.</p>, confirmar: 'Excluir cupom', perigo: true }))
       salvar(cupons.filter((x) => x.id !== c.id));
   }
   function adicionar(base?: Omit<CupomCardapio, 'id'>) {
@@ -103,13 +103,13 @@ export default function CuponsCardapio() {
               </div>
               <label className="check">
                 <input type="checkbox" checked={c.ativo} onChange={(e) => mudar(c.id, { ativo: e.target.checked })} />
-                <span>Valendo no cardápio</span>
+                <span>Valendo no catálogo</span>
               </label>
             </li>
           );
         })}
       </ul>
-      {cupons.length > 0 && <p className="muted small">Quem abre o código do cardápio consegue ver os cupons valendo. Para promoção grande, use prazo curto.</p>}
+      {cupons.length > 0 && <p className="muted small">Quem abre o código do catálogo consegue ver os cupons valendo. Para promoção grande, use prazo curto.</p>}
     </section>
   );
 }

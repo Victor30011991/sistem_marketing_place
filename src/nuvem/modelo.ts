@@ -8,7 +8,7 @@
  *   lojas/temperei/vendasDia/{dia} as vendas de um dia, num mapa por id (duas pessoas vendendo não se atrapalham)
  *   lojas/temperei/lotes/{id}      um documento por lote de compra
  *   lojas/temperei/{coleção}/{id}  orçamentos, clientes… um documento por item (veja COLECOES)
- *   publico/cardapio               o cardápio que o cliente vê (sem custos)
+ *   publico/cardapio               o catálogo que o cliente vê (sem custos)
  */
 import type { ListState, Lote, Product, Settings, StoreInfo, Venda } from '../types';
 import { diaLocal } from '../core/vendas';

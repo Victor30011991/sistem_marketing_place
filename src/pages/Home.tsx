@@ -21,7 +21,7 @@ export default function Home() {
         mensagem: (
           <>
             <p>
-              Vocês estão na nuvem: começar uma lista nova <strong>apaga os {total} produtos</strong> para todos os aparelhos, e o cardápio do cliente fica vazio.
+              Vocês estão na nuvem: começar uma lista nova <strong>apaga os {total} produtos</strong> para todos os aparelhos, e o catálogo do cliente fica vazio.
             </p>
             <p className="muted">Se quiser guardar uma cópia, salve em Excel antes. Dados da loja, custos, taxas e vendas continuam.</p>
           </>
@@ -57,7 +57,7 @@ export default function Home() {
           <span className="eyebrow">Sistema da loja</span>
           <h1>Do custo ao balcão, tudo num lugar.</h1>
           <p>
-            Preços com margem certa, estoque, vendas no PDV, pedidos do cardápio, orçamentos e relatórios. Funciona no computador e no celular, com os dados na nuvem para vocês dois. <a href="https://github.com/Victor30011991/sistem_marketing_place#manual-de-uso" target="_blank" rel="noopener noreferrer">Ver o manual de uso</a>.
+            Preços com margem certa, estoque, vendas no PDV, pedidos do catálogo, orçamentos e relatórios. Funciona no computador e no celular, com os dados na nuvem para vocês dois. <a href="https://github.com/Victor30011991/sistem_marketing_place#manual-de-uso" target="_blank" rel="noopener noreferrer">Ver o manual de uso</a>.
           </p>
         </div>
         <div className="hero-logo">

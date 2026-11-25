@@ -1,4 +1,4 @@
-import type { BotaoCartao, ConfigFidelidade, VisualCardapio, EntregaCardapio, HorarioDia, ListState, Product, StoreInfo, TipoBotao, Vitrine, Venda, Lote } from '../types';
+import type { AjusteMix, BotaoCartao, ConfigFidelidade, VisualCardapio, EntregaCardapio, HorarioDia, ListState, Product, StoreInfo, TipoBotao, Vitrine, Venda, Lote } from '../types';
 import { norm } from './normalize';
 import { MODELOS_IDEIA } from './postaai';
 import { entradaDe } from './entrada';
@@ -14,7 +14,7 @@ export const VITRINE_PADRAO: Vitrine = {
   whatsapp: '',
   instagram: '',
   facebook: '',
-  abertura: 'Olá, {loja}! Gostaria de fazer este pedido pelo cardápio:',
+  abertura: 'Olá, {loja}! Gostaria de fazer este pedido pelo catálogo:',
   fechamento: 'Aguardo a confirmação dos itens e o valor da entrega para fechar o pedido. Obrigado! 🌿',
   minGramas: 50,
   ocultos: [],
@@ -51,7 +51,7 @@ function pesosDe(v: unknown): number[] | undefined {
 const str = (v: unknown, d: string): string => (typeof v === 'string' ? v : d);
 const corHex = (v: unknown): string | undefined => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v.toUpperCase() : undefined);
 
-/** Fundo claro e neutro do cardápio quando a loja não escolheu outro. */
+/** Fundo claro e neutro do catálogo quando a loja não escolheu outro. */
 export const FUNDO_CARDAPIO = '#FAFAF7';
 export const LETRAS_CARDAPIO: { id: NonNullable<VisualCardapio['letra']>; nome: string }[] = [
   { id: 'slab', nome: 'Serifa quadrada (como a do selo)' },
@@ -95,6 +95,7 @@ export function vitrineDe(loja: Pick<StoreInfo, 'vitrine'> | null | undefined): 
     ...(horariosDe(v.horarios) ? { horarios: horariosDe(v.horarios) } : {}),
     ...(pesosDe(v.pesos) ? { pesos: pesosDe(v.pesos) } : {}),
     ...(v.mixes === false ? { mixes: false } : {}),
+    ...(mixesCfgDe(v.mixesCfg) ? { mixesCfg: mixesCfgDe(v.mixesCfg) } : {}),
     ...(entradaDe(v.entrada) ? { entrada: entradaDe(v.entrada) } : {}),
     ...(visualDe(v.visual) ? { visual: visualDe(v.visual) } : {}),
     ...(kitsDe(v.kits).length ? { kits: kitsDe(v.kits) } : {}),
@@ -150,7 +151,7 @@ export const ORIGENS: { id: Origem; label: string }[] = [
   { id: 'whatsapp', label: 'WhatsApp' },
 ];
 
-/** Endereço do cardápio publicado, a partir do endereço do sistema. ex.: .../temperei_sistem/ -> .../temperei_sistem/cardapio/ */
+/** Endereço do catálogo publicado, a partir do endereço do sistema. ex.: .../temperei_sistem/ -> .../temperei_sistem/cardapio/ */
 export function linkCardapio(baseDoSistema: string, origem?: Origem): string {
   const base = baseDoSistema.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
   return `${base}cardapio/${origem ? `?o=${origem}` : ''}`;
@@ -187,23 +188,25 @@ export interface ItemCardapio {
 export interface MixCardapio {
   n: string;
   d: string;
+  /** nomes dos temperos, na ordem (para o cliente entender o que leva) */
+  t?: string[];
   /** ids dos produtos */
   i: string[];
   /** gramas de cada um */
   g: number;
 }
 
-/** Dados extras para os destaques do cardápio (opcionais). */
+/** Dados extras para os destaques do catálogo (opcionais). */
 export interface ExtrasCardapio {
   vendas?: Venda[];
   lotes?: Lote[];
-  /** dados do Pix (do orçamento) para o cliente pagar pelo cardápio */
+  /** dados do Pix (do orçamento) para o cliente pagar pelo catálogo */
   pix?: { chave: string; nome: string; cidade: string } | null;
   /** cartão fidelidade da loja (só a regra vai para o site) */
   fidelidade?: ConfigFidelidade | null;
 }
 
-/** Fotos no cardápio público até este tamanho somado (o documento da nuvem aceita 1 MB). */
+/** Fotos no catálogo público até este tamanho somado (o documento da nuvem aceita 1 MB). */
 export const LIMITE_FOTOS = 600_000;
 
 export interface CardapioArquivo {
@@ -250,7 +253,7 @@ export interface ResultadoCardapio {
   /** produtos que ficaram de fora e por quê (os ocultos por você não contam como problema) */
   fora: { produto: Product; motivo: MotivoFora }[];
   total: number;
-  /** produtos com foto que ficaram sem ela no cardápio (passou do limite de tamanho) */
+  /** produtos com foto que ficaram sem ela no catálogo (passou do limite de tamanho) */
   semFoto: number;
 }
 
@@ -351,18 +354,12 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
   }
   for (const [id, m] of juntos) porId.get(id)!.j = [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([x]) => x);
 
-  // mixes prontos: receitas da biblioteca do Posta Aí em que a loja tem todos os temperos
+  // mixes prontos: receitas da biblioteca do Posta Aí em que a loja tem todos os temperos (com os ajustes da loja)
   const mixes: MixCardapio[] = [];
   if (v.mixes !== false) {
-    const nomes = lista.produtos.filter((p) => porId.has(p.id)).map((p) => ({ id: p.id, n: norm(p.nome) }));
-    const pesoMix = Math.max(v.minGramas, 50);
-    for (const m of MODELOS_IDEIA) {
-      if ((m.tipo !== 'mix' && m.tipo !== 'receita') || !m.precisa || m.precisa.length < 2) continue;
-      const ids = m.precisa.map((k) => nomes.find((x) => k.split('|').some((a) => x.n.startsWith(a)))?.id);
-      if (ids.some((x) => !x)) continue;
-      const unicos = [...new Set(ids as string[])];
-      if (unicos.length < 2) continue;
-      mixes.push({ n: m.titulo, d: m.subtitulo, i: unicos, g: pesoMix });
+    for (const m of mixesPossiveis(lista.produtos.filter((p) => porId.has(p.id)), v)) {
+      if (!m.ativo) continue;
+      mixes.push({ n: m.nome, d: m.desc, t: m.temperos, i: m.ids, g: m.g });
       if (mixes.length >= 4) break;
     }
   }
@@ -415,7 +412,7 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
 // ---------- botões do cartão (link na bio) ----------
 
 export const TIPOS_BOTAO: { tipo: TipoBotao; nome: string; rotulo: string; campo: string; dica: string }[] = [
-  { tipo: 'cardapio', nome: 'Cardápio', rotulo: 'Cardápio', campo: '', dica: 'Abre o cardápio de pedidos.' },
+  { tipo: 'cardapio', nome: 'Catálogo', rotulo: 'Catálogo', campo: '', dica: 'Abre o catálogo de pedidos.' },
   { tipo: 'whatsapp', nome: 'WhatsApp', rotulo: 'WhatsApp', campo: 'Número com DDD', dica: 'Vazio = usa o WhatsApp de vendas.' },
   { tipo: 'instagram', nome: 'Instagram', rotulo: 'Instagram', campo: '@usuario ou endereço', dica: 'Vazio = usa o Instagram da loja.' },
   { tipo: 'facebook', nome: 'Facebook', rotulo: 'Facebook', campo: 'Nome da página ou endereço', dica: 'Vazio = usa o Facebook da loja.' },
@@ -490,4 +487,67 @@ export function linkBotao(b: BotaoCartao, v: Vitrine, loja: Pick<StoreInfo, 'tel
       return n ? `tel:+${n}` : '';
     }
   }
+}
+
+// ---------------------------------------------------------------- mixes de temperos
+
+export interface MixPossivel {
+  id: string;
+  receita: string;
+  nome: string;
+  desc: string;
+  temperos: string[];
+  ids: string[];
+  g: number;
+  ativo: boolean;
+}
+
+/** Nome padrão que deixa claro que é tempero: "Temperos para batata rústica crocante". */
+export function nomeMixPadrao(titulo: string): string {
+  const t = titulo.trim();
+  if (/^(mix|tempero|temperos|kit)\b/i.test(t)) return t;
+  return `Temperos para ${t.charAt(0).toLowerCase()}${t.slice(1)}`;
+}
+
+/** Todas as receitas em que a loja tem todos os temperos, com os ajustes de nome, descrição, gramas e se aparece. */
+export function mixesPossiveis(produtos: Product[], v: Vitrine): MixPossivel[] {
+  const nomes = produtos.map((p) => ({ id: p.id, n: norm(p.nome), nome: p.nome.trim() }));
+  const pesoPadrao = Math.max(v.minGramas, 50);
+  const cfg = mixesCfgDe(v.mixesCfg) ?? {};
+  const out: MixPossivel[] = [];
+  for (const m of MODELOS_IDEIA) {
+    if ((m.tipo !== 'mix' && m.tipo !== 'receita') || !m.precisa || m.precisa.length < 2) continue;
+    const achados = m.precisa.map((k) => nomes.find((x) => k.split('|').some((a) => x.n.startsWith(a))));
+    if (achados.some((x) => !x)) continue;
+    const unicos = [...new Map(achados.map((x) => [x!.id, x!])).values()];
+    if (unicos.length < 2) continue;
+    const c = cfg[m.id] ?? {};
+    out.push({
+      id: m.id,
+      receita: m.titulo,
+      nome: c.nome?.trim() || nomeMixPadrao(m.titulo),
+      desc: c.desc !== undefined ? c.desc.trim() : m.subtitulo,
+      temperos: unicos.map((x) => x.nome),
+      ids: unicos.map((x) => x.id),
+      g: c.g ?? pesoPadrao,
+      ativo: c.ativo !== false,
+    });
+  }
+  return out;
+}
+
+export function mixesCfgDe(raw: unknown): Record<string, AjusteMix> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out: Record<string, AjusteMix> = {};
+  for (const [id, x] of Object.entries(raw as Record<string, unknown>).slice(0, 60)) {
+    if (!x || typeof x !== 'object' || !/^[a-z0-9-]{1,60}$/.test(id)) continue;
+    const o = x as Record<string, unknown>;
+    const a: AjusteMix = {};
+    if (o.ativo === false) a.ativo = false;
+    if (typeof o.nome === 'string') a.nome = o.nome.slice(0, 60);
+    if (typeof o.desc === 'string') a.desc = o.desc.slice(0, 90);
+    if (typeof o.g === 'number' && Number.isFinite(o.g) && o.g >= 10 && o.g <= 1000) a.g = Math.round(o.g);
+    if (Object.keys(a).length) out[id] = a;
+  }
+  return Object.keys(out).length ? out : undefined;
 }

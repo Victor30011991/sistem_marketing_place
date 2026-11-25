@@ -44,7 +44,7 @@ describe('kits: chamadas e mensagem', () => {
     const c = contaKit(kit, produtos);
     const m = mensagemKit(kit, c, sugerirChamadas(kit, c)[0], 'https://x/cardapio/');
     expect(m).toContain('De R$ 17,85 por *R$ 15,90*');
-    expect(m).toContain('Peça pelo cardápio: https://x/cardapio/');
+    expect(m).toContain('Peça pelo catálogo: https://x/cardapio/');
   });
 });
 
@@ -63,7 +63,7 @@ describe('kits: o que vai para o site', () => {
     expect(kitsParaCardapio([{ ...kit, ate: '2026-11-20' }], produtos, tem, '2026-11-23')).toEqual([]);
     expect(kitsParaCardapio([{ ...kit, ativo: false }], produtos, tem, '2026-11-23')).toEqual([]);
   });
-  it('vai no arquivo do cardápio sem custo nem lucro', () => {
+  it('vai no arquivo do catálogo sem custo nem lucro', () => {
     const lista: ListState = { nome: 'L', categorias: ['Temperos'], produtos };
     const loja = { ...defaultStore(), vitrine: { ...vitrineDe(defaultStore()), kits: [kit] } };
     const { arquivo } = montarCardapio(lista, { ...loja, vitrine: vitrineDe(loja) }, null);

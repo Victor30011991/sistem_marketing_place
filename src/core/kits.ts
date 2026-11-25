@@ -1,5 +1,5 @@
 /**
- * Kits, combos e ofertas montados pela loja para o carrossel do cardápio.
+ * Kits, combos e ofertas montados pela loja para o carrossel do catálogo.
  * O preço do kit é da loja; o sistema mostra quanto sairia separado, quanto o cliente economiza
  * e quanto a loja lucra (o custo nunca vai para o site).
  */
@@ -64,7 +64,7 @@ export function precoQuilo(p: Product, hoje?: string): number | null {
   if (!b || b.base !== 'g') return null;
   return Math.round(b.perBase.times(1000).toNumber());
 }
-/** Mesmo arredondamento do cardápio (lib.js): centavos por g gramas. */
+/** Mesmo arredondamento do catálogo (lib.js): centavos por g gramas. */
 export const precoItem = (g: number, pk: number) => Math.floor((g * pk + 500) / 1000);
 
 /** Custo de 1 grama (custo + custos adicionais), em centavos; null sem custo ou sem unidade de peso. */
@@ -177,7 +177,7 @@ export function mensagemKit(k: KitCardapio, c: ContaKit, chamada: Chamada | null
     const [, m, d] = k.ate.split('-');
     linhas.push(`Válido até ${d}/${m}.`);
   }
-  if (link) linhas.push('', `Peça pelo cardápio: ${link}`);
+  if (link) linhas.push('', `Peça pelo catálogo: ${link}`);
   return linhas.join('\n');
 }
 
@@ -205,7 +205,7 @@ export interface KitPublicado {
   r?: 1;
 }
 
-/** Só kits ligados, dentro da validade, com preço e com todos os itens no cardápio. */
+/** Só kits ligados, dentro da validade, com preço e com todos os itens no catálogo. */
 export function kitsParaCardapio(kits: KitCardapio[], produtos: Product[], noCardapio: Set<string>, hoje: string): KitPublicado[] {
   const out: KitPublicado[] = [];
   for (const k of kits) {

@@ -1,5 +1,5 @@
 /**
- * Cupons do cardápio: a loja cadastra, o cliente digita no pedido e o desconto vai na mensagem,
+ * Cupons do catálogo: a loja cadastra, o cliente digita no pedido e o desconto vai na mensagem,
  * no pedido da nuvem (escrito nas observações) e na venda do PDV.
  */
 import type { CupomCardapio } from '../types';
@@ -53,7 +53,7 @@ export function cupomValendo(c: CupomCardapio, hoje = hojeISO()): boolean {
   return c.ativo && !!c.codigo && c.valor > 0 && (!c.ate || c.ate >= hoje);
 }
 
-/** Para o cardápio público: c = código, t = p (%) ou v (centavos), v = valor, m = mínimo, a = até. */
+/** Para o catálogo público: c = código, t = p (%) ou v (centavos), v = valor, m = mínimo, a = até. */
 export interface CupomPublicado {
   c: string;
   t: 'p' | 'v';
@@ -70,7 +70,7 @@ export function cuponsParaCardapio(cupons: CupomCardapio[], hoje = hojeISO()): C
     .map((c) => ({ c: c.codigo, t: c.tipo === 'pct' ? 'p' : 'v', v: c.valor, m: c.minimo, ...(c.ate ? { a: c.ate } : {}) }));
 }
 
-/** Mesma conta do cardápio (lib.js avaliarCupom). */
+/** Mesma conta do catálogo (lib.js avaliarCupom). */
 export function avaliarCupom(cupons: CupomPublicado[], codigo: string, sub: number, hoje = hojeISO()): { ok: true; codigo: string; desconto: number } | { ok: false; erro: string } {
   const cod = limparCodigo(codigo);
   if (!cod) return { ok: false, erro: 'Digite o cupom.' };
@@ -89,7 +89,7 @@ export function textoCupom(c: CupomCardapio): string {
   return `${quanto}${min}${ate}`;
 }
 
-/** O cardápio escreve "Cupom PRIMEIRA10 (− R$ 5,00)" nas observações do pedido. */
+/** O catálogo escreve "Cupom PRIMEIRA10 (− R$ 5,00)" nas observações do pedido. */
 export function cupomDoTexto(obs: string): { cupom: string; desconto: number } | null {
   const m = /Cupom ([A-Z0-9]{1,20}) \(− R\$\s?([\d.]+,\d{2})\)/.exec(obs);
   if (!m) return null;
@@ -97,10 +97,10 @@ export function cupomDoTexto(obs: string): { cupom: string; desconto: number } |
   return Number.isFinite(centavos) && centavos > 0 ? { cupom: m[1], desconto: centavos } : null;
 }
 
-/** Final da mensagem de saudade com o cupom e o link do cardápio ("volte e ganhe"). */
+/** Final da mensagem de saudade com o cupom e o link do catálogo ("volte e ganhe"). */
 export function conviteCupom(c: CupomCardapio | null, link: string): string {
   const partes: string[] = [];
   if (c) partes.push(`Para matar a saudade: use o cupom *${c.codigo}* no pedido e ganhe ${textoCupom(c)}.`);
-  if (link) partes.push(`Nosso cardápio: ${link}`);
+  if (link) partes.push(`Nosso catálogo: ${link}`);
   return partes.length ? '\n\n' + partes.join('\n') : '';
 }

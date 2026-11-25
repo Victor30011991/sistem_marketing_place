@@ -8,7 +8,7 @@
 .pix-tela-caixa { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px; background: #fff; border-radius: 20px; max-width: 100%; text-align: center; }
 .pix-tela-valor { margin: 0; font-family: var(--font-head); font-size: 1.6rem; font-weight: 700; color: var(--ink); }
 
-/* Cupons do cardápio */
+/* Cupons do catálogo */
 .cupons { margin-top: var(--sp-4, 20px); }
 .cupons-cab { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
 .cupons-cab h2 { margin: 0 0 4px; }
@@ -97,3 +97,15 @@
 .lc-qr { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .lc-qr svg { border-radius: 8px; border: 1px solid var(--line); }
 .lc-qr span { overflow-wrap: anywhere; min-width: 0; flex: 1 1 200px; }
+
+/* Mixes de temperos (Kits e ofertas) */
+.mixes-cat { margin-top: var(--sp-4, 20px); }
+.mixes-cat h2 { margin: 0 0 4px; }
+.mixes-lista { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.mixes-lista > li { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: var(--card); opacity: 0.75; }
+.mixes-lista > li.on { opacity: 1; border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.mixes-campos { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 0.6fr); gap: 10px 12px; margin: 8px 0; }
+.mixes-campos .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mixes-campos .field-label { font-weight: 600; font-size: 0.88rem; }
+.mixes-leva { margin: 4px 0 0; font-size: 0.92rem; overflow-wrap: anywhere; }
+@media (max-width: 760px) { .mixes-campos { grid-template-columns: 1fr; } }

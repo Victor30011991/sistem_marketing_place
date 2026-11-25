@@ -17,7 +17,7 @@ describe('promoção', () => {
     // no PDV cobra o preço da promoção (data de hoje: sem fim)
     expect(itemVenda({ ...x, promo: { ...x.promo!, ate: '' } }, 500, 'g')!.total).toBe(1950);
   });
-  it('cardápio: preço com promoção, preço antigo, selo, foto e destaques', () => {
+  it('catálogo: preço com promoção, preço antigo, selo, foto e destaques', () => {
     const hoje = new Date(2026, 10, 19, 12);
     const prods = [
       p('a', 'Açafrão', { promo: { preco: 3900, ate: '', selo: 'Oferta da semana' }, foto: 'data:image/jpeg;base64,AAAA' }),

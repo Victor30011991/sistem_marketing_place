@@ -71,7 +71,7 @@ export function EntradaEditor({ cardapio }: { cardapio: CardapioArquivo }) {
     <section className="card en-card">
       <h2>Página de entrada</h2>
       <p className="muted small">
-        A primeira impressão para quem chega pelo link da bio: abertura com a logo, capítulos de tempero que pintam a tela ao rolar, como pedir, destaques do cardápio e a loja. O botão leva ao cardápio.
+        A primeira impressão para quem chega pelo link da bio: abertura com a logo, capítulos de tempero que pintam a tela ao rolar, como pedir, destaques do catálogo e a loja. O botão leva ao catálogo.
       </p>
       <div className="en-link">
         <code>{link}</code>
@@ -142,7 +142,7 @@ export function EntradaEditor({ cardapio }: { cardapio: CardapioArquivo }) {
                 Escura
               </label>
             </div>
-            <p className="muted small">As cores principal, destaque e clara são as da loja: mudam também o cardápio, os rótulos e as artes.</p>
+            <p className="muted small">As cores principal, destaque e clara são as da loja: mudam também o catálogo, os rótulos e as artes.</p>
           </fieldset>
 
           <fieldset className="vt-grupo">

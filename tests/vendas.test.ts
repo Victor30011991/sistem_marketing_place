@@ -45,7 +45,7 @@ describe('PDV: estoque', () => {
     expect(depois.map((p) => p.estoque)).toEqual([2.75, null, 9.5]);
     expect(moverEstoque(depois, its, 1).map((p) => p.estoque)).toEqual([3, null, 10]);
   });
-  it('o cardápio esconde sozinho o que zerou (e só quando a opção está ligada)', () => {
+  it('o catálogo esconde sozinho o que zerou (e só quando a opção está ligada)', () => {
     const zerado = { ...acafrao, estoque: 0 };
     const loja = { ...defaultStore(), vitrine: { ...VITRINE_PADRAO } };
     const r = montarCardapio({ nome: 'L', categorias: ['Temperos'], produtos: [zerado, chia] }, loja, null);
@@ -79,7 +79,7 @@ describe('PDV: resumo do dia', () => {
 });
 
 describe('PDV: pedido do WhatsApp', () => {
-  const msg = `Olá, Temperei! Gostaria de fazer este pedido pelo cardápio:
+  const msg = `Olá, Temperei! Gostaria de fazer este pedido pelo catálogo:
 
 \`\`\`
 Açafrão em Pó Puro
