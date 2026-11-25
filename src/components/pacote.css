@@ -85,3 +85,15 @@
 .pdv2-caderno.confere { background: color-mix(in srgb, var(--ok) 12%, white); color: var(--ok); font-weight: 700; }
 .pdv2-caderno.passou { background: color-mix(in srgb, var(--danger) 10%, white); color: var(--danger); font-weight: 700; }
 .pdv2-caderno.falta strong { color: var(--ink); }
+
+/* Links curtos (Página da loja) */
+.lc { margin-bottom: 16px; }
+.lc-campo { max-width: 420px; }
+.lc-lista { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lc-lista li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.lc-txt { display: flex; flex-direction: column; gap: 2px; flex: 1 1 220px; min-width: 0; }
+.lc-url { font-family: var(--font-head); font-size: 1.1rem; font-weight: 700; color: var(--primary); overflow-wrap: anywhere; }
+.lc-bts { display: flex; gap: 6px; }
+.lc-qr { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.lc-qr svg { border-radius: 8px; border: 1px solid var(--line); }
+.lc-qr span { overflow-wrap: anywhere; min-width: 0; flex: 1 1 200px; }
