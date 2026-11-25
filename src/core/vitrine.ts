@@ -80,6 +80,7 @@ export function vitrineDe(loja: Pick<StoreInfo, 'vitrine'> | null | undefined): 
     whatsapp: str(v.whatsapp, ''),
     instagram: str(v.instagram, ''),
     facebook: str(v.facebook, ''),
+    ...(typeof v.linkCurto === 'string' && v.linkCurto.trim() ? { linkCurto: v.linkCurto.trim().slice(0, 80) } : {}),
     abertura: str(v.abertura, VITRINE_PADRAO.abertura) || VITRINE_PADRAO.abertura,
     fechamento: str(v.fechamento, VITRINE_PADRAO.fechamento),
     minGramas: min,

@@ -29,6 +29,7 @@ import { useNuvem } from '../nuvem/NuvemProvider';
 import { cfgOrcamento, contatosLoja, dadosPix } from '../core/orcamentos';
 import { logoSrc } from '../ui/logo';
 import { EntradaEditor } from '../components/EntradaEditor';
+import LinksCurtos from '../components/LinksCurtos';
 
 const MOTIVO: Record<MotivoFora, string> = {
   oculto: 'oculto por você',
@@ -581,7 +582,8 @@ export default function Vitrine() {
                 </details>
               </>
             )}
-            <h3 className="vit-sub">Links para colocar nas suas plataformas</h3>
+            <LinksCurtos />
+            <h3 className="vit-sub">Links completos</h3>
             <ul className="vit-links">
               {links.map((l) => (
                 <li key={l.rotulo}>

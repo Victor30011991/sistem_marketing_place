@@ -176,6 +176,8 @@ export interface Vitrine {
   /** @usuario ou endereço completo */
   instagram: string;
   facebook: string;
+  /** endereço curto com o nome da loja (ex.: temperei.github.io), com atalhos /insta, /zap… */
+  linkCurto?: string;
   /** texto que abre o pedido no WhatsApp. {loja} vira o nome da loja */
   abertura: string;
   /** texto que fecha o pedido */
