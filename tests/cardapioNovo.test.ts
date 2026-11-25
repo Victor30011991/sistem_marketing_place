@@ -174,3 +174,13 @@ describe('entrega grátis', () => {
     expect(ruim.entrega?.gratisAcima).toBeUndefined();
   });
 });
+
+describe('pedido mínimo para entrega', () => {
+  it('é lido, publicado e some quando desligado', () => {
+    const l = { ...defaultStore(), vitrine: { ...vitrineDe(defaultStore()), entrega: { ativa: true, taxa: 'fixa' as const, valor: 500, retirada: true, minimo: 3000 } } };
+    expect(vitrineDe(l).entrega?.minimo).toBe(3000);
+    expect(montarCardapio(lista, l, null).arquivo.loja.entrega?.minimo).toBe(3000);
+    const sem = { ...l, vitrine: { ...l.vitrine, entrega: { ativa: true, taxa: 'fixa' as const, valor: 500, retirada: true, minimo: -5 } } };
+    expect(vitrineDe(sem).entrega?.minimo).toBeUndefined();
+  });
+});

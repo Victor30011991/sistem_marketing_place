@@ -172,6 +172,9 @@
   }
   /** Entrega grátis: vale quando os produtos chegam no valor que a loja escolheu. */
   function gratisAcima() { var e = entrega(); return e.ativa && e.gratisAcima > 0 ? e.gratisAcima : 0; }
+  // pedido mínimo para entrega (em produtos); 0 = sem mínimo
+  function minimoEntrega() { var e = entrega(); return e.ativa && e.minimo > 0 ? e.minimo : 0; }
+  function faltaMinimo(sub) { var m = minimoEntrega(); return form.modo === 'entrega' && m > 0 && sub < m ? m - sub : 0; }
   function entregaGratis(sub) { var g = gratisAcima(); return form.modo === 'entrega' && g > 0 && sub >= g; }
   function taxa(sub) { var e = entrega(); if (sub != null && entregaGratis(sub)) return 0; return form.modo === 'entrega' && e.taxa === 'fixa' && e.valor > 0 ? e.valor : 0; }
   function addKit(kt) { carrinho[kt.chave] = (carrinho[kt.chave] || 0) + 1; guardar(); avisar(kt.n + ' no pedido'); }
@@ -521,7 +524,7 @@
   function linhaEntrega() {
     var e = entrega(); var p = [];
     if (e.retirada) p.push(h('span', null, icone('loja', 16), 'Retirada na loja'));
-    if (e.ativa) p.push(h('span', null, icone('moto', 16), (e.taxa === 'fixa' && e.valor > 0 ? 'Entrega · ' + L.brl(e.valor) : 'Entrega · taxa a combinar') + (e.gratisAcima > 0 ? ' · grátis acima de ' + L.brl(e.gratisAcima) : '')));
+    if (e.ativa) p.push(h('span', null, icone('moto', 16), (e.taxa === 'fixa' && e.valor > 0 ? 'Entrega · ' + L.brl(e.valor) : 'Entrega · taxa a combinar') + (e.minimo > 0 ? ' · mínimo ' + L.brl(e.minimo) : '') + (e.gratisAcima > 0 ? ' · grátis acima de ' + L.brl(e.gratisAcima) : '')));
     return p.length ? h('p', { class: 'entrega-info' }, p[0], p[1] || null) : null;
   }
 
@@ -1048,10 +1051,11 @@
 
     // 2. como receber
     var receber = h('div', { class: 'bloco-in' });
-    if (ms.length > 1) receber.appendChild(seg('Como receber', [{ id: 'retirada', rotulo: 'Retirar na loja', icone: 'loja' }, { id: 'entrega', rotulo: 'Entrega', icone: 'moto' }], form.modo, function (m) { form.modo = m; guardar(); desenhar(true); }));
+    if (ms.length > 1) receber.appendChild(seg('Como receber', [{ id: 'retirada', rotulo: 'Retirada na loja', icone: 'loja' }, { id: 'entrega', rotulo: 'Pedido para entrega', icone: 'moto' }], form.modo, function (m) { form.modo = m; guardar(); desenhar(true); }));
     var dicaReceber = form.modo === 'retirada' ? 'Avisamos pelo WhatsApp quando estiver pronto para retirar.' : gratis ? 'Entrega grátis neste pedido.' : (tx ? 'Taxa de entrega: ' + L.brl(tx) + '.' : 'A taxa de entrega é combinada com a gente pelo WhatsApp.');
     receber.appendChild(h('p', { class: 'dica-bloco', text: dicaReceber }));
-    if (form.modo === 'entrega' && gratisAcima() && !gratis) receber.appendChild(barraGratis(sub));
+    if (faltaMinimo(sub)) receber.appendChild(barraMinimo(sub));
+    else if (form.modo === 'entrega' && gratisAcima() && !gratis) receber.appendChild(barraGratis(sub));
     pg.appendChild(bloco('Como receber', receber));
 
     // 3. seus dados
@@ -1123,6 +1127,8 @@
     if (!form.telefone.trim()) falta.push('seu WhatsApp');
     if (form.modo === 'entrega' && !form.endereco.trim()) falta.push('o endereço');
     if (falta.length) { ui.erro = 'Preencha ' + falta.join(', ').replace(/, ([^,]*)$/, ' e $1') + '.'; desenhar(true); return; }
+    var fm = faltaMinimo(L.subtotal(its));
+    if (fm) { ui.erro = 'O pedido mínimo para entrega é ' + L.brl(minimoEntrega()) + '. Adicione mais ' + L.brl(fm) + (modos().indexOf('retirada') >= 0 ? ' ou escolha Retirada na loja.' : '.'); desenhar(true); return; }
     if (!dados.loja.whatsapp) { ui.erro = 'O WhatsApp da loja ainda não foi configurado.'; desenhar(true); return; }
     var sub0 = L.subtotal(its), cup0 = cupomAplicado(sub0);
     var base = { itens: its, nome: form.nome, telefone: form.telefone, endereco: form.endereco, obs: form.obs, origem: ORIGEM, modo: form.modo, taxa: taxa(sub0), gratis: entregaGratis(sub0), pagamento: form.pagamento, troco: form.troco, cupom: cup0 && cup0.ok ? cup0.codigo : '', desconto: cup0 && cup0.ok ? cup0.desconto : 0 };
@@ -1180,6 +1186,13 @@
       }
     }
     return cards.length ? h('section', { class: 'bloco sugestoes', 'aria-label': 'Sugestões' }, h('h2', { text: 'Para completar' }), cards[0], cards[1] || null) : null;
+  }
+  function barraMinimo(sub) {
+    var m = minimoEntrega(), pct = Math.max(4, Math.min(100, Math.round((sub / m) * 100)));
+    return h('div', { class: 'gratis minimo', role: 'status' },
+      h('p', null, 'Pedido mínimo para entrega: ', h('b', { text: L.brl(m) }), '. Faltam ', h('b', { text: L.brl(m - sub) }), '.'),
+      h('span', { class: 'gratis-trilho', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(m), 'aria-valuenow': String(sub), 'aria-label': 'Quanto falta para o pedido mínimo de entrega' }, h('i', { style: 'width:' + pct + '%' })),
+      modos().indexOf('retirada') >= 0 ? h('small', { text: 'Ou escolha Retirada na loja, que não tem mínimo.' }) : null);
   }
   function barraGratis(sub) {
     var g = gratisAcima(), pct = Math.max(4, Math.min(100, Math.round((sub / g) * 100)));

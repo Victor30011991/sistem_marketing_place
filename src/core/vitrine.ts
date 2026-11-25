@@ -33,7 +33,8 @@ function entregaDe(v: unknown): EntregaCardapio | undefined {
   const e = v as Record<string, unknown>;
   const valor = typeof e.valor === 'number' && Number.isFinite(e.valor) && e.valor > 0 ? Math.min(Math.round(e.valor), 100000) : 0;
   const gratis = typeof e.gratisAcima === 'number' && Number.isFinite(e.gratisAcima) && e.gratisAcima > 0 ? Math.min(Math.round(e.gratisAcima), 10000000) : 0;
-  return { ativa: e.ativa !== false, taxa: e.taxa === 'fixa' ? 'fixa' : 'combinar', valor, retirada: e.retirada !== false, ...(gratis ? { gratisAcima: gratis } : {}) };
+  const minimo = typeof e.minimo === 'number' && Number.isFinite(e.minimo) && e.minimo > 0 ? Math.min(Math.round(e.minimo), 10000000) : 0;
+  return { ativa: e.ativa !== false, taxa: e.taxa === 'fixa' ? 'fixa' : 'combinar', valor, retirada: e.retirada !== false, ...(gratis ? { gratisAcima: gratis } : {}), ...(minimo ? { minimo } : {}) };
 }
 function horariosDe(v: unknown): HorarioDia[] | undefined {
   if (!Array.isArray(v) || v.length !== 7) return undefined;

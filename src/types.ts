@@ -318,6 +318,8 @@ export interface EntregaCardapio {
   retirada: boolean;
   /** entrega grátis a partir deste valor de produtos (centavos); 0 ou vazio = não tem */
   gratisAcima?: number;
+  /** pedido mínimo (em produtos) para entrega, em centavos; vazio = sem mínimo */
+  minimo?: number;
 }
 
 export interface HorarioDia {
