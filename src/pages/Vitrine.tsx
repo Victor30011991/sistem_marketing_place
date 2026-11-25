@@ -356,7 +356,7 @@ export default function Vitrine() {
                 <input type="checkbox" checked={entrega.retirada} onChange={(e) => set({ entrega: { ...entrega, retirada: e.target.checked } })} /> Retirada na loja
               </label>
               <label className="check">
-                <input type="checkbox" checked={entrega.ativa} onChange={(e) => set({ entrega: { ...entrega, ativa: e.target.checked } })} /> Entrega
+                <input type="checkbox" checked={entrega.ativa} onChange={(e) => set({ entrega: { ...entrega, ativa: e.target.checked } })} /> Pedido para entrega
               </label>
               {entrega.ativa && (
                 <div className="vt-linha">
@@ -400,6 +400,39 @@ export default function Vitrine() {
                     />
                   )}
                 </Field>
+              )}
+              {entrega.ativa && (
+                <div className="minimo-entrega">
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={!!entrega.minimo}
+                      onChange={(e) => {
+                        const { minimo: _, ...resto } = entrega;
+                        set({ entrega: e.target.checked ? { ...resto, minimo: entrega.minimo || 3000 } : resto });
+                      }}
+                    />
+                    <span>Pedido mínimo para entrega</span>
+                  </label>
+                  {!!entrega.minimo && (
+                    <Field label="Valor mínimo em produtos" hint="Abaixo disso, o cliente vê quanto falta e só consegue pedir entrega quando chegar ao valor (ou escolhe Retirada na loja).">
+                      {(id) => (
+                        <input
+                          id={id}
+                          key={entrega.minimo}
+                          inputMode="decimal"
+                          defaultValue={(entrega.minimo! / 100).toFixed(2).replace('.', ',')}
+                          placeholder="Ex.: 30,00"
+                          onBlur={(e) => {
+                            const n = Math.round(Number(e.target.value.replace(/\./g, '').replace(',', '.')) * 100);
+                            if (Number.isFinite(n) && n > 0) set({ entrega: { ...entrega, minimo: n } });
+                            else e.target.value = (entrega.minimo! / 100).toFixed(2).replace('.', ',');
+                          }}
+                        />
+                      )}
+                    </Field>
+                  )}
+                </div>
               )}
               {!entrega.ativa && !entrega.retirada && <Notice tone="warn">Marque pelo menos uma opção. Sem nenhuma, o catálogo mostra entrega.</Notice>}
             </fieldset>
