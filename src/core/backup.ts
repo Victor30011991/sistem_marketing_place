@@ -121,6 +121,7 @@ function lerLote(raw: unknown): Lote | null {
       valor: cent(i.valor),
       desconto: cent(i.desconto),
       ...(/^\d{4}-\d{2}-\d{2}$/.test(str(i.validade)) ? { validade: str(i.validade) } : {}),
+      ...(numOr(i.conteudoQtd, 0) > 0 && ['g', 'kg', 'ml', 'L'].includes(str(i.conteudoUnidade)) ? { conteudoQtd: numOr(i.conteudoQtd, 0), conteudoUnidade: str(i.conteudoUnidade) } : {}),
     }];
   });
   const l: Lote = {

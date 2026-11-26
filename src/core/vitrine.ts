@@ -4,7 +4,7 @@ import { MODELOS_IDEIA } from './postaai';
 import { entradaDe } from './entrada';
 import { comPromo } from './promo';
 import { newId } from './normalize';
-import { counterBasis } from './units';
+import { counterBasis, familyOf, rotuloUnidade } from './units';
 import { LOGO_COLORS } from './defaults';
 import { kitsDe, kitsParaCardapio, type KitPublicado } from './kits';
 import { cuponsDe, cuponsParaCardapio, type CupomPublicado } from './cupons';
@@ -162,9 +162,13 @@ export interface ItemCardapio {
   /** id do produto (para o pedido chegar certo no sistema) */
   i: string;
   n: string;
-  /** preço por quilo, em centavos (o de hoje: com a promoção, se houver) */
-  pk: number;
-  /** preço por quilo antes da promoção */
+  /** preço por quilo, em centavos (o de hoje: com a promoção, se houver). Só nos vendidos por peso. */
+  pk?: number;
+  /** vendido por unidade (frasco, litro, pacote…): preço de cada, em centavos */
+  pu?: number;
+  /** vendido por unidade: o que é cada um, ex.: "frasco 500 ml", "litro", "unidade" */
+  ud?: string;
+  /** preço antes da promoção (por quilo, ou de cada unidade) */
   pa?: number;
   /** selo da promoção, ex.: "Oferta da semana" */
   s?: string;
@@ -260,6 +264,7 @@ export interface ResultadoCardapio {
 
 /** Preço por quilo em centavos de um produto vendido por peso; null = não dá para vender por grama. */
 export function precoPorQuilo(p: Product): number | null {
+  if (familyOf(p.unidade) !== 'massa') return null;
   const b = counterBasis(p);
   if (!b) return null;
   if (b.base !== 'g') return null;
@@ -291,16 +296,18 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
       continue;
     }
     const pk = precoPorQuilo(p);
-    if (pk == null || pk <= 0) {
+    const ud = pk == null ? rotuloUnidade(p) : '';
+    if ((pk == null || pk <= 0) && !ud) {
       fora.push({ produto: p, motivo: 'nao-peso' });
       continue;
     }
     const cat = p.categoria.trim() || 'Outros';
     if (!porCat.has(cat)) porCat.set(cat, []);
-    const item: ItemCardapio = { i: p.id, n: p.nome.trim(), pk };
+    const item: ItemCardapio = pk ? { i: p.id, n: p.nome.trim(), pk } : { i: p.id, n: p.nome.trim(), pu: p.venda, ud };
     if (p.venda !== produto.venda) {
-      const antes = precoPorQuilo(produto);
-      if (antes && antes > pk) Object.assign(item, { pa: antes, s: produto.promo?.selo.trim() || 'Promoção' });
+      const antes = pk ? precoPorQuilo(produto) : produto.venda;
+      const agora = pk ?? p.venda;
+      if (antes && antes > agora) Object.assign(item, { pa: antes, s: produto.promo?.selo.trim() || 'Promoção' });
     }
     if (p.modoUso?.trim()) item.u = p.modoUso.trim().slice(0, 300);
     if (p.ingredientes?.trim()) item.ig = p.ingredientes.trim().slice(0, 300);
@@ -358,14 +365,15 @@ export function montarCardapio(lista: ListState, loja: StoreInfo, logo: string |
   // mixes prontos: receitas da biblioteca do Posta Aí em que a loja tem todos os temperos (com os ajustes da loja)
   const mixes: MixCardapio[] = [];
   if (v.mixes !== false) {
-    for (const m of mixesPossiveis(lista.produtos.filter((p) => porId.has(p.id)), v)) {
+    for (const m of mixesPossiveis(lista.produtos.filter((p) => porId.get(p.id)?.pk), v)) {
       if (!m.ativo) continue;
       mixes.push({ n: m.nome, d: m.desc, t: m.temperos, i: m.ids, g: m.g });
       if (mixes.length >= 4) break;
     }
   }
 
-  const kitsPub = kitsParaCardapio(v.kits ?? [], lista.produtos, new Set(porId.keys()), hoje);
+  // kits e combos são montados em gramas: só com o que é vendido por peso
+  const kitsPub = kitsParaCardapio(v.kits ?? [], lista.produtos, new Set([...porId.values()].filter((x) => x.pk).map((x) => x.i)), hoje);
   const cupPub = cuponsParaCardapio(v.cupons ?? [], hoje);
   const cores = loja.cores ?? LOGO_COLORS;
   const vis = v.visual ?? {};

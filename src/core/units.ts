@@ -166,3 +166,14 @@ export function parseBase(text: unknown): { qtd: number; unidade: string } | nul
   if (!Number.isFinite(qtd) || qtd <= 0 || !unidade) return null;
   return { qtd, unidade };
 }
+
+const NOME_UNIDADE: Record<string, string> = { un: 'unidade', L: 'litro', ml: 'ml', kg: 'kg', g: 'g' };
+
+/** Como o catálogo chama cada unidade vendida inteira: "frasco 500 ml", "litro", "pacote 250 g", "unidade". */
+export function rotuloUnidade(p: { unidade: string; conteudoQtd?: number | null; conteudoUnidade?: string | null }): string {
+  const u = (p.unidade || '').trim();
+  if (!u) return '';
+  const nome = NOME_UNIDADE[u] ?? u;
+  const c = familyOf(u) === 'contagem' ? contentOf(p) : null;
+  return (c ? `${nome} ${String(c.qtd).replace('.', ',')} ${c.unidade}` : nome).slice(0, 40);
+}

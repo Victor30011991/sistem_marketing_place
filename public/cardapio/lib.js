@@ -18,6 +18,15 @@
     return g + ' g';
   }
 
+  /** Quantidade de uma linha do pedido: "250 g" ou, no vendido por unidade, "2 × frasco 500 ml". */
+  function fmtQtd(it) {
+    if (!it.ud) return fmtGramas(it.g);
+    var ud = String(it.ud).trim();
+    var plural = { unidade: 'unidades', litro: 'litros' };
+    if (plural[ud]) return it.g + ' ' + (it.g === 1 ? ud : plural[ud]);
+    return it.g + ' × ' + ud;
+  }
+
   /** Preço de g gramas, em centavos, com meio para cima. pk = centavos por quilo. Só usa números inteiros. */
   function precoItem(g, pk) {
     return Math.floor((g * pk + 500) / 1000);
@@ -119,7 +128,7 @@
     for (var i = 0; i < n; i++) {
       var it = d.itens[i];
       if (it.kit) linhas.push('🎁 ' + (it.g > 1 ? it.g + 'x ' : '') + String(it.n).trim() + ' · *' + brl(it.total) + '*' + (it.desc ? '\n     ' + String(it.desc).trim() : ''));
-      else linhas.push('▪️ ' + String(it.n).trim() + ' · ' + fmtGramas(it.g) + ' · *' + brl(it.total) + '*');
+      else linhas.push('▪️ ' + String(it.n).trim() + ' · ' + fmtQtd(it) + ' · *' + brl(it.total) + '*');
     }
     var sub0 = subtotal(d.itens);
     var desc = descontoDe(d, sub0);
@@ -167,6 +176,7 @@
     var itens = d.itens.slice(0, 80).map(function (it) {
       var x = { n: String(it.n).slice(0, 120), g: Math.round(it.g), t: Math.round(it.total) };
       if (it.i) x.i = String(it.i).slice(0, 64);
+      if (it.ud) x.u = String(it.ud).slice(0, 40);
       return x;
     });
     var resumo = resumoEntrega(d);
@@ -230,6 +240,7 @@
   var lib = {
     brl: brl,
     fmtGramas: fmtGramas,
+    fmtQtd: fmtQtd,
     fmtTelefone: fmtTelefone,
     precoItem: precoItem,
     ratearKit: ratearKit,

@@ -13,7 +13,7 @@ const SANS = '"DM Sans Variable", "DM Sans", Arial, sans-serif';
 const INK = '#2b1d17';
 const MUTED = '#6b5b50';
 
-type Linha = { tipo: 'cat'; nome: string } | { tipo: 'item'; nome: string; pk: number; pa?: number };
+type Linha = { tipo: 'cat'; nome: string } | { tipo: 'item'; nome: string; pk?: number; pu?: number; ud?: string; pa?: number };
 
 function carregar(src: string | null): Promise<HTMLImageElement | null> {
   if (!src) return Promise.resolve(null);
@@ -38,7 +38,7 @@ export async function listaEmImagens(c: CardapioArquivo, logoUrl: string, rodape
     linhas.push({ tipo: 'cat', nome: cat.nome });
     for (const i of itens) {
       if (cat.nome === 'Ofertas') ja.add(i.n);
-      linhas.push({ tipo: 'item', nome: i.n, pk: i.pk, pa: i.pa });
+      linhas.push({ tipo: 'item', nome: i.n, pk: i.pk, pu: i.pu, ud: i.ud, pa: i.pa });
     }
   }
   // páginas: cabeçalho ~250 px, rodapé ~110 px; categoria 70 px, item 52 px
@@ -113,12 +113,18 @@ export async function listaEmImagens(c: CardapioArquivo, logoUrl: string, rodape
       g.textAlign = 'right';
       g.font = `700 30px ${SANS}`;
       g.fillStyle = l.pa ? c.loja.cores.p : INK;
-      g.fillText(formatBRL(Math.round(l.pk / 10)), W - 88, y);
+      g.fillText(formatBRL(l.pk ? Math.round(l.pk / 10) : (l.pu ?? 0)), W - 88, y);
       g.font = `400 26px ${SANS}`;
       g.fillStyle = MUTED;
-      g.fillText(formatBRL(l.pk), W - 88 - 210, y);
+      if (l.pk) g.fillText(formatBRL(l.pk), W - 88 - 210, y);
+      else if (l.ud) {
+        let ud = l.ud;
+        g.font = `400 22px ${SANS}`;
+        while (g.measureText(ud).width > 190 && ud.length > 4) ud = ud.slice(0, -2);
+        g.fillText(ud, W - 88 - 210, y);
+      }
       if (l.pa) {
-        const antes = formatBRL(Math.round(l.pa / 10));
+        const antes = formatBRL(l.pk ? Math.round(l.pa / 10) : l.pa);
         g.font = `400 22px ${SANS}`;
         const w = g.measureText(antes).width;
         g.fillText(antes, W - 88 - 128, y);

@@ -327,9 +327,12 @@ export function aplicarLote(l: Lote, produtos: Product[], categorias: string[], 
     }
     const categoria = it.categoria.trim();
     if (categoria && !cats.some((x) => norm(x) === norm(categoria))) cats = [...cats, categoria];
+    const cont = familyOf(unidade) === 'contagem' && it.conteudoQtd && it.conteudoQtd > 0 && it.conteudoUnidade && familyOf(it.conteudoUnidade) !== 'contagem' ? { qtd: it.conteudoQtd, un: it.conteudoUnidade } : null;
+    const base100 = cont ? (familyOf(cont.un) === 'massa' ? 'g' : 'ml') : unidade === 'kg' ? 'g' : unidade === 'L' ? 'ml' : null;
     novos.push({
       id: newId(), nome: it.nome.trim(), categoria, unidade, custo, custosAdicionais: 0, venda: null,
-      propQtd: unidade === 'kg' ? 100 : null, propUnidade: unidade === 'kg' ? 'g' : null, observacoes: '', estoque: r3(q),
+      propQtd: base100 ? 100 : null, propUnidade: base100, observacoes: '', estoque: r3(q),
+      ...(cont ? { conteudoQtd: cont.qtd, conteudoUnidade: cont.un } : {}),
     });
     linhas.push({ ...base, novo: true, unidade, qtd: q, custoAntes: null, custoDepois: custo, estoqueAntes: null, estoqueDepois: r3(q), variacaoPct: null });
   });

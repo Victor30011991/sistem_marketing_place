@@ -11,7 +11,9 @@ import { formatBRL, parseNumberBR } from '../core/money';
 import { norm } from '../core/normalize';
 import type { Lote, LoteItem, Product, RegraPreco } from '../types';
 
-const UNIDADES = ['kg', 'g', 'pacote', 'caixa', 'frasco', 'L', 'ml', 'un'];
+const UNIDADES = ['kg', 'g', 'frasco', 'L', 'ml', 'pacote', 'caixa', 'un'];
+const NOME_UNIDADE: Record<string, string> = { kg: 'Peso · kg', g: 'Peso · g', frasco: 'Frasco', L: 'Litro', ml: 'ml', pacote: 'Pacote', caixa: 'Caixa', un: 'Unidade' };
+const EMBALAGEM = ['frasco', 'pacote', 'caixa'];
 
 // o rascunho sobrevive quando a pessoa troca de tela (some ao fechar a página)
 let rascunho: Lote | null = null;
@@ -333,7 +335,7 @@ export default function Lotes() {
                     <th>Nome na nota</th>
                     <th>Produto no sistema</th>
                     <th className="num">Qtd.</th>
-                    <th>Un.</th>
+                    <th>Como vem</th>
                     <th className="num">Valor</th>
                     <th className="num">Desc.</th>
                     <th>Validade</th>
@@ -389,11 +391,24 @@ export default function Lotes() {
                             <Qtd label={`Quantidade de ${it.nome || `item ${i + 1}`}`} value={it.qtd} onChange={(v) => mudarItem(it.id, { qtd: v })} />
                           </td>
                           <td>
-                            <select aria-label={`Unidade de ${it.nome || `item ${i + 1}`}`} value={it.unidade} onChange={(e) => mudarItem(it.id, { unidade: e.target.value })}>
+                            <select aria-label={`Como vem ${it.nome || `o item ${i + 1}`}`} value={it.unidade} onChange={(e) => mudarItem(it.id, { unidade: e.target.value })}>
                               {(UNIDADES.includes(it.unidade) ? UNIDADES : [...UNIDADES, it.unidade]).map((u) => (
-                                <option key={u}>{u}</option>
+                                <option key={u} value={u}>
+                                  {NOME_UNIDADE[u] ?? u}
+                                </option>
                               ))}
                             </select>
+                            {!it.produtoId && EMBALAGEM.includes(it.unidade) && (
+                              <span className="lote-cont">
+                                de
+                                <Qtd label={`Quanto vem em cada ${it.unidade} de ${it.nome || `item ${i + 1}`}`} value={it.conteudoQtd ?? 0} onChange={(v) => mudarItem(it.id, v > 0 ? { conteudoQtd: v, conteudoUnidade: it.conteudoUnidade ?? 'g' } : { conteudoQtd: undefined, conteudoUnidade: undefined })} />
+                                <select aria-label={`Unidade do conteúdo de ${it.nome || `item ${i + 1}`}`} value={it.conteudoUnidade ?? 'g'} onChange={(e) => mudarItem(it.id, { conteudoUnidade: e.target.value, conteudoQtd: it.conteudoQtd })}>
+                                  {['g', 'kg', 'ml', 'L'].map((u) => (
+                                    <option key={u}>{u}</option>
+                                  ))}
+                                </select>
+                              </span>
+                            )}
                           </td>
                           <td className="num">
                             <MoneyInput ariaLabel={`Valor de ${it.nome || `item ${i + 1}`}`} value={it.valor || null} onChange={(v) => mudarItem(it.id, { valor: v ?? 0 })} />

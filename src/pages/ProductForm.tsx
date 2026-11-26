@@ -3,7 +3,7 @@ import { fotoProduto } from '../ui/foto';
 import type { Product } from '../types';
 import { useApp } from '../state/store';
 import { Button, Field, MoneyInput, Modal, NumberInput, Notice } from '../ui/ui';
-import { BASE_UNITS, compatibleUnits, contentOf, defaultProportional, defaultProportionalForContent, familyOf, proportionalPrice, formatQtyUnit } from '../core/units';
+import { BASE_UNITS, compatibleUnits, rotuloUnidade, contentOf, defaultProportional, defaultProportionalForContent, familyOf, proportionalPrice, formatQtyUnit } from '../core/units';
 import { norm } from '../core/normalize';
 import { formatBRL, parseNumberBR } from '../core/money';
 import { calcPrice, paymentById, purchaseCost, weightedAverageCost } from '../core/pricing';
@@ -30,6 +30,23 @@ function OptionalNumber({ value, onChange, ariaLabel, id, placeholder }: { value
 
 const NOVA = '__nova__';
 const OUTRA = '__outra__';
+const NOME_UN: Record<string, string> = { un: 'unidade' };
+
+type ComoVende = 'peso' | 'frasco' | 'litro' | 'pacote' | 'caixa' | 'outros';
+const COMO_VENDE: { id: ComoVende; nome: string; dica: string; un: string }[] = [
+  { id: 'peso', nome: 'Peso', dica: 'kg / g', un: 'kg' },
+  { id: 'frasco', nome: 'Frasco', dica: 'pote, garrafa', un: 'frasco' },
+  { id: 'litro', nome: 'Litro', dica: 'L / ml', un: 'L' },
+  { id: 'pacote', nome: 'Pacote', dica: 'fechado', un: 'pacote' },
+  { id: 'caixa', nome: 'Caixa', dica: 'fechada', un: 'caixa' },
+  { id: 'outros', nome: 'Outros', dica: 'unidade, dúzia…', un: 'un' },
+];
+function comoVendeDe(u: string): ComoVende {
+  if (u === 'kg' || u === 'g') return 'peso';
+  if (u === 'L' || u === 'ml') return 'litro';
+  if (u === 'frasco' || u === 'pacote' || u === 'caixa') return u;
+  return 'outros';
+}
 
 export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo: boolean; onClose: () => void }) {
   const { state, act } = useApp();
@@ -62,6 +79,17 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
     const keep = familyOf(u) === 'contagem';
     set({ unidade: u, propQtd: dp?.qtd ?? null, propUnidade: dp?.unidade ?? null, ...(keep ? {} : { conteudoQtd: null, conteudoUnidade: null }) });
   }
+
+  const comoVende = comoVendeDe(unSel === OUTRA ? '' : unSel);
+  function escolherComo(c: ComoVende) {
+    if (c === comoVende) return;
+    const u = COMO_VENDE.find((k) => k.id === c)!.un;
+    setUnSel(u);
+    trocarUnidade(u);
+  }
+  const embalagem = comoVende === 'frasco' || comoVende === 'pacote' || comoVende === 'caixa';
+  const precoDe = familyOf(unidade) === 'contagem' ? `cada ${NOME_UN[unidade] ?? unidade}` : `o ${unidade === 'L' ? 'litro' : unidade}`;
+  const noCatalogo = unidade && familyOf(unidade) !== 'massa' && d.venda ? `${formatBRL(d.venda)} / ${rotuloUnidade({ unidade, conteudoQtd: d.conteudoQtd, conteudoUnidade: d.conteudoUnidade })}` : '';
 
   function mudarConteudo(qtd: number | null, un: string) {
     const c = qtd && qtd > 0 ? { qtd, unidade: un } : null;
@@ -174,40 +202,54 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
           )}
         </Field>
 
-        <Field label="Unidade de medida" erro={tentou ? erroUnidade : null} hint="A unidade em que o preço é informado (ex.: preço por kg).">
-          {(id) => (
-            <>
+        <fieldset className="span-2 como-vende">
+          <legend>Como este produto é vendido?</legend>
+          <div className="como-opcoes">
+            {COMO_VENDE.map((k) => (
+              <button key={k.id} type="button" className="como-op" aria-pressed={comoVende === k.id} onClick={() => escolherComo(k.id)}>
+                <strong>{k.nome}</strong>
+                <small>{k.dica}</small>
+              </button>
+            ))}
+          </div>
+          {(comoVende === 'peso' || comoVende === 'litro') && (
+            <div className="seg como-sub" role="group" aria-label="Preço informado por">
+              {(comoVende === 'peso' ? ['kg', 'g'] : ['L', 'ml']).map((u) => (
+                <button key={u} type="button" aria-pressed={unSel === u} onClick={() => { setUnSel(u); trocarUnidade(u); }}>
+                  Preço por {u}
+                </button>
+              ))}
+            </div>
+          )}
+          {comoVende === 'outros' && (
+            <div className="row-gap como-sub">
               <select
-                id={id}
-                value={unSel}
+                aria-label="Unidade"
+                value={unSel === OUTRA ? OUTRA : unSel}
                 onChange={(e) => {
                   setUnSel(e.target.value);
                   if (e.target.value !== OUTRA) trocarUnidade(e.target.value);
                   else trocarUnidade(unOutra.trim());
                 }}
               >
-                {BASE_UNITS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-                <option value={OUTRA}>Outra…</option>
+                <option value="un">Unidade</option>
+                <option value={OUTRA}>Outro nome…</option>
               </select>
               {unSel === OUTRA && (
                 <input
-                  className="mt"
-                  aria-label="Nome da unidade personalizada"
+                  aria-label="Nome da unidade"
                   value={unOutra}
                   onChange={(e) => {
                     setUnOutra(e.target.value);
                     trocarUnidade(e.target.value.trim());
                   }}
-                  placeholder="Ex.: fardo, saco, dúzia"
+                  placeholder="Ex.: dúzia, saco, maço"
                 />
               )}
-            </>
+            </div>
           )}
-        </Field>
+          {tentou && erroUnidade && <span className="field-error">{erroUnidade}</span>}
+        </fieldset>
 
         <Field label="Custo de aquisição" hint="Quanto você paga pelo produto, na unidade acima.">
           {(id) => <MoneyInput id={id} value={d.custo} onChange={(v) => set({ custo: v })} />}
@@ -218,7 +260,7 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
         </Field>
 
         {contagem && (
-          <Field label={`Conteúdo de cada ${unidade} (opcional)`} className="span-2" hint="Ex.: pacote de 250 g, frasco de 500 ml. Permite mostrar o preço por 100 g / 100 ml e usar o Balcão por peso.">
+          <Field label={embalagem ? `Quanto vem em cada ${unidade}?` : `Conteúdo de cada ${unidade} (opcional)`} className="span-2" hint={`Ex.: 500 ml, 250 g. O catálogo mostra "${unidade} 500 ml" e o preço por 100 g / 100 ml.`}>
             {(id) => (
               <div className="row-gap">
                 <OptionalNumber id={id} ariaLabel="Quantidade de conteúdo da embalagem" placeholder="Ex.: 250" value={d.conteudoQtd} onChange={(v) => mudarConteudo(v, d.conteudoUnidade ?? 'g')} />
@@ -328,7 +370,7 @@ export function ProductForm({ inicial, novo, onClose }: { inicial: Product; novo
           </fieldset>
         )}
 
-        <Field label="Preço de venda" className="span-2" hint="Preço que o cliente paga, na unidade acima.">
+        <Field label={`Preço de venda (${precoDe})`} className="span-2" hint={noCatalogo ? `No catálogo: ${noCatalogo}.` : 'Preço que o cliente paga, na unidade acima.'}>
           {(id) => (
             <div className="row-gap">
               <MoneyInput id={id} value={d.venda} onChange={(v) => { set({ venda: v }); setSugestao(null); }} />

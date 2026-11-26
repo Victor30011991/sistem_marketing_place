@@ -144,6 +144,15 @@ select { padding-right: 8px; }
 .seg.big button { flex: 1; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .form-grid .span-2 { grid-column: 1 / -1; }
+.como-vende legend { font-weight: 700; padding: 0 4px; }
+.como-opcoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
+@media (min-width: 720px) { .como-opcoes { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.como-op { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 58px; padding: 8px 4px; border: 1.5px solid var(--line); border-radius: var(--r-control); background: #fff; color: var(--ink); font: inherit; cursor: pointer; }
+.como-op small { color: var(--muted); font-size: .78rem; }
+.como-op[aria-pressed='true'] { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+.como-op[aria-pressed='true'] small { color: var(--primary); }
+.como-op:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.como-sub { margin-top: 10px; }
 fieldset { border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 16px 14px; margin: 0; min-width: 0; }
 legend { font-size: 0.85rem; font-weight: 700; padding: 0 6px; color: var(--muted); }
 .opt-group { display: flex; flex-direction: column; gap: 6px; }
@@ -1195,3 +1204,6 @@ input[type='color'] { width: 44px; min-width: 44px; height: 40px; padding: 2px; 
 .kits-grid > * { min-width: 0; }
 .kit-msg { overflow-wrap: anywhere; }
 .kit-uso { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; font-weight: 700; color: var(--accent); }
+.lote-cont { display: flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.lote-cont input { width: 72px; }
+.lote-cont select { width: auto; }

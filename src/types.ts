@@ -385,6 +385,9 @@ export interface LoteItem {
   desconto: number;
   /** validade da mercadoria deste item, AAAA-MM-DD (opcional) */
   validade?: string;
+  /** produto novo vendido inteiro (frasco, pacote, caixa): quanto vem em cada, ex.: 500 ml */
+  conteudoQtd?: number;
+  conteudoUnidade?: string;
 }
 
 /** Uma compra de mercadoria (uma nota). Frete, juros e extras são repartidos entre os itens. */
@@ -615,7 +618,8 @@ export interface Pedido {
   endereco: string;
   obs: string;
   /** i = id do produto (catálogos antigos não têm), n = nome, g = gramas, t = valor em centavos */
-  itens: { i?: string; n: string; g: number; t: number }[];
+  /** g = gramas; nos vendidos por unidade (u), g é a quantidade e u diz o que é ("frasco 500 ml") */
+  itens: { i?: string; n: string; g: number; t: number; u?: string }[];
   total: number;
   origem: string;
   situacao: SituacaoPedido;

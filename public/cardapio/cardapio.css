@@ -346,6 +346,11 @@ a.b { text-decoration: none; }
 .gratis-trilho i { display: block; height: 100%; border-radius: 4px; background: var(--d); }
 .escolha { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .escolha #outro { margin-top: 0; }
+.escolha-un { flex-direction: row; align-items: center; gap: 14px; margin-bottom: 14px; }
+.stp.grande .stp-bt { width: 52px; height: 52px; font-size: 1.6rem; }
+.stp.grande .stp-v { min-width: 44px; font-size: 1.15rem; }
+.stp-bt:disabled { opacity: .35; }
+.escolha-ud { color: var(--muted); font-weight: 600; }
 #valor { width: 100%; min-height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); font-size: 16px; }
 .por-valor { margin: 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--d) 12%, var(--card)); font-size: .92rem; }
 .peso-g b { font-size: .95rem; }
