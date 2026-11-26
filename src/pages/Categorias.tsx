@@ -4,6 +4,7 @@ import { useFeedback, useDocumentTitle } from '../ui/feedback';
 import { Button, Empty, PageHeader } from '../ui/ui';
 import { Icon } from '../ui/icons';
 import { norm } from '../core/normalize';
+import { planoCategorias } from '../core/categorias';
 
 export default function Categorias() {
   useDocumentTitle('Categorias');
@@ -14,6 +15,41 @@ export default function Categorias() {
   const { categorias, produtos } = state.lista;
   const count = (c: string) => produtos.filter((p) => p.categoria === c).length;
   const semCat = produtos.filter((p) => !p.categoria).length;
+  const plano = planoCategorias(categorias);
+
+  async function organizar() {
+    const ok = await confirm({
+      titulo: 'Organizar as categorias?',
+      mensagem: (
+        <>
+          {plano.renomear.length > 0 && (
+            <>
+              <p>
+                <strong>Mudam de nome</strong> (os produtos vão junto):
+              </p>
+              <ul>
+                {plano.renomear.map(([de, para]) => (
+                  <li key={de}>
+                    {de} → {para}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {plano.criar.length > 0 && (
+            <p>
+              <strong>Novas:</strong> {plano.criar.join(', ')}.
+            </p>
+          )}
+          <p>Nenhum produto muda de categoria. Categoria vazia não aparece no catálogo: ela surge quando vocês colocarem o primeiro produto nela.</p>
+        </>
+      ),
+      confirmar: 'Organizar categorias',
+    });
+    if (!ok) return;
+    act.organizarCategorias(plano.renomear, plano.ordem);
+    toast('Categorias organizadas. Agora é só mudar os produtos de lugar.');
+  }
 
   function adicionar() {
     const n = nova.trim();
@@ -54,6 +90,21 @@ export default function Categorias() {
   return (
     <div className="page narrow">
       <PageHeader titulo="Categorias" subtitulo="Organize os produtos do seu jeito. Crie, renomeie e exclua quando quiser." />
+
+      {plano.mudou && produtos.length > 0 && (
+        <section className="card cat-sugestao" aria-labelledby="cat-sug-titulo">
+          <div>
+            <h2 id="cat-sug-titulo">Organização sugerida</h2>
+            <p className="muted small">
+              {[plano.criar.length ? `Cria ${plano.criar.length} categoria${plano.criar.length === 1 ? '' : 's'} nova${plano.criar.length === 1 ? '' : 's'}` : '', plano.renomear.length ? `renomeia ${plano.renomear.length}` : '', 'põe na ordem do catálogo'].filter(Boolean).join(', ')}
+              . Os produtos ficam onde estão.
+            </p>
+          </div>
+          <Button icon="tag" variant="secondary" onClick={organizar}>
+            Ver e aplicar
+          </Button>
+        </section>
+      )}
 
       <form
         className="add-row"
@@ -97,7 +148,7 @@ export default function Categorias() {
                   <span className="li-main">
                     <strong>{c}</strong>
                     <small className="muted">
-                      {count(c)} produto{count(c) === 1 ? '' : 's'}
+                      {count(c) ? `${count(c)} produto${count(c) === 1 ? '' : 's'}` : 'Vazia · não aparece no catálogo'}
                     </small>
                   </span>
                   <span className="row-actions">
