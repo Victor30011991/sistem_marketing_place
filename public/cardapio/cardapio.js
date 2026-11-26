@@ -693,6 +693,34 @@
     categoriasReais().forEach(function (x) { out.push({ chave: 'c' + x.idx, c: x.c }); });
     return out;
   }
+  /**
+   * Faixa que rola para o lado (abas): setas nas pontas e um esmaecido mostram que tem mais.
+   * No celular dá para arrastar; no computador, as setas e a roda do mouse levam para o lado.
+   */
+  function rolavel(el) {
+    var esq = h('button', { class: 'rol-seta esq', type: 'button', 'aria-label': 'Ver as categorias anteriores' }, icone('voltar', 18));
+    var dir = h('button', { class: 'rol-seta dir', type: 'button', 'aria-label': 'Ver mais categorias' }, icone('voltar', 18));
+    var box = h('div', { class: 'rol' }, el, esq, dir);
+    function upd() {
+      var max = el.scrollWidth - el.clientWidth;
+      box.classList.toggle('tem-esq', el.scrollLeft > 4);
+      box.classList.toggle('tem-dir', el.scrollLeft < max - 4);
+    }
+    function passo(d) { el.scrollBy({ left: d * Math.max(160, el.clientWidth * 0.7), behavior: 'smooth' }); }
+    esq.addEventListener('click', function () { passo(-1); });
+    dir.addEventListener('click', function () { passo(1); });
+    el.addEventListener('scroll', upd, { passive: true });
+    // roda do mouse (para cima/baixo) rola a faixa para o lado enquanto ainda tem para onde ir
+    el.addEventListener('wheel', function (e) {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      var max = el.scrollWidth - el.clientWidth;
+      if (max <= 0 || (e.deltaY > 0 && el.scrollLeft >= max - 1) || (e.deltaY < 0 && el.scrollLeft <= 0)) return;
+      e.preventDefault(); el.scrollLeft += e.deltaY;
+    }, { passive: false });
+    if (window.ResizeObserver) new ResizeObserver(upd).observe(el);
+    setTimeout(upd, 0); setTimeout(upd, 400);
+    return box;
+  }
   function quadradinhos(abas, atual) {
     var nav = h('nav', { class: 'quads', 'aria-label': 'Categorias', id: 'categorias' });
     abas.forEach(function (a) {
@@ -701,7 +729,7 @@
         onclick: function () { ui.cat = a.chave; desenharConteudo(true); var el = document.querySelector('.quad.on'); if (el && el.scrollIntoView) el.scrollIntoView({ inline: 'nearest', block: 'nearest' }); } },
         iconeCat(a.c.nome), h('span', { text: a.c.nome })));
     });
-    return nav;
+    return rolavel(nav);
   }
 
   function linha(it) {
@@ -908,9 +936,9 @@
       h('header', { class: 'cat-top' },
         h('button', { class: 'voltar-cat', type: 'button', onclick: function () { if (ui.veioDoInicio) history.back(); else ir(''); } }, icone('voltar', 18), 'Catálogo'),
         h('div', { class: 'cat-top-in' },
-          h('div', null, h('h1', { text: c.nome }), h('p', { text: c.itens.length + (c.itens.length === 1 ? ' produto' : ' produtos') + ' · pesados na hora' })),
+          h('div', null, h('h1', { text: c.nome }), h('p', { text: c.itens.length + (c.itens.length === 1 ? ' produto' : ' produtos') + (c.itens.every(function (x) { return x.pk > 0; }) ? ' · pesados na hora' : '') })),
           h('img', { class: 'cat-monte', src: poteURL(tom, 260, 'transparente', tipoCategoria(c)), alt: '' })),
-        abas),
+        rolavel(abas)),
       corpo);
     // arrastar para o lado troca de categoria
     var x0 = null, y0 = null;

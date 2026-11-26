@@ -259,6 +259,20 @@ img { display: block; }
 
 .quads { display: flex; gap: 8px; overflow-x: auto; padding: 14px 16px 6px; scrollbar-width: none; scroll-margin-top: 8px; }
 .quads::-webkit-scrollbar { display: none; }
+/* faixas que rolam para o lado: setas e esmaecido nas pontas quando tem mais */
+.rol { position: relative; }
+.rol-seta { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); display: none; place-items: center; box-shadow: 0 2px 8px rgba(0, 0, 0, .14); cursor: pointer; }
+.rol-seta.esq { left: 6px; }
+.rol-seta.dir { right: 6px; }
+.rol-seta.dir svg { transform: scaleX(-1); }
+.rol.tem-esq .rol-seta.esq, .rol.tem-dir .rol-seta.dir { display: grid; }
+.rol::before, .rol::after { content: ''; position: absolute; top: 0; bottom: 0; width: 44px; pointer-events: none; z-index: 1; opacity: 0; transition: opacity .2s; }
+.rol::before { left: 0; background: linear-gradient(90deg, var(--bg), transparent); }
+.rol::after { right: 0; background: linear-gradient(270deg, var(--bg), transparent); }
+.rol.tem-esq::before, .rol.tem-dir::after { opacity: 1; }
+.cat-top .rol::before, .cat-top .rol::after { display: none; }
+.cat-top .rol-seta { top: calc(50% - 7px); }
+@media (prefers-reduced-motion: reduce) { .rol::before, .rol::after { transition: none; } }
 .quad { flex: none; width: 76px; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 8px 4px; border: 1.5px solid var(--line); border-radius: 18px; background: var(--card); color: var(--d); font: 600 .74rem/1.15 var(--sans); text-align: center; }
 .quad span { color: var(--ink); overflow-wrap: anywhere; }
 .quad.on { background: var(--d); border-color: var(--d); color: var(--on-d); }
