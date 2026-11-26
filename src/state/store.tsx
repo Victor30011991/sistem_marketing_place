@@ -29,6 +29,7 @@ type Action =
   | { t: 'addCategoria'; nome: string }
   | { t: 'renomearCategoria'; de: string; para: string }
   | { t: 'excluirCategoria'; nome: string }
+  | { t: 'organizarCategorias'; renomear: [string, string][]; ordem: string[] }
   | { t: 'importacao'; produtos: Product[]; categorias: string[]; registro: ImportRecord }
   | { t: 'desfazerImportacao' }
   | { t: 'restaurarConfig'; loja: StoreInfo; financeiro: Settings; nomeLista?: string }
@@ -101,6 +102,16 @@ function reducer(s: AppState, a: Action): AppState {
       const cats = s.lista.categorias.map((c) => (c === a.de ? para : c));
       const dedup = cats.filter((c, i) => cats.findIndex((x) => norm(x) === norm(c)) === i);
       return setLista({ categorias: dedup, produtos: s.lista.produtos.map((p) => (p.categoria === a.de ? { ...p, categoria: para } : p)) });
+    }
+    case 'organizarCategorias': {
+      const para = new Map(a.renomear);
+      const cats = s.lista.categorias.map((c) => para.get(c) ?? c);
+      const ordem = [...a.ordem, ...cats].filter((c, i, l) => l.findIndex((x) => norm(x) === norm(c)) === i);
+      const bal = s.config.balanca?.prateleira;
+      return touch({
+        lista: { ...s.lista, categorias: ordem, produtos: s.lista.produtos.map((p) => (para.has(p.categoria) ? { ...p, categoria: para.get(p.categoria)! } : p)) },
+        ...(bal && a.renomear.length ? { config: { ...s.config, balanca: { ...s.config.balanca!, prateleira: { ...bal, cats: bal.cats.map((c) => para.get(c) ?? c) } } } } : {}),
+      });
     }
     case 'excluirCategoria':
       // os produtos NÃO são excluídos: apenas ficam sem categoria
@@ -201,6 +212,7 @@ export function useApp() {
       addCategoria: (nome: string) => dispatch({ t: 'addCategoria', nome }),
       renomearCategoria: (de: string, para: string) => dispatch({ t: 'renomearCategoria', de, para }),
       excluirCategoria: (nome: string) => dispatch({ t: 'excluirCategoria', nome }),
+      organizarCategorias: (renomear: [string, string][], ordem: string[]) => dispatch({ t: 'organizarCategorias', renomear, ordem }),
       importacao: (produtos: Product[], categorias: string[], registro: ImportRecord) => dispatch({ t: 'importacao', produtos, categorias, registro }),
       desfazerImportacao: () => dispatch({ t: 'desfazerImportacao' }),
       restaurarConfig: (loja: StoreInfo, financeiro: Settings, nomeLista?: string) => dispatch({ t: 'restaurarConfig', loja, financeiro, nomeLista }),

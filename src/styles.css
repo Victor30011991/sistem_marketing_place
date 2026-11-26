@@ -259,6 +259,9 @@ legend { font-size: 0.85rem; font-weight: 700; padding: 0 6px; color: var(--mute
 .list-card { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .list-card li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px 10px 18px; border-top: 1px solid var(--line-2); min-height: 62px; }
 .list-card li:first-child { border-top: 0; }
+.cat-sugestao { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.cat-sugestao h2 { margin: 0 0 4px; font-size: 1.05rem; }
+.cat-sugestao p { margin: 0; }
 .li-main { display: flex; flex-direction: column; }
 
 /* ------------------------------------------------------------ modal & toasts */
