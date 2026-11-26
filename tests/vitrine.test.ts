@@ -23,6 +23,7 @@ interface Lib {
   precoItem(g: number, pk: number): number;
   parseGramas(t: string): number | null;
   montarMensagem(d: Record<string, unknown>): string;
+  pedidoNuvem(d: Record<string, unknown>): unknown;
   urlWhatsapp(n: string, t: string): string;
 }
 const m = { exports: {} as unknown };
@@ -96,11 +97,13 @@ describe('vitrine: arquivo publicado', () => {
     const temperos = Object.fromEntries(cats[0].itens.map((i) => [i.n, i.pk]));
     expect(temperos['Açafrão']).toBe(5250); // kg
     expect(temperos['Pimenta em g']).toBe(8000); // R$ 0,08/g = R$ 80/kg
-    expect(temperos['Pacote 250 g']).toBe(4000); // R$ 10 por 250 g = R$ 40/kg
+    // pacote, frasco, litro: vendidos inteiros, com o preço de cada
+    const unid = Object.fromEntries(cats[0].itens.filter((i) => i.pu).map((i) => [i.n, [i.pu, i.ud, i.pk]]));
+    expect(unid).toEqual({ 'Pacote 250 g': [1000, 'pacote 250 g', undefined], Suco: [1000, 'litro', undefined] });
     expect(cats[1].itens.map(({ n, pk }) => ({ n, pk }))).toEqual([{ n: 'Sem categoria', pk: 3000 }]);
     const motivos = Object.fromEntries(r.fora.map((f) => [f.produto.id, f.motivo]));
-    expect(motivos).toEqual({ b: 'oculto', d: 'sem-preco', e: 'nao-peso' });
-    expect(r.total).toBe(4);
+    expect(motivos).toEqual({ b: 'oculto', d: 'sem-preco' });
+    expect(r.total).toBe(5);
   });
 
   it('usa o telefone da loja e a frase da loja quando a vitrine não define', () => {
@@ -113,7 +116,7 @@ describe('vitrine: arquivo publicado', () => {
 
   it('a página calcula o mesmo valor que o sistema (orçamento) para qualquer quantidade', () => {
     const p = lista().produtos[0];
-    const pk = montarCardapio(lista(), defaultStore(), null).arquivo.categorias[0].itens[0].pk;
+    const pk = montarCardapio(lista(), defaultStore(), null).arquivo.categorias[0].itens[0].pk!;
     const b = counterBasis(p)!;
     for (const g of [50, 100, 137, 250, 333, 500, 750, 1000, 1250, 2500, 9999]) {
       expect(L.precoItem(g, pk)).toBe(valueForQuantity(g, b));
@@ -231,5 +234,45 @@ describe('botões do cartão (link na bio)', () => {
     const loja2 = { ...defaultStore(), vitrine: { ...v, botoes: [{ ...b('maps', 'Parnaíba'), rotulo: 'Onde estamos' }] } };
     const r = lerBackup(criarBackup({ nome: 'L', produtos: [], categorias: [] }, loja2, defaultSettings()));
     expect(r.ok && r.loja.vitrine?.botoes).toEqual(loja2.vitrine.botoes);
+  });
+});
+
+describe('vendido por unidade', () => {
+  it('nome da unidade no catálogo', async () => {
+    const { rotuloUnidade } = await import('../src/core/units');
+    expect(rotuloUnidade({ unidade: 'frasco', conteudoQtd: 500, conteudoUnidade: 'ml' })).toBe('frasco 500 ml');
+    expect(rotuloUnidade({ unidade: 'un' })).toBe('unidade');
+    expect(rotuloUnidade({ unidade: 'L' })).toBe('litro');
+    expect(rotuloUnidade({ unidade: 'pacote', conteudoQtd: 0.5, conteudoUnidade: 'kg' })).toBe('pacote 0,5 kg');
+    expect(rotuloUnidade({ unidade: 'dúzia' })).toBe('dúzia');
+  });
+
+  it('a mensagem e o pedido da nuvem levam a quantidade e o que é', () => {
+    const itens = [{ i: 'm', n: 'Mel', g: 2, total: 5000, ud: 'frasco 500 ml' }, { i: 'r', n: 'Rapé', g: 1, total: 700, ud: 'unidade' }, { i: 'l', n: 'Leite', g: 3, total: 900, ud: 'litro' }];
+    const t = L.montarMensagem({ loja: 'T', abertura: '', fechamento: '', itens, nome: 'A', endereco: '', obs: '', origem: '', modo: 'retirada' });
+    expect(t).toContain('▪️ Mel · 2 × frasco 500 ml · *R$ 50,00*');
+    expect(t).toContain('▪️ Rapé · 1 unidade · *R$ 7,00*');
+    expect(t).toContain('▪️ Leite · 3 litros · *R$ 9,00*');
+    const doc = L.pedidoNuvem({ itens, nome: 'A', telefone: '', endereco: '', obs: '', origem: '', modo: 'retirada' }) as { fields: { itens: { arrayValue: { values: { mapValue: { fields: Record<string, { stringValue?: string }> } }[] } } } };
+    expect(doc.fields.itens.arrayValue.values[0].mapValue.fields.u.stringValue).toBe('frasco 500 ml');
+  });
+});
+
+describe('pedido por unidade no sistema', () => {
+  it('o pedido chega no PDV na unidade do produto', async () => {
+    const { pedidoDe, pedidoParaPdv } = await import('../src/core/clientes');
+    const p = pedidoDe('x', { nome: 'A', obs: '', itens: [{ i: 'm', n: 'Mel', g: 2, t: 5000, u: 'frasco 500 ml' }, { i: 'o', n: 'Orégano', g: 100, t: 590 }] })!;
+    expect(p.itens[0].u).toBe('frasco 500 ml');
+    const prods = [prod({ id: 'm', nome: 'Mel', unidade: 'frasco' }), prod({ id: 'o', nome: 'Orégano' })];
+    const { venda } = pedidoParaPdv(p, prods, null);
+    expect(venda.linhas).toEqual([{ produtoId: 'm', qtd: 2, unidade: 'frasco', total: 5000 }, { produtoId: 'o', qtd: 100, unidade: 'g', total: 590 }]);
+  });
+
+  it('produto novo da nota já nasce com o conteúdo do frasco', async () => {
+    const { aplicarLote, itemVazio, loteVazio } = await import('../src/core/lote');
+    const l = { ...loteVazio(), itens: [{ ...itemVazio(), nome: 'Mel', unidade: 'frasco', qtd: 12, valor: 18000, conteudoQtd: 500, conteudoUnidade: 'ml' }] };
+    const r = aplicarLote(l, [], []);
+    const mel = r.produtos.find((x) => x.nome === 'Mel')!;
+    expect(mel).toMatchObject({ unidade: 'frasco', conteudoQtd: 500, conteudoUnidade: 'ml', custo: 1500 });
   });
 });

@@ -114,7 +114,7 @@ export function pedidoDe(id: string, raw: unknown): Pedido | null {
   const itens = (Array.isArray(o.itens) ? o.itens : []).slice(0, 80).flatMap((x) => {
     if (!x || typeof x !== 'object') return [];
     const i = x as Record<string, unknown>;
-    return s(i.n, 120) && n(i.g) > 0 ? [{ ...(s(i.i, 64) ? { i: s(i.i, 64) } : {}), n: s(i.n, 120), g: n(i.g), t: Math.round(n(i.t)) }] : [];
+    return s(i.n, 120) && n(i.g) > 0 ? [{ ...(s(i.i, 64) ? { i: s(i.i, 64) } : {}), n: s(i.n, 120), g: n(i.g), t: Math.round(n(i.t)), ...(s(i.u, 40) ? { u: s(i.u, 40) } : {}) }] : [];
   });
   if (!itens.length) return null;
   const sit = SITUACOES_PEDIDO.some((x) => x.id === o.situacao) ? (o.situacao as SituacaoPedido) : 'novo';
@@ -146,7 +146,7 @@ export function pedidoParaPdv(p: Pedido, produtos: Product[], clienteId: string 
       faltando.push(i.n);
       return [];
     }
-    return [{ produtoId: prod.id, qtd: i.g, unidade: 'g', total: i.t }];
+    return [{ produtoId: prod.id, qtd: i.g, unidade: i.u ? prod.unidade : 'g', total: i.t }];
   });
   return {
     venda: { id: newId(), quando: new Date().toISOString(), cliente: `${p.nome || 'Cliente'} (pedido)`, ...(clienteId ? { clienteId } : {}), linhas, ...(p.desconto ? { desconto: p.desconto } : {}) },

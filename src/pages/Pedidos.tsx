@@ -94,7 +94,8 @@ export default function Pedidos() {
                     {p.itens.map((i, k) => (
                       <li key={k}>
                         <span>
-                          <strong>{gramas(i.g)}</strong> {i.n}
+                          <strong>{i.u ? `${i.g} ×` : gramas(i.g)}</strong> {i.n}
+                          {i.u ? <small className="muted"> ({i.u})</small> : null}
                         </span>
                         <span>{formatBRL(i.t)}</span>
                       </li>
